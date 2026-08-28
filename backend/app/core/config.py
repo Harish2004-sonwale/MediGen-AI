@@ -60,6 +60,12 @@ class Settings(BaseSettings):
     AWS_SECRET_ACCESS_KEY: str | None = None
     BEDROCK_MODEL_ID: str = "anthropic.claude-3-haiku-20240307-v1:0"
 
+    # Drug Knowledge Base Configuration (Phase 9.0.2)
+    # Options: 'mock' (offline, default) | 'openfda' (optional external FDA API)
+    DRUG_KNOWLEDGE_PROVIDER: str = "mock"
+    OPENFDA_API_KEY: str | None = None
+    OPENFDA_TIMEOUT_SECONDS: int = 5
+
 
     model_config = SettingsConfigDict(
         env_file=".env",

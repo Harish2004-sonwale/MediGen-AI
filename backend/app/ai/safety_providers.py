@@ -1,13 +1,19 @@
 """Pluggable Clinical Decision Support (CDS) Safety Providers.
 
 Phase 8.9: Longitudinal Clinical Intelligence & Safety Layer.
+Phase 9.0.2: Drug Knowledge Base Adapter integration.
+
 Provides abstract interfaces and deterministic mock implementations for:
 - Drug-Drug Interaction (DDI) checking
 - Condition-Drug Contraindication checking
 
-These providers represent decision-support knowledge boundaries that can be swapped
-for authoritative external databases (e.g. RxNorm, DrugBank, First Databank) without
-altering the core application pipeline.
+Phase 9.0.2 adds:
+- BaseDrugKnowledgeProvider / MockDrugKnowledgeProvider / OpenFDADrugKnowledgeProvider
+  (in app.ai.drug_knowledge_provider)
+- get_configured_drug_knowledge_provider() factory wired to settings
+
+All providers represent decision-support knowledge boundaries that can be swapped
+for authoritative external databases without altering the core application pipeline.
 """
 
 from abc import ABC, abstractmethod
@@ -232,3 +238,19 @@ def get_contraindication_provider(provider_type: str = "mock") -> BaseContraindi
     if provider_type == "mock":
         return MockContraindicationProvider()
     raise ValueError(f"Unknown contraindication provider: '{provider_type}'")
+
+
+def get_configured_drug_knowledge_provider():
+    """Factory that returns the drug knowledge provider configured via settings.
+
+    Phase 9.0.2: resolves DRUG_KNOWLEDGE_PROVIDER from config.
+    Defaults to MockDrugKnowledgeProvider (offline, no credentials required).
+    """
+    from app.core.config import settings
+    from app.ai.drug_knowledge_provider import get_drug_knowledge_provider
+
+    return get_drug_knowledge_provider(
+        provider_type=settings.DRUG_KNOWLEDGE_PROVIDER,
+        api_key=settings.OPENFDA_API_KEY,
+        timeout_seconds=settings.OPENFDA_TIMEOUT_SECONDS,
+    )

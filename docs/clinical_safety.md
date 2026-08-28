@@ -38,6 +38,22 @@ The Clinical Safety Layer provides decision support checks to help clinicians id
                                |  - safe_to_proceed: Bool        |
                                |  - Verified Record Citations    |
                                +---------------------------------+
+
+Phase 9.0.2 — Drug Knowledge Base Adapter:
+
+Drug-Drug Interaction Provider          Contraindication Provider
+           |                                        |
+           v                                        v
+BaseDrugKnowledgeProvider ─────────────────────────+
+           |
+           +── MockDrugKnowledgeProvider    (offline, default)
+           |
+           +── OpenFDADrugKnowledgeProvider (optional external)
+                           |
+                           v
+               openFDA REST API (HTTPS)
+               - /drug/event.json  (FAERS adverse event co-reports)
+               - /drug/label.json  (FDA drug label contraindications)
 ```
 
 ---
@@ -55,11 +71,34 @@ The Clinical Safety Layer provides decision support checks to help clinicians id
 
 ## 4. Pluggable Knowledge Boundary
 
-External drug interaction databases (such as RxNorm, First Databank, or DrugBank) are decoupled behind standard abstract interfaces:
-- `BaseDrugInteractionProvider`
-- `BaseContraindicationProvider`
+### Phase 8.9 Providers (unchanged)
 
-A deterministic `MockDrugInteractionProvider` and `MockContraindicationProvider` are included for local development and offline unit test execution without requiring cloud credentials or paid medical APIs.
+Abstract interfaces:
+- `BaseDrugInteractionProvider` → `MockDrugInteractionProvider`
+- `BaseContraindicationProvider` → `MockContraindicationProvider`
+
+### Phase 9.0.2 Drug Knowledge Adapter (new)
+
+Abstract interface: `BaseDrugKnowledgeProvider`
+
+| Provider | Config Value | Network | Description |
+|---|---|---|---|
+| `MockDrugKnowledgeProvider` | `mock` (default) | No | Offline, deterministic, 15 drugs / 6 DDI rules / 5 contraindications |
+| `OpenFDADrugKnowledgeProvider` | `openfda` | Yes (HTTPS) | Public FDA openFDA API — FAERS adverse events + drug labels |
+
+Configuration:
+```bash
+DRUG_KNOWLEDGE_PROVIDER="mock"   # Default — fully offline
+OPENFDA_API_KEY=""               # Optional — increases rate limits
+OPENFDA_TIMEOUT_SECONDS=5
+```
+
+> [!WARNING]
+> openFDA FAERS adverse event data is NOT a curated pharmacological DDI database.
+> Co-reported adverse events are not confirmed drug interactions.
+> Clinician review is always mandatory regardless of knowledge source.
+
+A deterministic `MockDrugKnowledgeProvider` is included for local development and offline unit test execution without requiring cloud credentials or paid medical APIs.
 
 ---
 
