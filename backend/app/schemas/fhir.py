@@ -1,0 +1,223 @@
+from datetime import date, datetime
+from enum import Enum
+from typing import Any, Optional
+from pydantic import BaseModel, ConfigDict, Field
+
+
+class FHIRResourceType(str, Enum):
+    PATIENT = "Patient"
+    ENCOUNTER = "Encounter"
+    CONDITION = "Condition"
+    MEDICATION_STATEMENT = "MedicationStatement"
+    OBSERVATION = "Observation"
+    BUNDLE = "Bundle"
+
+
+class FHIRCoding(BaseModel):
+    system: Optional[str] = Field(default=None, description="Identity of the terminology system")
+    version: Optional[str] = Field(default=None, description="Version of the system")
+    code: Optional[str] = Field(default=None, description="Symbol in syntax defined by the system")
+    display: Optional[str] = Field(default=None, description="Representation defined by the system")
+    userSelected: Optional[bool] = Field(default=None, description="If this coding was chosen directly by the user")
+
+
+class FHIRCodeableConcept(BaseModel):
+    coding: list[FHIRCoding] = Field(default_factory=list, description="Code defined by a terminology system")
+    text: Optional[str] = Field(default=None, description="Plain text representation")
+
+
+class FHIRIdentifier(BaseModel):
+    use: Optional[str] = Field(default=None, description="usual | official | temp | secondary | old")
+    system: Optional[str] = Field(default=None, description="The namespace for the identifier value")
+    value: Optional[str] = Field(default=None, description="The value that is unique")
+
+
+class FHIRReference(BaseModel):
+    reference: Optional[str] = Field(default=None, description="Literal reference, Relative, internal or absolute URL")
+    type: Optional[str] = Field(default=None, description="Type the reference refers to (e.g. Patient)")
+    identifier: Optional[FHIRIdentifier] = Field(default=None, description="Logical reference, when literal reference is not known")
+    display: Optional[str] = Field(default=None, description="Text alternative for the resource")
+
+
+class FHIRPeriod(BaseModel):
+    start: Optional[str] = Field(default=None, description="Starting time with inclusive boundary")
+    end: Optional[str] = Field(default=None, description="End time with inclusive boundary")
+
+
+class FHIRHumanName(BaseModel):
+    use: Optional[str] = Field(default="official", description="usual | official | temp | nickname | anonymous | old | maiden")
+    text: Optional[str] = Field(default=None, description="Text representation of the full name")
+    family: Optional[str] = Field(default=None, description="Family name (often called 'Surname')")
+    given: list[str] = Field(default_factory=list, description="Given names (not always 'first'). Includes middle names")
+    prefix: list[str] = Field(default_factory=list, description="Parts that come before the name")
+    suffix: list[str] = Field(default_factory=list, description="Parts that come after the name")
+
+
+class FHIRContactPoint(BaseModel):
+    system: Optional[str] = Field(default=None, description="phone | fax | email | pager | url | sms | other")
+    value: Optional[str] = Field(default=None, description="The actual contact point details")
+    use: Optional[str] = Field(default="home", description="home | work | temp | old | mobile")
+
+
+class FHIRAddress(BaseModel):
+    use: Optional[str] = Field(default="home", description="home | work | temp | old | billing")
+    type: Optional[str] = Field(default="both", description="postal | physical | both")
+    text: Optional[str] = Field(default=None, description="Text representation of the address")
+    line: list[str] = Field(default_factory=list, description="Street name, number, direction & P.O. Box etc.")
+    city: Optional[str] = Field(default=None, description="Name of city, town etc.")
+    state: Optional[str] = Field(default=None, description="Sub-unit of country (abbreviations ok)")
+    postalCode: Optional[str] = Field(default=None, description="Postal code for area")
+    country: Optional[str] = Field(default=None, description="Country (can be ISO 3166 2 or 3 letter code)")
+
+
+class FHIRPatientContact(BaseModel):
+    relationship: list[FHIRCodeableConcept] = Field(default_factory=list, description="The kind of relationship")
+    name: Optional[FHIRHumanName] = Field(default=None, description="A name associated with the contact person")
+    telecom: list[FHIRContactPoint] = Field(default_factory=list, description="Contact details for the person")
+
+
+class FHIRQuantity(BaseModel):
+    value: Optional[float] = Field(default=None, description="Numerical value")
+    unit: Optional[str] = Field(default=None, description="Unit representation")
+    system: Optional[str] = Field(default="http://unitsofmeasure.org", description="System that defines coded unit form")
+    code: Optional[str] = Field(default=None, description="Coded form of the unit")
+
+
+class FHIRDosage(BaseModel):
+    text: Optional[str] = Field(default=None, description="Free text dosage instructions")
+    patientInstruction: Optional[str] = Field(default=None, description="Patient oriented instructions")
+
+
+# Concrete FHIR R4 Resources
+
+class FHIRPatient(BaseModel):
+    model_config = ConfigDict(extra="allow", populate_by_name=True)
+
+    resourceType: str = Field(default="Patient", description="FHIR resource type")
+    id: Optional[str] = Field(default=None, description="Logical id of this artifact")
+    identifier: list[FHIRIdentifier] = Field(default_factory=list, description="An identifier for this patient")
+    active: Optional[bool] = Field(default=True, description="Whether this patient's record is in active use")
+    name: list[FHIRHumanName] = Field(default_factory=list, description="A name associated with the patient")
+    telecom: list[FHIRContactPoint] = Field(default_factory=list, description="A contact detail for the individual")
+    gender: Optional[str] = Field(default=None, description="male | female | other | unknown")
+    birthDate: Optional[str] = Field(default=None, description="The date of birth for the individual (YYYY-MM-DD)")
+    address: list[FHIRAddress] = Field(default_factory=list, description="An address for the individual")
+    contact: list[FHIRPatientContact] = Field(default_factory=list, description="A contact party (e.g. guardian, partner, friend)")
+
+
+class FHIREncounterDiagnosis(BaseModel):
+    condition: FHIRReference = Field(..., description="The condition or diagnosis")
+    use: Optional[FHIRCodeableConcept] = Field(default=None, description="Role that this diagnosis has within the encounter")
+    rank: Optional[int] = Field(default=None, description="Ranking of the diagnosis (for billing etc.)")
+
+
+class FHIREncounter(BaseModel):
+    model_config = ConfigDict(extra="allow", populate_by_name=True)
+
+    resourceType: str = Field(default="Encounter", description="FHIR resource type")
+    id: Optional[str] = Field(default=None, description="Logical id of this artifact")
+    identifier: list[FHIRIdentifier] = Field(default_factory=list, description="Identifier(s) by which this encounter is known")
+    status: str = Field(default="finished", description="planned | arrived | triaged | in-progress | onleave | finished | cancelled +")
+    class_: Optional[FHIRCoding] = Field(default=None, alias="class", description="Classification of patient encounter")
+    type: list[FHIRCodeableConcept] = Field(default_factory=list, description="Specific type of encounter")
+    subject: Optional[FHIRReference] = Field(default=None, description="The patient or group present at the encounter")
+    period: Optional[FHIRPeriod] = Field(default=None, description="The start and end-time of the encounter")
+    reasonCode: list[FHIRCodeableConcept] = Field(default_factory=list, description="Coded reason the encounter takes place")
+    diagnosis: list[FHIREncounterDiagnosis] = Field(default_factory=list, description="The list of diagnosis relevant to this encounter")
+
+
+class FHIRAnnotation(BaseModel):
+    text: str = Field(..., description="The annotation text")
+    time: Optional[str] = Field(default=None, description="When the annotation was made")
+
+
+class FHIRCondition(BaseModel):
+    model_config = ConfigDict(extra="allow", populate_by_name=True)
+
+    resourceType: str = Field(default="Condition", description="FHIR resource type")
+    id: Optional[str] = Field(default=None, description="Logical id of this artifact")
+    identifier: list[FHIRIdentifier] = Field(default_factory=list, description="External Ids for this condition")
+    clinicalStatus: Optional[FHIRCodeableConcept] = Field(default=None, description="active | recurrence | relapse | inactive | remission | resolved")
+    verificationStatus: Optional[FHIRCodeableConcept] = Field(default=None, description="unconfirmed | provisional | differential | confirmed | refuted | entered-in-error")
+    category: list[FHIRCodeableConcept] = Field(default_factory=list, description="problem-list-item | encounter-diagnosis")
+    code: Optional[FHIRCodeableConcept] = Field(default=None, description="Identification of the condition, problem or diagnosis")
+    subject: FHIRReference = Field(..., description="Who has the condition?")
+    encounter: Optional[FHIRReference] = Field(default=None, description="Encounter created as part of")
+    recordedDate: Optional[str] = Field(default=None, description="Date record was first recorded")
+    note: list[FHIRAnnotation] = Field(default_factory=list, description="Additional information about the Condition")
+
+
+class FHIRMedicationStatement(BaseModel):
+    model_config = ConfigDict(extra="allow", populate_by_name=True)
+
+    resourceType: str = Field(default="MedicationStatement", description="FHIR resource type")
+    id: Optional[str] = Field(default=None, description="Logical id of this artifact")
+    identifier: list[FHIRIdentifier] = Field(default_factory=list, description="External identifier")
+    status: str = Field(default="active", description="active | completed | entered-in-error | intended | stopped | on-hold | unknown | not-taken")
+    medicationCodeableConcept: Optional[FHIRCodeableConcept] = Field(default=None, description="What medication was taken")
+    subject: FHIRReference = Field(..., description="Who is/was taking the medication")
+    effectiveDateTime: Optional[str] = Field(default=None, description="The date/time or interval when the medication is/was taken")
+    dateAsserted: Optional[str] = Field(default=None, description="When the statement was asserted")
+    dosage: list[FHIRDosage] = Field(default_factory=list, description="Details of how medication was taken")
+    note: list[FHIRAnnotation] = Field(default_factory=list, description="Further information about the statement")
+
+
+class FHIRObservation(BaseModel):
+    model_config = ConfigDict(extra="allow", populate_by_name=True)
+
+    resourceType: str = Field(default="Observation", description="FHIR resource type")
+    id: Optional[str] = Field(default=None, description="Logical id of this artifact")
+    identifier: list[FHIRIdentifier] = Field(default_factory=list, description="Business Identifier for observation")
+    status: str = Field(default="final", description="registered | preliminary | final | amended +")
+    category: list[FHIRCodeableConcept] = Field(default_factory=list, description="Classification of type of observation")
+    code: FHIRCodeableConcept = Field(..., description="Type of observation (code / type)")
+    subject: Optional[FHIRReference] = Field(default=None, description="Who and/or what the observation is about")
+    effectiveDateTime: Optional[str] = Field(default=None, description="Clinically relevant time/time-period for observation")
+    valueQuantity: Optional[FHIRQuantity] = Field(default=None, description="Actual result if quantitative")
+    valueString: Optional[str] = Field(default=None, description="Actual result if string")
+    note: list[FHIRAnnotation] = Field(default_factory=list, description="Comments about the observation")
+
+
+# FHIR Bundle Models
+
+class FHIRBundleEntryRequest(BaseModel):
+    method: str = Field(default="POST", description="GET | HEAD | POST | PUT | DELETE | PATCH")
+    url: str = Field(..., description="URL for request")
+
+
+class FHIRBundleEntry(BaseModel):
+    fullUrl: Optional[str] = Field(default=None, description="URI for entry")
+    resource: Optional[dict[str, Any]] = Field(default=None, description="A resource in the bundle")
+    request: Optional[FHIRBundleEntryRequest] = Field(default=None, description="Transaction/batch request")
+
+
+class FHIRBundle(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    resourceType: str = Field(default="Bundle", description="FHIR resource type")
+    id: Optional[str] = Field(default=None, description="Logical id of this artifact")
+    type: str = Field(default="collection", description="document | message | transaction | transaction-response | batch | batch-response | history | searchset | collection")
+    timestamp: Optional[str] = Field(default=None, description="When the bundle was assembled")
+    total: Optional[int] = Field(default=None, description="If searchset, total number of matches")
+    entry: list[FHIRBundleEntry] = Field(default_factory=list, description="Entry in the bundle - will have a resource or information about a resource")
+
+
+# Import / Operation Schemas
+
+class FHIRImportResult(BaseModel):
+    success: bool = Field(..., description="Whether the import operation succeeded")
+    resource_type: str = Field(..., description="Type of the imported FHIR resource")
+    resource_id: Optional[str] = Field(default=None, description="ID of the FHIR resource")
+    internal_id: Optional[str] = Field(default=None, description="Internal MediGen-AI identifier (e.g. PAT-..., ENC-...)")
+    status: str = Field(..., description="created | updated | skipped | failed")
+    message: str = Field(..., description="Human-readable result summary")
+    validation_errors: list[str] = Field(default_factory=list, description="Validation issues if any")
+
+
+class FHIRBatchImportResponse(BaseModel):
+    success: bool = Field(..., description="Overall batch status")
+    imported: int = Field(default=0, description="Total successfully imported resources")
+    skipped: int = Field(default=0, description="Total skipped resources")
+    failed: int = Field(default=0, description="Total failed resources")
+    results: list[FHIRImportResult] = Field(default_factory=list, description="Individual resource results")
+    errors: list[str] = Field(default_factory=list, description="Batch-level error messages if any")

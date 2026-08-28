@@ -179,6 +179,14 @@ MediGen-AI/
 | `GET` | `/api/v1/timeline/{patient_id}` | Clinical Roles | Get aggregated chronological timeline | `200 OK` |
 | `GET` | `/api/v1/timeline/{patient_id}/summary` | Clinical Roles | Get RAG-grounded longitudinal summary | `200 OK` |
 | `POST` | `/api/v1/safety/check` | Clinical Roles | Run clinical safety check (meds/allergies/DDIs) | `200 OK` |
+| `GET` | `/api/v1/fhir/Patient/{patient_id}` | Authenticated | Export patient demographics as FHIR R4 Patient | `200 OK` |
+| `GET` | `/api/v1/fhir/Encounter/{encounter_id}` | Authenticated | Export encounter as FHIR R4 Encounter | `200 OK` |
+| `GET` | `/api/v1/fhir/Condition/{condition_id}` | Authenticated | Export diagnosis as FHIR R4 Condition | `200 OK` |
+| `GET` | `/api/v1/fhir/MedicationStatement/{medication_id}` | Authenticated | Export medication history as FHIR R4 MedicationStatement | `200 OK` |
+| `GET` | `/api/v1/fhir/Observation/{observation_id}` | Authenticated | Export observation findings as FHIR R4 Observation | `200 OK` |
+| `GET` | `/api/v1/fhir/patients/{patient_id}/bundle` | Authenticated | Export patient history as FHIR R4 collection Bundle | `200 OK` |
+| `POST` | `/api/v1/fhir/import` | Clinical Roles | Ingest and persist a single FHIR R4 resource | `200 OK` |
+| `POST` | `/api/v1/fhir/Bundle` | Clinical Roles | Batch ingest multiple resources from FHIR R4 Bundle | `200 OK` |
 | `GET` | `/docs` | Public | OpenAPI / Swagger Documentation | `200 OK` |
 | `GET` | `/redoc` | Public | ReDoc API Documentation | `200 OK` |
 
@@ -194,10 +202,7 @@ MediGen-AI/
 6. **Milestone 6: Doctor Management & Department Discovery** *(Completed & Verified)* ✅
 7. **Milestone 7: Appointment Scheduling & Care Team Allocation** *(Completed & Verified)* ✅
 8. **Milestone 8: Clinical AI, RAG & Clinical Intelligence** *(Completed & Verified)* ✅
-
-### Next — Milestone 9 / Phase 9.0
-
-Planned:
-- FHIR R4 ingestion & interoperability
-- Authoritative drug knowledge-base adapter
-- Background asynchronous worker architecture
+9. **Milestone 9: Healthcare Interoperability & Integrations**
+   - **Phase 9.0.1 — FHIR R4 Ingestion & Interoperability**: Completed & Verified ✅
+   - **Phase 9.0.2 — Authoritative Drug Knowledge Base Adapter**: Planned / Roadmap 📋
+   - **Phase 9.0.3 — Background Asynchronous Worker Architecture**: Planned / Roadmap 📋

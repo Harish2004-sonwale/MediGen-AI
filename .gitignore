@@ -77,10 +77,6 @@ medical_documents/
 credentials.json
 service-account*.json
 
-# Phase 9 Uncommitted Work & Drafts
-*fhir*
-*phase_9*
-
 # OS files
 .DS_Store
 Thumbs.db

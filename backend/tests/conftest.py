@@ -194,10 +194,11 @@ def test_doctor_user(db_session: Session):
         full_name="Dr. Sarah Connor",
         specialization="Cardiology",
         medical_registration_number="MED-FHIR-REG-001",
-        qualification="MD Cardiology",
+        qualifications="MD Cardiology",
         years_of_experience=10,
+        email="doctor_fhir@example.com",
+        phone="+1-555-0144",
         department="Cardiology",
-        contact_phone="+1-555-0144",
         verification_status=DoctorVerificationStatus.VERIFIED,
         availability_status=DoctorAvailabilityStatus.AVAILABLE,
     )

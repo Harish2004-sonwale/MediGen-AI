@@ -78,3 +78,17 @@
 | `GET` | `/api/v1/patients/{patient_id}/timeline` | Authorized | Retrieve paginated chronological clinical timeline |
 | `GET` | `/api/v1/patients/{patient_id}/timeline/summary` | Authorized | Generate RAG-grounded longitudinal narrative history summary |
 | `POST` | `/api/v1/patients/{patient_id}/safety/check` | Authorized | Run clinical decision support safety evaluation (DDI, allergies, duplicates, contraindications) |
+
+---
+
+## 8. FHIR R4 Interoperability (`/api/v1/fhir`)
+| Method | Path | Access | Description |
+|---|---|---|---|
+| `GET` | `/api/v1/fhir/Patient/{patient_id}` | Authorized | Export patient demographics as FHIR R4 `Patient` |
+| `GET` | `/api/v1/fhir/Encounter/{encounter_id}` | Authorized | Export clinical encounter as FHIR R4 `Encounter` |
+| `GET` | `/api/v1/fhir/Condition/{condition_id}` | Authorized | Export diagnosis as FHIR R4 `Condition` |
+| `GET` | `/api/v1/fhir/MedicationStatement/{medication_id}` | Authorized | Export medication regimen as FHIR R4 `MedicationStatement` |
+| `GET` | `/api/v1/fhir/Observation/{observation_id}` | Authorized | Export lab findings as FHIR R4 `Observation` |
+| `GET` | `/api/v1/fhir/patients/{patient_id}/bundle` | Authorized | Export longitudinal history as a FHIR R4 `collection` `Bundle` |
+| `POST` | `/api/v1/fhir/import` | Authorized / Staff | Ingest & persist a single FHIR R4 resource |
+| `POST` | `/api/v1/fhir/Bundle` | Authorized / Staff | Batch import multiple resources from a FHIR R4 `Bundle` |
