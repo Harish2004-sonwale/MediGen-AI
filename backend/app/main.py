@@ -6,6 +6,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 import uvicorn
 
+from app.api.v1.api import api_router
 from app.core.config import settings
 from app.database import get_db
 
@@ -23,6 +24,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Include API v1 router
+app.include_router(api_router, prefix=settings.API_V1_STR)
 
 
 @app.get("/")

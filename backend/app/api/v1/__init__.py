@@ -1,4 +1,4 @@
-"""API routers package."""
+"""API v1 Package."""
 
 from app.api.v1.api import api_router
 

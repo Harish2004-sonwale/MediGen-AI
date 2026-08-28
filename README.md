@@ -4,6 +4,7 @@
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.110+-009688.svg)](https://fastapi.tiangolo.com/)
 [![SQLAlchemy](https://img.shields.io/badge/SQLAlchemy-2.0+-red.svg)](https://www.sqlalchemy.org/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-14+-336791.svg)](https://www.postgresql.org/)
+[![JWT](https://img.shields.io/badge/Auth-JWT%20%2B%20Bcrypt-orange.svg)](docs/authentication.md)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 MediGen AI is an AI-powered Clinical Decision Support System (CDSS) designed to assist healthcare professionals with:
@@ -26,13 +27,16 @@ MediGen AI is an AI-powered Clinical Decision Support System (CDSS) designed to 
 ## 📌 Current Development Status
 
 - **Milestone 1 — Initial Backend Foundation**: Completed & Pushed ✅
-- **Milestone 2 — PostgreSQL Database Foundation**: Implemented & Verified ✅
-  - [x] Modern SQLAlchemy 2.0 ORM base and Psycopg 3 driver configured
-  - [x] Connection pooling with liveness verification (`pool_pre_ping=True`)
-  - [x] Request-scoped session management (`get_db` FastAPI dependency)
-  - [x] Database health check endpoint (`GET /health/db`) with safe error handling
-  - [x] Unit test suite and live integration test configuration
-  - [x] Comprehensive database setup documentation ([`docs/database.md`](docs/database.md))
+- **Milestone 2 — PostgreSQL Database Foundation**: Completed & Pushed ✅
+- **Milestone 3 — Authentication & User Roles**: Implemented & Verified ✅
+  - [x] User registration with email validation and unique constraints (`POST /api/v1/auth/register`)
+  - [x] Secure password hashing using Bcrypt
+  - [x] JWT token issuance and authentication (`POST /api/v1/auth/login`)
+  - [x] Protected current user profile endpoint (`GET /api/v1/auth/me`)
+  - [x] Role-Based Access Control foundation (`admin`, `doctor`, `healthcare_staff`)
+  - [x] Database migration framework configured with Alembic (`users` table migration)
+  - [x] Full automated test suite (13 unit tests, 2 live integration tests)
+  - [x] Comprehensive authentication guide ([`docs/authentication.md`](docs/authentication.md))
 
 ---
 
@@ -42,6 +46,8 @@ MediGen AI is an AI-powered Clinical Decision Support System (CDSS) designed to 
 - **API Framework:** FastAPI (>=0.110.0)
 - **ASGI Server:** Uvicorn (>=0.28.0)
 - **ORM & Database:** SQLAlchemy 2.0 (>=2.0.28), Psycopg 3 (>=3.1.18), PostgreSQL (14+)
+- **Migrations:** Alembic (>=1.13.0)
+- **Security & Auth:** PyJWT (>=2.8.0), Bcrypt (>=4.0.1), Email-Validator (>=2.1.0)
 - **Settings & Validation:** Pydantic (>=2.6.0), Pydantic Settings (>=2.2.0)
 - **Testing & Client:** Pytest (>=8.0.0), HTTPX (>=0.27.0)
 
@@ -52,36 +58,45 @@ MediGen AI is an AI-powered Clinical Decision Support System (CDSS) designed to 
 ```text
 MediGen-AI/
 ├── backend/
+│   ├── alembic/           # Alembic database migrations
+│   │   ├── versions/      # Migration scripts (e.g. 0001_create_users_table.py)
+│   │   └── env.py         # Migration environment configuration
 │   ├── app/
 │   │   ├── ai/            # AI pipelines & model integrations (planned)
-│   │   ├── api/           # API endpoints & routers (planned)
-│   │   ├── core/          # Core configuration & application settings
-│   │   │   ├── __init__.py
-│   │   │   └── config.py  # Pydantic Settings configuration
+│   │   ├── api/           # API routers & endpoints
+│   │   │   ├── v1/
+│   │   │   │   ├── endpoints/
+│   │   │   │   │   └── auth.py  # Authentication endpoints
+│   │   │   │   └── api.py       # API v1 router aggregator
+│   │   │   └── deps.py    # Auth & role-checking dependencies
+│   │   ├── core/          # Configuration & security
+│   │   │   ├── config.py  # Pydantic Settings configuration
+│   │   │   └── security.py# Password hashing & JWT helpers
 │   │   ├── database/      # Database foundation
-│   │   │   ├── __init__.py# Export Base, engine, SessionLocal, get_db
 │   │   │   ├── base.py    # SQLAlchemy 2.0 DeclarativeBase
-│   │   │   ├── connection.py # SQLAlchemy Engine & pool setup
+│   │   │   ├── connection.py # Engine & pool setup
 │   │   │   └── session.py # Request-scoped session dependency
-│   │   ├── models/        # Database ORM models (planned)
-│   │   ├── schemas/       # Pydantic data schemas (planned)
-│   │   ├── services/      # Business logic & services (planned)
+│   │   ├── models/        # Database ORM models (User)
+│   │   ├── schemas/       # Pydantic data schemas (User, Token)
+│   │   ├── services/      # Business logic (user_service.py)
 │   │   ├── __init__.py
-│   │   └── main.py        # FastAPI entrypoint & health endpoints
+│   │   └── main.py        # FastAPI entrypoint
 │   ├── tests/             # Automated test suite
-│   │   ├── __init__.py
-│   │   ├── conftest.py    # Pytest fixtures & TestClient configuration
-│   │   ├── test_database_health.py      # Unit tests for /health/db
+│   │   ├── conftest.py    # Pytest fixtures & in-memory test database
+│   │   ├── test_auth.py   # Auth, JWT, and RBAC tests
+│   │   ├── test_database_health.py      # DB health endpoint tests
 │   │   ├── test_database_integration.py # Live PostgreSQL integration tests
-│   │   └── test_main.py   # Root & app health endpoint tests
+│   │   └── test_main.py   # Root & app health tests
 │   ├── .env.example       # Environment configuration template
+│   ├── alembic.ini        # Alembic configuration
 │   ├── pytest.ini         # Pytest configuration
 │   └── requirements.txt   # Backend dependencies
-├── database/              # Database migrations & schemas (planned)
+├── database/              # Database scripts and seeds (planned)
 ├── datasets/              # Clinical test datasets (planned)
 ├── docker/                # Container configurations (planned)
 ├── docs/                  # Architecture & system documentation
-│   └── database.md        # Detailed PostgreSQL database guide
+│   ├── authentication.md  # Auth & RBAC documentation
+│   └── database.md        # PostgreSQL database guide
 ├── frontend/              # Web application user interface (planned)
 ├── screenshots/           # UI captures & visual assets (planned)
 ├── tests/                 # Integration & end-to-end test suites (planned)
@@ -126,43 +141,47 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### 3. Configure Local Database & Environment Variables
-
-1. Create the `medigen_ai` database in PostgreSQL (see [`docs/database.md`](docs/database.md) for step-by-step Windows instructions).
-2. Copy `.env.example` to `.env`:
-   ```bash
-   cp .env.example .env
-   ```
-3. Update `DATABASE_URL` in `.env` with your PostgreSQL password:
-   ```env
-   DATABASE_URL="postgresql+psycopg://postgres:YOUR_POSTGRES_PASSWORD@localhost:5432/medigen_ai"
-   ```
-
-### 4. Start the FastAPI Development Server
+### 3. Configure Environment Variables
 
 ```bash
-# Run with Uvicorn
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+cp .env.example .env
+```
 
-# Or run via Python module
-python -m app.main
+Update `.env` with your local PostgreSQL credentials and a secure JWT secret key:
+
+```env
+DATABASE_URL="postgresql+psycopg://postgres:YOUR_POSTGRES_PASSWORD@localhost:5432/medigen_ai"
+JWT_SECRET_KEY="YOUR_ACTUAL_SECURE_JWT_SECRET_KEY"
+```
+
+### 4. Apply Database Migrations
+
+```bash
+alembic upgrade head
+```
+
+### 5. Start the FastAPI Development Server
+
+```bash
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 The API will be available at:
 - **Root Endpoint:** [http://127.0.0.1:8000/](http://127.0.0.1:8000/)
 - **Application Health:** [http://127.0.0.1:8000/health](http://127.0.0.1:8000/health)
 - **Database Health:** [http://127.0.0.1:8000/health/db](http://127.0.0.1:8000/health/db)
-- **Interactive Swagger Documentation:** [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
+- **Auth Module Health:** [http://127.0.0.1:8000/api/v1/auth/health](http://127.0.0.1:8000/api/v1/auth/health)
+- **Interactive Swagger Docs:** [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
 - **ReDoc Documentation:** [http://127.0.0.1:8000/redoc](http://127.0.0.1:8000/redoc)
 
 ---
 
 ## 🧪 Running Automated Tests
 
-Run the automated test suite with `pytest`:
+Run the complete test suite with `pytest`:
 
 ```bash
-# Run unit tests (no active database required)
+# Run unit tests
 pytest -v
 
 # Run including live PostgreSQL integration tests (requires live database)
@@ -173,21 +192,25 @@ RUN_DB_INTEGRATION_TESTS=1 pytest -v
 
 ## 📡 API Endpoints
 
-| Method | Endpoint | Description | Status Code | Response Example |
+| Method | Endpoint | Access | Description | Status Code |
 |---|---|---|---|---|
-| `GET` | `/` | API Root / Welcome Message | `200 OK` | `{"message": "Welcome to MediGen AI API", "status": "running"}` |
-| `GET` | `/health` | Application Health Check | `200 OK` | `{"status": "healthy"}` |
-| `GET` | `/health/db` | Database Health Check | `200 OK` / `503 Unavailable` | `{"status": "healthy", "database": "connected"}` |
-| `GET` | `/docs` | OpenAPI / Swagger UI | `200 OK` | Interactive API documentation |
-| `GET` | `/redoc` | ReDoc API Documentation | `200 OK` | Alternative interactive API documentation |
+| `GET` | `/` | Public | API Root / Welcome | `200 OK` |
+| `GET` | `/health` | Public | Application Health Check | `200 OK` |
+| `GET` | `/health/db` | Public | PostgreSQL Database Connectivity Check | `200 OK` / `503 Unavailable` |
+| `POST` | `/api/v1/auth/register` | Public | Register a new user | `201 Created` |
+| `POST` | `/api/v1/auth/login` | Public | Login and obtain JWT Bearer Token | `200 OK` |
+| `GET` | `/api/v1/auth/me` | Authenticated | Get current authenticated user profile | `200 OK` / `401 Unauthorized` |
+| `GET` | `/api/v1/auth/health` | Public | Auth Module Health Check | `200 OK` |
+| `GET` | `/docs` | Public | OpenAPI / Swagger Interactive Documentation | `200 OK` |
+| `GET` | `/redoc` | Public | ReDoc Interactive Documentation | `200 OK` |
 
 ---
 
 ## 🗺️ Project Roadmap & Planned Milestones
 
 1. **Milestone 1: Backend Foundation** *(Completed & Pushed)* ✅
-2. **Milestone 2: Database Layer & Relational Modeling** *(Implemented & Ready for Review)* ✅
-3. **Milestone 3: Authentication & Role-Based Access Control** *(Planned)*
+2. **Milestone 2: Database Layer & Relational Modeling** *(Completed & Pushed)* ✅
+3. **Milestone 3: Authentication & Role-Based Access Control** *(Implemented & Ready for Review)* ✅
 4. **Milestone 4: Patient & Electronic Health Records Management** *(Planned)*
 5. **Milestone 5: Clinical Retrieval-Augmented Generation (RAG) & Document Analysis** *(Planned)*
 6. **Milestone 6: Clinical Frontend Dashboard** *(Planned)*
