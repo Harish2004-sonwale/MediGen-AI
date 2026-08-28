@@ -1,5 +1,13 @@
 """Services package for business logic implementations."""
 
+from app.services.encounter_service import (
+    create_encounter,
+    generate_unique_encounter_id,
+    get_encounter_by_encounter_id,
+    get_encounter_by_id,
+    list_patient_encounters,
+    update_encounter,
+)
 from app.services.patient_service import (
     create_patient,
     deactivate_patient,
@@ -28,4 +36,10 @@ __all__ = [
     "list_patients",
     "update_patient",
     "deactivate_patient",
+    "generate_unique_encounter_id",
+    "create_encounter",
+    "get_encounter_by_encounter_id",
+    "get_encounter_by_id",
+    "list_patient_encounters",
+    "update_encounter",
 ]

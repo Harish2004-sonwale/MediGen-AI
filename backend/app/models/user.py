@@ -1,9 +1,13 @@
 from datetime import datetime
+from typing import TYPE_CHECKING
 from sqlalchemy import Boolean, DateTime, Enum, Integer, String, func
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database.base import Base
 from app.schemas.user import UserRole
+
+if TYPE_CHECKING:
+    from app.models.encounter import Encounter
 
 
 class User(Base):
@@ -33,6 +37,12 @@ class User(Base):
         onupdate=func.now(),
         default=func.now(),
         nullable=False,
+    )
+
+    # Relationships
+    encounters: Mapped[list["Encounter"]] = relationship(
+        "Encounter",
+        back_populates="attending_user",
     )
 
     def __repr__(self) -> str:

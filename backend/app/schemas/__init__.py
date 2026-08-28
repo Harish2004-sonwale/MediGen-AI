@@ -1,5 +1,13 @@
 """Schemas package for data validation and serialization."""
 
+from app.schemas.encounter import (
+    EncounterCreate,
+    EncounterListResponse,
+    EncounterResponse,
+    EncounterStatus,
+    EncounterType,
+    EncounterUpdate,
+)
 from app.schemas.patient import (
     Gender,
     PatientCreate,
@@ -29,4 +37,10 @@ __all__ = [
     "PatientUpdate",
     "PatientResponse",
     "PatientListResponse",
+    "EncounterType",
+    "EncounterStatus",
+    "EncounterCreate",
+    "EncounterUpdate",
+    "EncounterResponse",
+    "EncounterListResponse",
 ]

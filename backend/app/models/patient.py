@@ -1,9 +1,13 @@
 from datetime import date, datetime
+from typing import TYPE_CHECKING
 from sqlalchemy import Date, DateTime, Enum, Integer, String, func
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database.base import Base
 from app.schemas.patient import Gender, PatientStatus
+
+if TYPE_CHECKING:
+    from app.models.encounter import Encounter
 
 
 class Patient(Base):
@@ -43,6 +47,12 @@ class Patient(Base):
         onupdate=func.now(),
         default=func.now(),
         nullable=False,
+    )
+
+    # Relationships: Preserves clinical history without cascading deletion
+    encounters: Mapped[list["Encounter"]] = relationship(
+        "Encounter",
+        back_populates="patient",
     )
 
     def __repr__(self) -> str:

@@ -20,7 +20,7 @@ MediGen AI is an AI-powered Clinical Decision Support System (CDSS) designed to 
 
 > [!IMPORTANT]
 > **MediGen AI is designed strictly as an assistive clinical decision support tool.**
-> All AI-generated outputs, analyses, summaries, and suggestions must undergo rigorous review and verification by certified healthcare professionals before any clinical application or treatment decision. MediGen AI does not provide standalone diagnostic determinations or replace professional medical judgment.
+> All AI-generated outputs, analyses, summaries, and suggestions must undergo rigorous review and verification by certified healthcare professionals before any clinical application or treatment decision. MediGen AI does not provide standalone diagnostic determinations or replace professional medical judgment. Clinician-authored medical records remain strictly distinguishable and segregated from AI-generated assistance.
 
 ---
 
@@ -29,15 +29,15 @@ MediGen AI is an AI-powered Clinical Decision Support System (CDSS) designed to 
 - **Milestone 1 — Initial Backend Foundation**: Completed & Pushed ✅
 - **Milestone 2 — PostgreSQL Database Foundation**: Completed & Pushed ✅
 - **Milestone 3 — Authentication & User Roles**: Completed & Pushed ✅
-- **Milestone 4 — Patient Management**: Implemented & Verified ✅
-  - [x] Patient ORM model with safe public `patient_id` (`PAT-YYYYMMDD-XXXX`)
-  - [x] Full CRUD operations (Register, Paginated Search/List, Detail, Patch Update, Soft Deactivate)
-  - [x] Role-Based Access Control integration (`admin`, `doctor`, `healthcare_staff`)
-  - [x] Multi-field search (name, ID, phone, email, status) and pagination
-  - [x] Soft-delete mechanism preserving clinical history
-  - [x] Alembic migration (`0002_create_patients_table.py`)
-  - [x] Automated test suite (22 unit tests, 2 live integration tests)
-  - [x] Module documentation ([`docs/patients.md`](docs/patients.md))
+- **Milestone 4 — Patient Management**: Completed & Pushed ✅
+- **Milestone 5 — Medical Records & Clinical Encounters**: Implemented & Verified ✅
+  - [x] Clinical encounter ORM model with relational foreign keys (`patients.id`, `users.id`)
+  - [x] Clinician authorship attribution and structured encounter taxonomy
+  - [x] Endpoints for encounter registration, chronological listing, lookup, and updates
+  - [x] Paginated patient encounter histories
+  - [x] Alembic migration (`0003_create_encounters_table.py`)
+  - [x] Comprehensive test suite (29 unit tests, 2 live integration tests)
+  - [x] Module documentation ([`docs/medical_records.md`](docs/medical_records.md))
 
 ---
 
@@ -62,16 +62,18 @@ MediGen-AI/
 │   ├── alembic/           # Alembic database migrations
 │   │   ├── versions/      # Migration scripts
 │   │   │   ├── 0001_create_users_table.py
-│   │   │   └── 0002_create_patients_table.py
+│   │   │   ├── 0002_create_patients_table.py
+│   │   │   └── 0003_create_encounters_table.py
 │   │   └── env.py         # Migration environment configuration
 │   ├── app/
 │   │   ├── ai/            # AI pipelines & model integrations (planned)
 │   │   ├── api/           # API routers & endpoints
 │   │   │   ├── v1/
 │   │   │   │   ├── endpoints/
-│   │   │   │   │   ├── auth.py     # Authentication endpoints
-│   │   │   │   │   └── patients.py # Patient management endpoints
-│   │   │   │   └── api.py          # API v1 router aggregator
+│   │   │   │   │   ├── auth.py       # Authentication endpoints
+│   │   │   │   │   ├── patients.py   # Patient management endpoints
+│   │   │   │   │   └── encounters.py # Clinical encounter endpoints
+│   │   │   │   └── api.py            # API v1 router aggregator
 │   │   │   └── deps.py    # Auth & role-checking dependencies
 │   │   ├── core/          # Configuration & security
 │   │   │   ├── config.py  # Pydantic Settings configuration
@@ -80,16 +82,17 @@ MediGen-AI/
 │   │   │   ├── base.py    # SQLAlchemy 2.0 DeclarativeBase
 │   │   │   ├── connection.py # Engine & pool setup
 │   │   │   └── session.py # Request-scoped session dependency
-│   │   ├── models/        # Database ORM models (User, Patient)
-│   │   ├── schemas/       # Pydantic data schemas (User, Patient, Token)
-│   │   ├── services/      # Business logic (user_service, patient_service)
+│   │   ├── models/        # Database ORM models (User, Patient, Encounter)
+│   │   ├── schemas/       # Pydantic schemas (User, Patient, Encounter, Token)
+│   │   ├── services/      # Business logic (user, patient, encounter services)
 │   │   ├── __init__.py
 │   │   └── main.py        # FastAPI entrypoint
 │   ├── tests/             # Automated test suite
 │   │   ├── conftest.py    # Pytest fixtures & in-memory test database
 │   │   ├── test_auth.py   # Auth, JWT, and RBAC tests
-│   │   ├── test_patients.py# Patient management CRUD & permission tests
-│   │   ├── test_database_health.py      # DB health endpoint tests
+│   │   ├── test_patients.py # Patient management tests
+│   │   ├── test_encounters.py # Clinical encounter tests
+│   │   ├── test_database_health.py      # DB health tests
 │   │   ├── test_database_integration.py # Live PostgreSQL integration tests
 │   │   └── test_main.py   # Root & app health tests
 │   ├── .env.example       # Environment configuration template
@@ -102,7 +105,8 @@ MediGen-AI/
 ├── docs/                  # Architecture & system documentation
 │   ├── authentication.md  # Auth & RBAC documentation
 │   ├── database.md        # PostgreSQL database guide
-│   └── patients.md        # Patient management documentation
+│   ├── patients.md        # Patient management documentation
+│   └── medical_records.md # Clinical encounters documentation
 ├── frontend/              # Web application user interface (planned)
 ├── screenshots/           # UI captures & visual assets (planned)
 ├── tests/                 # Integration & end-to-end test suites (planned)
@@ -126,10 +130,7 @@ MediGen-AI/
 From the project root:
 
 ```bash
-# Navigate to the backend directory
 cd backend
-
-# Create a Python virtual environment
 python -m venv .venv
 
 # Activate the virtual environment
@@ -213,6 +214,10 @@ RUN_DB_INTEGRATION_TESTS=1 pytest -v
 | `GET` | `/api/v1/patients/{patient_id}` | Clinical Roles | Retrieve patient profile by patient_id | `200 OK` |
 | `PATCH` | `/api/v1/patients/{patient_id}` | Clinical Roles | Update patient demographic details | `200 OK` |
 | `DELETE` | `/api/v1/patients/{patient_id}` | Admin / Doctor | Soft-delete / deactivate patient record | `200 OK` |
+| `POST` | `/api/v1/patients/{patient_id}/encounters` | Clinical Roles | Record a new clinical encounter for patient | `201 Created` |
+| `GET` | `/api/v1/patients/{patient_id}/encounters` | Clinical Roles | List chronological encounters for patient | `200 OK` |
+| `GET` | `/api/v1/encounters/{encounter_id}` | Clinical Roles | Retrieve encounter details by encounter identifier | `200 OK` |
+| `PATCH` | `/api/v1/encounters/{encounter_id}` | Clinical Roles | Update encounter notes, assessment, plan, status | `200 OK` |
 | `GET` | `/docs` | Public | OpenAPI / Swagger Documentation | `200 OK` |
 | `GET` | `/redoc` | Public | ReDoc API Documentation | `200 OK` |
 
@@ -223,8 +228,8 @@ RUN_DB_INTEGRATION_TESTS=1 pytest -v
 1. **Milestone 1: Backend Foundation** *(Completed & Pushed)* ✅
 2. **Milestone 2: Database Layer & Relational Modeling** *(Completed & Pushed)* ✅
 3. **Milestone 3: Authentication & Role-Based Access Control** *(Completed & Pushed)* ✅
-4. **Milestone 4: Patient Management** *(Implemented & Ready for Review)* ✅
-5. **Milestone 5: Clinical Encounters & Medical Records Management** *(Planned)*
+4. **Milestone 4: Patient Management** *(Completed & Pushed)* ✅
+5. **Milestone 5: Medical Records & Clinical Encounters** *(Implemented & Ready for Review)* ✅
 6. **Milestone 6: Clinical Retrieval-Augmented Generation (RAG) & Document Analysis** *(Planned)*
 7. **Milestone 7: Clinical Frontend Dashboard** *(Planned)*
 8. **Milestone 8: End-to-End Testing, Security Audits, and Production Deployment** *(Planned)*
