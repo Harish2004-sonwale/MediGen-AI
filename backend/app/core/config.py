@@ -26,6 +26,41 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = "HS256"
     JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
 
+    # Medical Document Storage & Chunking Configuration
+    DOCUMENT_STORAGE_PATH: str = "data/medical_documents"
+    MAX_DOCUMENT_SIZE_MB: int = 10
+    DOCUMENT_CHUNK_SIZE_TOKENS: int = 500
+    DOCUMENT_CHUNK_OVERLAP_TOKENS: int = 100
+
+    # Vector Database & Embedding Configuration (Phase 8.4)
+    EMBEDDING_PROVIDER: str = "mock"
+    EMBEDDING_DIMENSION: int = 384
+    VECTOR_DB_PATH: str = "data/vector_db"
+    VECTOR_COLLECTION_NAME: str = "medical_documents"
+    VECTOR_TOP_K: int = 5
+
+    # Clinical RAG & LLM Configuration (Phase 8.5, 8.6 & 8.8)
+    RAG_TOP_K: int = 5
+    RAG_MIN_SIMILARITY: float = 0.0
+    LLM_PROVIDER: str = "mock"
+    LLM_MODEL: str = "medigen-clinical-v1"
+    RAG_MAX_CONTEXT_CHUNKS: int = 10
+    CHAT_HISTORY_MAX_TURNS: int = 5
+    OPENAI_API_KEY: str | None = None
+    OPENAI_BASE_URL: str | None = None
+    ANTHROPIC_API_KEY: str | None = None
+
+    # Pluggable OCR Configuration (Phase 8.8)
+    OCR_ENABLED: bool = False
+    OCR_PROVIDER: str = "mock"
+
+    # AWS & Bedrock Configuration (Phase 8.8)
+    AWS_REGION: str = "us-east-1"
+    AWS_ACCESS_KEY_ID: str | None = None
+    AWS_SECRET_ACCESS_KEY: str | None = None
+    BEDROCK_MODEL_ID: str = "anthropic.claude-3-haiku-20240307-v1:0"
+
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

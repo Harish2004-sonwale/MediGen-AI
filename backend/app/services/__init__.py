@@ -14,6 +14,15 @@ from app.services.appointment_service import (
     resolve_patient,
     update_appointment,
 )
+from app.services.chat_service import (
+    close_chat_session,
+    create_chat_session,
+    get_chat_session,
+    list_patient_chat_sessions,
+    resolve_chat_session,
+    send_chat_message,
+    stream_chat_message,
+)
 from app.services.doctor_service import (
     activate_doctor,
     create_doctor,
@@ -27,6 +36,24 @@ from app.services.doctor_service import (
     reject_doctor,
     update_doctor,
     verify_doctor,
+)
+from app.services.document_processing_service import (
+    generate_unique_chunk_id,
+    process_medical_document,
+)
+from app.services.document_service import (
+    build_chunk_response,
+    build_document_response,
+    create_medical_document,
+    delete_document_file,
+    delete_medical_document,
+    generate_unique_document_id,
+    get_document_by_id,
+    get_document_chunks,
+    has_patient_clinical_access,
+    list_documents,
+    save_document_file,
+    validate_file_metadata,
 )
 from app.services.encounter_service import (
     create_encounter,
@@ -45,11 +72,25 @@ from app.services.patient_service import (
     list_patients,
     update_patient,
 )
+from app.services.rag_service import (
+    execute_rag_query,
+    validate_patient_rag_access,
+)
+from app.services.safety_service import evaluate_patient_safety
+from app.services.timeline_service import (
+    get_patient_timeline,
+    get_patient_timeline_summary,
+)
 from app.services.user_service import (
     authenticate_user,
     create_user,
     get_user_by_email,
     get_user_by_id,
+)
+from app.services.vector_indexing_service import (
+    build_vector_metadata,
+    index_document_chunks,
+    remove_document_vectors,
 )
 
 __all__ = [
@@ -94,4 +135,33 @@ __all__ = [
     "confirm_appointment",
     "cancel_appointment",
     "complete_appointment",
+    "generate_unique_document_id",
+    "has_patient_clinical_access",
+    "validate_file_metadata",
+    "save_document_file",
+    "delete_document_file",
+    "build_document_response",
+    "build_chunk_response",
+    "create_medical_document",
+    "get_document_by_id",
+    "list_documents",
+    "get_document_chunks",
+    "delete_medical_document",
+    "generate_unique_chunk_id",
+    "process_medical_document",
+    "build_vector_metadata",
+    "index_document_chunks",
+    "remove_document_vectors",
+    "validate_patient_rag_access",
+    "execute_rag_query",
+    "resolve_chat_session",
+    "create_chat_session",
+    "get_chat_session",
+    "list_patient_chat_sessions",
+    "close_chat_session",
+    "send_chat_message",
+    "stream_chat_message",
+    "get_patient_timeline",
+    "get_patient_timeline_summary",
+    "evaluate_patient_safety",
 ]

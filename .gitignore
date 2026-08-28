@@ -65,6 +65,21 @@ htmlcov/
 *.log
 *.sqlite
 *.sqlite3
+*.db
+data/
+backend/data/
+vector_db/
+medical_documents/
+
+# Secrets and Keys
+*.pem
+*.key
+credentials.json
+service-account*.json
+
+# Phase 9 Uncommitted Work & Drafts
+*fhir*
+*phase_9*
 
 # OS files
 .DS_Store

@@ -33,8 +33,8 @@ MediGen AI is an AI-powered Clinical Decision Support System (CDSS) designed to 
 - **Milestone 3 — Authentication & User Roles**: Completed & Pushed ✅
 - **Milestone 4 — Patient Management**: Completed & Pushed ✅
 - **Milestone 5 — Medical Records & Clinical Encounters**: Completed & Pushed ✅
-- **Milestone 6 — Doctor Management & Department Discovery**: Implemented & Verified ✅
-- **Milestone 7 — Appointment Scheduling & Care Team Allocation**: Implemented & Verified ✅
+- **Milestone 6 — Doctor Management & Department Discovery**: Completed & Verified ✅
+- **Milestone 7 — Appointment Scheduling & Care Team Allocation**: Completed & Verified ✅
   - [x] Appointment ORM model with foreign keys to Patient & Doctor (`ondelete="RESTRICT"`)
   - [x] Appointment status lifecycle (`scheduled`, `confirmed`, `completed`, `cancelled`, `rejected`)
   - [x] Conflict prevention (validates future time & prevents overlapping doctor bookings)
@@ -42,6 +42,12 @@ MediGen AI is an AI-powered Clinical Decision Support System (CDSS) designed to 
   - [x] Alembic migration (`0006_create_appointments_table.py`)
   - [x] Comprehensive automated test suite (46 unit tests, 2 live integration tests)
   - [x] Module documentation ([`docs/appointments.md`](docs/appointments.md))
+- **Milestone 8 — Clinical AI, RAG & Clinical Intelligence**: Completed & Verified ✅
+  - **Phase 8.5 — Clinical RAG**: Patient-scoped RAG, query embeddings, ChromaDB vector retrieval, PostgreSQL authoritative verification, grounded LLM synthesis, citation validation, prompt injection defense, cross-patient isolation, RBAC, and zero-PHI operational logging.
+  - **Phase 8.6 — Multi-Turn Clinical Chat**: Persistent chat sessions & messages, multi-turn conversational memory, RAG + conversation history grounding, patient RBAC, citation persistence, and cloud LLM adapter architecture.
+  - **Phase 8.7 — Production Hardening & E2E Validation**: End-to-end document ingestion & RAG pipeline, persistent ChromaDB vector lifecycle management, cross-patient isolation, path traversal protection, deployment and API documentation.
+  - **Phase 8.8 — Streaming, OCR & AWS Bedrock**: Server-Sent Events (SSE) clinical response streaming, pluggable OCR architecture with Mock and optional AWS Textract adapter boundaries, and AWS Bedrock LLM provider (Claude/Titan models with streaming support). *(AWS integrations are optional cloud adapters).*
+  - **Phase 8.9 — Longitudinal Clinical Intelligence & Safety**: Comprehensive patient clinical timeline, historical clinical event aggregation, RAG-grounded longitudinal summaries, medication duplication detection, allergy warning conflict detection, extensible drug-drug interaction & contraindication provider architecture, and strict clinician-review safety boundaries.
 
 ---
 
@@ -51,6 +57,7 @@ MediGen AI is an AI-powered Clinical Decision Support System (CDSS) designed to 
 - **API Framework:** FastAPI (>=0.110.0)
 - **ASGI Server:** Uvicorn (>=0.28.0)
 - **ORM & Database:** SQLAlchemy 2.0 (>=2.0.28), Psycopg 3 (>=3.1.18), PostgreSQL (14+)
+- **Vector Database:** ChromaDB (>=0.4.24)
 - **Migrations:** Alembic (>=1.13.0)
 - **Security & Auth:** PyJWT (>=2.8.0), Bcrypt (>=4.0.1), Email-Validator (>=2.1.0)
 - **Settings & Validation:** Pydantic (>=2.6.0), Pydantic Settings (>=2.2.0)
@@ -70,42 +77,34 @@ MediGen-AI/
 │   │   │   ├── 0003_create_encounters_table.py
 │   │   │   ├── 0004_create_doctors_table.py
 │   │   │   ├── 0005_add_doctor_department.py
-│   │   │   └── 0006_create_appointments_table.py
+│   │   │   ├── 0006_create_appointments_table.py
+│   │   │   ├── 0007_create_medical_documents_table.py
+│   │   │   └── 0008_create_chat_sessions_tables.py
 │   │   └── env.py         # Migration environment configuration
 │   ├── app/
-│   │   ├── ai/            # AI pipelines & model integrations (planned)
+│   │   ├── ai/            # AI pipelines, RAG, embeddings, OCR, LLM adapters
 │   │   ├── api/           # API routers & endpoints
 │   │   │   ├── v1/
 │   │   │   │   ├── endpoints/
 │   │   │   │   │   ├── appointments.py # Appointment scheduling endpoints
 │   │   │   │   │   ├── auth.py         # Authentication endpoints
+│   │   │   │   │   ├── chat.py         # Multi-turn clinical chat & streaming
 │   │   │   │   │   ├── doctors.py      # Doctor management endpoints
+│   │   │   │   │   ├── documents.py    # Document upload & processing endpoints
 │   │   │   │   │   ├── encounters.py   # Clinical encounter endpoints
-│   │   │   │   │   └── patients.py     # Patient management endpoints
+│   │   │   │   │   ├── patients.py     # Patient management endpoints
+│   │   │   │   │   ├── rag.py          # Clinical RAG query endpoints
+│   │   │   │   │   ├── safety.py       # Clinical safety & drug check endpoints
+│   │   │   │   │   └── timeline.py     # Longitudinal timeline endpoints
 │   │   │   │   └── api.py              # API v1 router aggregator
 │   │   │   └── deps.py    # Auth & role-checking dependencies
 │   │   ├── core/          # Configuration & security
-│   │   │   ├── config.py  # Pydantic Settings configuration
-│   │   │   └── security.py# Password hashing & JWT helpers
 │   │   ├── database/      # Database foundation
-│   │   │   ├── base.py    # SQLAlchemy 2.0 DeclarativeBase
-│   │   │   ├── connection.py # Engine & pool setup
-│   │   │   └── session.py # Request-scoped session dependency
-│   │   ├── models/        # Database ORM models (User, Patient, Encounter, Doctor, Appointment)
+│   │   ├── models/        # Database ORM models
 │   │   ├── schemas/       # Pydantic schemas
 │   │   ├── services/      # Business logic services
-│   │   ├── __init__.py
 │   │   └── main.py        # FastAPI entrypoint
-│   ├── tests/             # Automated test suite
-│   │   ├── conftest.py    # Pytest fixtures & in-memory test database
-│   │   ├── test_appointments.py # Appointment scheduling & conflict tests
-│   │   ├── test_auth.py   # Auth, JWT, and RBAC tests
-│   │   ├── test_doctors.py# Doctor profile, verification, and discovery tests
-│   │   ├── test_encounters.py # Clinical encounter tests
-│   │   ├── test_patients.py # Patient management tests
-│   │   ├── test_database_health.py      # DB health tests
-│   │   ├── test_database_integration.py # Live PostgreSQL integration tests
-│   │   └── test_main.py   # Root & app health tests
+│   ├── tests/             # Automated test suite (163 tests, 100% passing)
 │   ├── .env.example       # Environment configuration template
 │   ├── alembic.ini        # Alembic configuration
 │   ├── pytest.ini         # Pytest configuration
@@ -116,7 +115,16 @@ MediGen-AI/
 │   ├── database.md        # PostgreSQL database guide
 │   ├── doctors.md         # Doctor management documentation
 │   ├── medical_records.md # Clinical encounters documentation
-│   └── patients.md        # Patient management documentation
+│   ├── patients.md        # Patient management documentation
+│   ├── documents.md       # Document upload and management
+│   ├── document_processing.md # Chunking and text extraction
+│   ├── vector_database.md # Vector database and indexing
+│   ├── rag.md             # Clinical RAG architecture
+│   ├── clinical_chat.md   # Multi-turn chat and streaming
+│   ├── clinical_timeline.md # Longitudinal timeline aggregation
+│   ├── clinical_safety.md # Clinical safety and interaction checks
+│   ├── deployment.md      # Deployment guide
+│   └── api_overview.md    # Full API reference
 ├── LICENSE                # MIT License
 └── README.md              # Project documentation
 ```
@@ -161,6 +169,16 @@ MediGen-AI/
 | `POST` | `/api/v1/appointments/{appointment_id}/confirm` | Admin / Staff / Doctor | Confirm scheduled appointment | `200 OK` |
 | `POST` | `/api/v1/appointments/{appointment_id}/cancel` | Authenticated | Cancel scheduled appointment | `200 OK` |
 | `POST` | `/api/v1/appointments/{appointment_id}/complete` | Admin / Staff / Doctor | Mark appointment completed | `200 OK` |
+| `POST` | `/api/v1/documents/upload` | Clinical Roles | Upload medical document (PDF, DOCX, TXT) | `201 Created` |
+| `GET` | `/api/v1/documents/{document_id}` | Clinical Roles | Get document metadata & processing status | `200 OK` |
+| `GET` | `/api/v1/documents/patient/{patient_id}` | Clinical Roles | List documents for a patient | `200 OK` |
+| `POST` | `/api/v1/rag/query` | Authenticated | Execute grounded clinical RAG query | `200 OK` |
+| `POST` | `/api/v1/chat/sessions` | Authenticated | Create a new clinical chat session | `201 Created` |
+| `POST` | `/api/v1/chat/sessions/{session_id}/messages` | Authenticated | Send message in session (grounded RAG) | `200 OK` |
+| `GET` | `/api/v1/chat/sessions/{session_id}/stream` | Authenticated | SSE streaming clinical chat response | `200 OK` |
+| `GET` | `/api/v1/timeline/{patient_id}` | Clinical Roles | Get aggregated chronological timeline | `200 OK` |
+| `GET` | `/api/v1/timeline/{patient_id}/summary` | Clinical Roles | Get RAG-grounded longitudinal summary | `200 OK` |
+| `POST` | `/api/v1/safety/check` | Clinical Roles | Run clinical safety check (meds/allergies/DDIs) | `200 OK` |
 | `GET` | `/docs` | Public | OpenAPI / Swagger Documentation | `200 OK` |
 | `GET` | `/redoc` | Public | ReDoc API Documentation | `200 OK` |
 
@@ -173,8 +191,13 @@ MediGen-AI/
 3. **Milestone 3: Authentication & Role-Based Access Control** *(Completed & Pushed)* ✅
 4. **Milestone 4: Patient Management** *(Completed & Pushed)* ✅
 5. **Milestone 5: Medical Records & Clinical Encounters** *(Completed & Pushed)* ✅
-6. **Milestone 6: Doctor Management & Department Discovery** *(Implemented & Verified)* ✅
-7. **Milestone 7: Appointment Scheduling & Care Team Allocation** *(Implemented & Verified)* ✅
-8. **Milestone 8: Clinical Retrieval-Augmented Generation (RAG) & Document Analysis** *(Planned)*
-9. **Milestone 9: Clinical Frontend Dashboard** *(Planned)*
-10. **Milestone 10: End-to-End Testing, Security Audits, and Production Deployment** *(Planned)*
+6. **Milestone 6: Doctor Management & Department Discovery** *(Completed & Verified)* ✅
+7. **Milestone 7: Appointment Scheduling & Care Team Allocation** *(Completed & Verified)* ✅
+8. **Milestone 8: Clinical AI, RAG & Clinical Intelligence** *(Completed & Verified)* ✅
+
+### Next — Milestone 9 / Phase 9.0
+
+Planned:
+- FHIR R4 ingestion & interoperability
+- Authoritative drug knowledge-base adapter
+- Background asynchronous worker architecture

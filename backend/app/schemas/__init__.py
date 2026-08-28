@@ -10,6 +10,14 @@ from app.schemas.appointment import (
     AppointmentStatus,
     AppointmentUpdate,
 )
+from app.schemas.chat import (
+    ChatMessageCreate,
+    ChatMessageResponse,
+    ChatSessionCreate,
+    ChatSessionDetailResponse,
+    ChatSessionListResponse,
+    ChatSessionResponse,
+)
 from app.schemas.doctor import (
     ConsultationMode,
     DoctorAdminUpdate,
@@ -22,6 +30,17 @@ from app.schemas.doctor import (
     DoctorUpdate,
     DoctorVerificationStatus,
     DoctorVerifyRequest,
+)
+from app.schemas.document import (
+    DocumentBase,
+    DocumentChunkListResponse,
+    DocumentChunkResponse,
+    DocumentCreate,
+    DocumentListResponse,
+    DocumentMetadataUpdate,
+    DocumentProcessingStatus,
+    DocumentResponse,
+    DocumentType,
 )
 from app.schemas.encounter import (
     EncounterCreate,
@@ -38,6 +57,24 @@ from app.schemas.patient import (
     PatientResponse,
     PatientStatus,
     PatientUpdate,
+)
+from app.schemas.rag import (
+    RAGCitation,
+    RAGQueryRequest,
+    RAGQueryResponse,
+)
+from app.schemas.safety import (
+    ClinicalSafetyAlert,
+    ClinicalSafetyReport,
+    SafetyAlertType,
+    SafetyCheckRequest,
+    SafetySeverity,
+)
+from app.schemas.timeline import (
+    ClinicalTimelineEvent,
+    TimelineEventType,
+    TimelineListResponse,
+    TimelineSummaryResponse,
 )
 from app.schemas.token import TokenPayload, TokenResponse
 from app.schemas.user import (
@@ -85,4 +122,31 @@ __all__ = [
     "AppointmentRejectRequest",
     "AppointmentResponse",
     "AppointmentListResponse",
+    "DocumentType",
+    "DocumentProcessingStatus",
+    "DocumentBase",
+    "DocumentCreate",
+    "DocumentMetadataUpdate",
+    "DocumentResponse",
+    "DocumentListResponse",
+    "DocumentChunkResponse",
+    "DocumentChunkListResponse",
+    "RAGCitation",
+    "RAGQueryRequest",
+    "RAGQueryResponse",
+    "ChatSessionCreate",
+    "ChatSessionResponse",
+    "ChatSessionDetailResponse",
+    "ChatSessionListResponse",
+    "ChatMessageCreate",
+    "ChatMessageResponse",
+    "TimelineEventType",
+    "ClinicalTimelineEvent",
+    "TimelineListResponse",
+    "TimelineSummaryResponse",
+    "SafetySeverity",
+    "SafetyAlertType",
+    "ClinicalSafetyAlert",
+    "SafetyCheckRequest",
+    "ClinicalSafetyReport",
 ]
