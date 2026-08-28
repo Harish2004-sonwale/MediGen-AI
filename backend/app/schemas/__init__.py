@@ -1,5 +1,13 @@
 """Schemas package for data validation and serialization."""
 
+from app.schemas.patient import (
+    Gender,
+    PatientCreate,
+    PatientListResponse,
+    PatientResponse,
+    PatientStatus,
+    PatientUpdate,
+)
 from app.schemas.token import TokenPayload, TokenResponse
 from app.schemas.user import (
     UserLoginRequest,
@@ -15,4 +23,10 @@ __all__ = [
     "UserResponse",
     "TokenResponse",
     "TokenPayload",
+    "Gender",
+    "PatientStatus",
+    "PatientCreate",
+    "PatientUpdate",
+    "PatientResponse",
+    "PatientListResponse",
 ]

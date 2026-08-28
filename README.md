@@ -28,15 +28,16 @@ MediGen AI is an AI-powered Clinical Decision Support System (CDSS) designed to 
 
 - **Milestone 1 — Initial Backend Foundation**: Completed & Pushed ✅
 - **Milestone 2 — PostgreSQL Database Foundation**: Completed & Pushed ✅
-- **Milestone 3 — Authentication & User Roles**: Implemented & Verified ✅
-  - [x] User registration with email validation and unique constraints (`POST /api/v1/auth/register`)
-  - [x] Secure password hashing using Bcrypt
-  - [x] JWT token issuance and authentication (`POST /api/v1/auth/login`)
-  - [x] Protected current user profile endpoint (`GET /api/v1/auth/me`)
-  - [x] Role-Based Access Control foundation (`admin`, `doctor`, `healthcare_staff`)
-  - [x] Database migration framework configured with Alembic (`users` table migration)
-  - [x] Full automated test suite (13 unit tests, 2 live integration tests)
-  - [x] Comprehensive authentication guide ([`docs/authentication.md`](docs/authentication.md))
+- **Milestone 3 — Authentication & User Roles**: Completed & Pushed ✅
+- **Milestone 4 — Patient Management**: Implemented & Verified ✅
+  - [x] Patient ORM model with safe public `patient_id` (`PAT-YYYYMMDD-XXXX`)
+  - [x] Full CRUD operations (Register, Paginated Search/List, Detail, Patch Update, Soft Deactivate)
+  - [x] Role-Based Access Control integration (`admin`, `doctor`, `healthcare_staff`)
+  - [x] Multi-field search (name, ID, phone, email, status) and pagination
+  - [x] Soft-delete mechanism preserving clinical history
+  - [x] Alembic migration (`0002_create_patients_table.py`)
+  - [x] Automated test suite (22 unit tests, 2 live integration tests)
+  - [x] Module documentation ([`docs/patients.md`](docs/patients.md))
 
 ---
 
@@ -59,15 +60,18 @@ MediGen AI is an AI-powered Clinical Decision Support System (CDSS) designed to 
 MediGen-AI/
 ├── backend/
 │   ├── alembic/           # Alembic database migrations
-│   │   ├── versions/      # Migration scripts (e.g. 0001_create_users_table.py)
+│   │   ├── versions/      # Migration scripts
+│   │   │   ├── 0001_create_users_table.py
+│   │   │   └── 0002_create_patients_table.py
 │   │   └── env.py         # Migration environment configuration
 │   ├── app/
 │   │   ├── ai/            # AI pipelines & model integrations (planned)
 │   │   ├── api/           # API routers & endpoints
 │   │   │   ├── v1/
 │   │   │   │   ├── endpoints/
-│   │   │   │   │   └── auth.py  # Authentication endpoints
-│   │   │   │   └── api.py       # API v1 router aggregator
+│   │   │   │   │   ├── auth.py     # Authentication endpoints
+│   │   │   │   │   └── patients.py # Patient management endpoints
+│   │   │   │   └── api.py          # API v1 router aggregator
 │   │   │   └── deps.py    # Auth & role-checking dependencies
 │   │   ├── core/          # Configuration & security
 │   │   │   ├── config.py  # Pydantic Settings configuration
@@ -76,14 +80,15 @@ MediGen-AI/
 │   │   │   ├── base.py    # SQLAlchemy 2.0 DeclarativeBase
 │   │   │   ├── connection.py # Engine & pool setup
 │   │   │   └── session.py # Request-scoped session dependency
-│   │   ├── models/        # Database ORM models (User)
-│   │   ├── schemas/       # Pydantic data schemas (User, Token)
-│   │   ├── services/      # Business logic (user_service.py)
+│   │   ├── models/        # Database ORM models (User, Patient)
+│   │   ├── schemas/       # Pydantic data schemas (User, Patient, Token)
+│   │   ├── services/      # Business logic (user_service, patient_service)
 │   │   ├── __init__.py
 │   │   └── main.py        # FastAPI entrypoint
 │   ├── tests/             # Automated test suite
 │   │   ├── conftest.py    # Pytest fixtures & in-memory test database
 │   │   ├── test_auth.py   # Auth, JWT, and RBAC tests
+│   │   ├── test_patients.py# Patient management CRUD & permission tests
 │   │   ├── test_database_health.py      # DB health endpoint tests
 │   │   ├── test_database_integration.py # Live PostgreSQL integration tests
 │   │   └── test_main.py   # Root & app health tests
@@ -96,7 +101,8 @@ MediGen-AI/
 ├── docker/                # Container configurations (planned)
 ├── docs/                  # Architecture & system documentation
 │   ├── authentication.md  # Auth & RBAC documentation
-│   └── database.md        # PostgreSQL database guide
+│   ├── database.md        # PostgreSQL database guide
+│   └── patients.md        # Patient management documentation
 ├── frontend/              # Web application user interface (planned)
 ├── screenshots/           # UI captures & visual assets (planned)
 ├── tests/                 # Integration & end-to-end test suites (planned)
@@ -170,7 +176,8 @@ The API will be available at:
 - **Root Endpoint:** [http://127.0.0.1:8000/](http://127.0.0.1:8000/)
 - **Application Health:** [http://127.0.0.1:8000/health](http://127.0.0.1:8000/health)
 - **Database Health:** [http://127.0.0.1:8000/health/db](http://127.0.0.1:8000/health/db)
-- **Auth Module Health:** [http://127.0.0.1:8000/api/v1/auth/health](http://127.0.0.1:8000/api/v1/auth/health)
+- **Auth Health:** [http://127.0.0.1:8000/api/v1/auth/health](http://127.0.0.1:8000/api/v1/auth/health)
+- **Patients API:** [http://127.0.0.1:8000/api/v1/patients](http://127.0.0.1:8000/api/v1/patients)
 - **Interactive Swagger Docs:** [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
 - **ReDoc Documentation:** [http://127.0.0.1:8000/redoc](http://127.0.0.1:8000/redoc)
 
@@ -197,12 +204,17 @@ RUN_DB_INTEGRATION_TESTS=1 pytest -v
 | `GET` | `/` | Public | API Root / Welcome | `200 OK` |
 | `GET` | `/health` | Public | Application Health Check | `200 OK` |
 | `GET` | `/health/db` | Public | PostgreSQL Database Connectivity Check | `200 OK` / `503 Unavailable` |
-| `POST` | `/api/v1/auth/register` | Public | Register a new user | `201 Created` |
+| `POST` | `/api/v1/auth/register` | Public | Register new user | `201 Created` |
 | `POST` | `/api/v1/auth/login` | Public | Login and obtain JWT Bearer Token | `200 OK` |
-| `GET` | `/api/v1/auth/me` | Authenticated | Get current authenticated user profile | `200 OK` / `401 Unauthorized` |
+| `GET` | `/api/v1/auth/me` | Authenticated | Get current user profile | `200 OK` |
 | `GET` | `/api/v1/auth/health` | Public | Auth Module Health Check | `200 OK` |
-| `GET` | `/docs` | Public | OpenAPI / Swagger Interactive Documentation | `200 OK` |
-| `GET` | `/redoc` | Public | ReDoc Interactive Documentation | `200 OK` |
+| `POST` | `/api/v1/patients` | Clinical Roles | Register new patient record | `201 Created` |
+| `GET` | `/api/v1/patients` | Clinical Roles | Search and list patients (paginated) | `200 OK` |
+| `GET` | `/api/v1/patients/{patient_id}` | Clinical Roles | Retrieve patient profile by patient_id | `200 OK` |
+| `PATCH` | `/api/v1/patients/{patient_id}` | Clinical Roles | Update patient demographic details | `200 OK` |
+| `DELETE` | `/api/v1/patients/{patient_id}` | Admin / Doctor | Soft-delete / deactivate patient record | `200 OK` |
+| `GET` | `/docs` | Public | OpenAPI / Swagger Documentation | `200 OK` |
+| `GET` | `/redoc` | Public | ReDoc API Documentation | `200 OK` |
 
 ---
 
@@ -210,8 +222,9 @@ RUN_DB_INTEGRATION_TESTS=1 pytest -v
 
 1. **Milestone 1: Backend Foundation** *(Completed & Pushed)* ✅
 2. **Milestone 2: Database Layer & Relational Modeling** *(Completed & Pushed)* ✅
-3. **Milestone 3: Authentication & Role-Based Access Control** *(Implemented & Ready for Review)* ✅
-4. **Milestone 4: Patient & Electronic Health Records Management** *(Planned)*
-5. **Milestone 5: Clinical Retrieval-Augmented Generation (RAG) & Document Analysis** *(Planned)*
-6. **Milestone 6: Clinical Frontend Dashboard** *(Planned)*
-7. **Milestone 7: End-to-End Testing, Security Audits, and Production Deployment** *(Planned)*
+3. **Milestone 3: Authentication & Role-Based Access Control** *(Completed & Pushed)* ✅
+4. **Milestone 4: Patient Management** *(Implemented & Ready for Review)* ✅
+5. **Milestone 5: Clinical Encounters & Medical Records Management** *(Planned)*
+6. **Milestone 6: Clinical Retrieval-Augmented Generation (RAG) & Document Analysis** *(Planned)*
+7. **Milestone 7: Clinical Frontend Dashboard** *(Planned)*
+8. **Milestone 8: End-to-End Testing, Security Audits, and Production Deployment** *(Planned)*

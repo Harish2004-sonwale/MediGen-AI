@@ -1,5 +1,6 @@
 """Models package exposing ORM entities."""
 
+from app.models.patient import Patient
 from app.models.user import User
 
-__all__ = ["User"]
+__all__ = ["User", "Patient"]
