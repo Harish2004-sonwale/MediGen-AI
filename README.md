@@ -2,6 +2,8 @@
 
 [![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.110+-009688.svg)](https://fastapi.tiangolo.com/)
+[![SQLAlchemy](https://img.shields.io/badge/SQLAlchemy-2.0+-red.svg)](https://www.sqlalchemy.org/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-14+-336791.svg)](https://www.postgresql.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 MediGen AI is an AI-powered Clinical Decision Support System (CDSS) designed to assist healthcare professionals with:
@@ -23,24 +25,25 @@ MediGen AI is an AI-powered Clinical Decision Support System (CDSS) designed to 
 
 ## 📌 Current Development Status
 
-**Current Milestone:** `Milestone 1 — Initial Backend Foundation` (Completed)
-
-- [x] Backend directory and package structure initialized
-- [x] FastAPI application core configured with CORS middleware
-- [x] Environment configuration management implemented using Pydantic Settings
-- [x] Automated test suite configured with Pytest and TestClient
-- [x] Health check and root API endpoints verified
-- [x] Local development environment established with Uvicorn
+- **Milestone 1 — Initial Backend Foundation**: Completed & Pushed ✅
+- **Milestone 2 — PostgreSQL Database Foundation**: Implemented & Verified ✅
+  - [x] Modern SQLAlchemy 2.0 ORM base and Psycopg 3 driver configured
+  - [x] Connection pooling with liveness verification (`pool_pre_ping=True`)
+  - [x] Request-scoped session management (`get_db` FastAPI dependency)
+  - [x] Database health check endpoint (`GET /health/db`) with safe error handling
+  - [x] Unit test suite and live integration test configuration
+  - [x] Comprehensive database setup documentation ([`docs/database.md`](docs/database.md))
 
 ---
 
-## 🛠️ Technology Stack (Milestone 1)
+## 🛠️ Technology Stack
 
 - **Language:** Python 3.11+
 - **API Framework:** FastAPI (>=0.110.0)
 - **ASGI Server:** Uvicorn (>=0.28.0)
-- **Data Validation & Settings:** Pydantic (>=2.6.0), Pydantic Settings (>=2.2.0)
-- **Testing & HTTP Client:** Pytest (>=8.0.0), HTTPX (>=0.27.0)
+- **ORM & Database:** SQLAlchemy 2.0 (>=2.0.28), Psycopg 3 (>=3.1.18), PostgreSQL (14+)
+- **Settings & Validation:** Pydantic (>=2.6.0), Pydantic Settings (>=2.2.0)
+- **Testing & Client:** Pytest (>=8.0.0), HTTPX (>=0.27.0)
 
 ---
 
@@ -50,26 +53,35 @@ MediGen AI is an AI-powered Clinical Decision Support System (CDSS) designed to 
 MediGen-AI/
 ├── backend/
 │   ├── app/
-│   │   ├── ai/            # AI pipelines & model integrations (future milestones)
-│   │   ├── api/           # API endpoints & routers (future milestones)
+│   │   ├── ai/            # AI pipelines & model integrations (planned)
+│   │   ├── api/           # API endpoints & routers (planned)
 │   │   ├── core/          # Core configuration & application settings
-│   │   ├── database/      # Database sessions & connections (future milestones)
-│   │   ├── models/        # Database ORM models (future milestones)
-│   │   ├── schemas/       # Pydantic data schemas (future milestones)
-│   │   ├── services/      # Business logic & services (future milestones)
+│   │   │   ├── __init__.py
+│   │   │   └── config.py  # Pydantic Settings configuration
+│   │   ├── database/      # Database foundation
+│   │   │   ├── __init__.py# Export Base, engine, SessionLocal, get_db
+│   │   │   ├── base.py    # SQLAlchemy 2.0 DeclarativeBase
+│   │   │   ├── connection.py # SQLAlchemy Engine & pool setup
+│   │   │   └── session.py # Request-scoped session dependency
+│   │   ├── models/        # Database ORM models (planned)
+│   │   ├── schemas/       # Pydantic data schemas (planned)
+│   │   ├── services/      # Business logic & services (planned)
 │   │   ├── __init__.py
-│   │   └── main.py        # FastAPI entrypoint & application initialization
+│   │   └── main.py        # FastAPI entrypoint & health endpoints
 │   ├── tests/             # Automated test suite
 │   │   ├── __init__.py
 │   │   ├── conftest.py    # Pytest fixtures & TestClient configuration
-│   │   └── test_main.py   # Root & health endpoint test cases
+│   │   ├── test_database_health.py      # Unit tests for /health/db
+│   │   ├── test_database_integration.py # Live PostgreSQL integration tests
+│   │   └── test_main.py   # Root & app health endpoint tests
 │   ├── .env.example       # Environment configuration template
 │   ├── pytest.ini         # Pytest configuration
-│   └── requirements.txt   # Milestone 1 backend dependencies
+│   └── requirements.txt   # Backend dependencies
 ├── database/              # Database migrations & schemas (planned)
 ├── datasets/              # Clinical test datasets (planned)
 ├── docker/                # Container configurations (planned)
-├── docs/                  # Architecture & system documentation (planned)
+├── docs/                  # Architecture & system documentation
+│   └── database.md        # Detailed PostgreSQL database guide
 ├── frontend/              # Web application user interface (planned)
 ├── screenshots/           # UI captures & visual assets (planned)
 ├── tests/                 # Integration & end-to-end test suites (planned)
@@ -85,6 +97,7 @@ MediGen-AI/
 ### Prerequisites
 
 - Python 3.11 or higher
+- PostgreSQL 14+ (installed locally)
 - Git
 
 ### 1. Set Up Virtual Environment
@@ -113,12 +126,17 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### 3. Configure Environment Variables
+### 3. Configure Local Database & Environment Variables
 
-```bash
-# Copy example configuration file
-cp .env.example .env
-```
+1. Create the `medigen_ai` database in PostgreSQL (see [`docs/database.md`](docs/database.md) for step-by-step Windows instructions).
+2. Copy `.env.example` to `.env`:
+   ```bash
+   cp .env.example .env
+   ```
+3. Update `DATABASE_URL` in `.env` with your PostgreSQL password:
+   ```env
+   DATABASE_URL="postgresql+psycopg://postgres:YOUR_POSTGRES_PASSWORD@localhost:5432/medigen_ai"
+   ```
 
 ### 4. Start the FastAPI Development Server
 
@@ -132,7 +150,8 @@ python -m app.main
 
 The API will be available at:
 - **Root Endpoint:** [http://127.0.0.1:8000/](http://127.0.0.1:8000/)
-- **Health Check:** [http://127.0.0.1:8000/health](http://127.0.0.1:8000/health)
+- **Application Health:** [http://127.0.0.1:8000/health](http://127.0.0.1:8000/health)
+- **Database Health:** [http://127.0.0.1:8000/health/db](http://127.0.0.1:8000/health/db)
 - **Interactive Swagger Documentation:** [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
 - **ReDoc Documentation:** [http://127.0.0.1:8000/redoc](http://127.0.0.1:8000/redoc)
 
@@ -143,39 +162,33 @@ The API will be available at:
 Run the automated test suite with `pytest`:
 
 ```bash
-# Run tests from the backend directory
-pytest
-
-# Run tests with verbose output
+# Run unit tests (no active database required)
 pytest -v
+
+# Run including live PostgreSQL integration tests (requires live database)
+RUN_DB_INTEGRATION_TESTS=1 pytest -v
 ```
 
 ---
 
-## 📡 API Endpoints (Milestone 1)
+## 📡 API Endpoints
 
-| Method | Endpoint | Description | Response Example |
-|---|---|---|---|
-| `GET` | `/` | API Root / Welcome Message | `{"message": "Welcome to MediGen AI API", "status": "running"}` |
-| `GET` | `/health` | Application Health Check | `{"status": "healthy"}` |
-| `GET` | `/docs` | OpenAPI / Swagger UI | Interactive API documentation |
-| `GET` | `/redoc` | ReDoc API Documentation | Alternative interactive API documentation |
+| Method | Endpoint | Description | Status Code | Response Example |
+|---|---|---|---|---|
+| `GET` | `/` | API Root / Welcome Message | `200 OK` | `{"message": "Welcome to MediGen AI API", "status": "running"}` |
+| `GET` | `/health` | Application Health Check | `200 OK` | `{"status": "healthy"}` |
+| `GET` | `/health/db` | Database Health Check | `200 OK` / `503 Unavailable` | `{"status": "healthy", "database": "connected"}` |
+| `GET` | `/docs` | OpenAPI / Swagger UI | `200 OK` | Interactive API documentation |
+| `GET` | `/redoc` | ReDoc API Documentation | `200 OK` | Alternative interactive API documentation |
 
 ---
 
 ## 🗺️ Project Roadmap & Planned Milestones
 
-1. **Milestone 1: Backend Foundation** *(Completed)*
-   - FastAPI core initialization, environment settings, automated testing, and health endpoints.
-2. **Milestone 2: Database Layer & Relational Modeling** *(Planned)*
-   - PostgreSQL integration, SQLAlchemy 2.0 ORM, and Alembic migrations.
+1. **Milestone 1: Backend Foundation** *(Completed & Pushed)* ✅
+2. **Milestone 2: Database Layer & Relational Modeling** *(Implemented & Ready for Review)* ✅
 3. **Milestone 3: Authentication & Role-Based Access Control** *(Planned)*
-   - JWT-based authentication, user roles (Clinician, Radiologist, Admin).
 4. **Milestone 4: Patient & Electronic Health Records Management** *(Planned)*
-   - Patient profiling, encounter logging, and clinical record management.
 5. **Milestone 5: Clinical Retrieval-Augmented Generation (RAG) & Document Analysis** *(Planned)*
-   - Medical guideline embedding, vector search, clinical document analysis, and assistive summarization.
 6. **Milestone 6: Clinical Frontend Dashboard** *(Planned)*
-   - Modern responsive web interface for healthcare professionals.
 7. **Milestone 7: End-to-End Testing, Security Audits, and Production Deployment** *(Planned)*
-   - Full containerization, HIPAA/GDPR compliance checks, and cloud deployment.

@@ -1,8 +1,13 @@
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import Session
 import uvicorn
 
 from app.core.config import settings
+from app.database import get_db
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -33,6 +38,26 @@ def health_check():
     return {
         "status": "healthy",
     }
+
+
+@app.get("/health/db")
+def health_check_db(db: Session = Depends(get_db)):
+    """Check live connectivity to the PostgreSQL database by executing SELECT 1."""
+    try:
+        db.execute(text("SELECT 1"))
+        return {
+            "status": "healthy",
+            "database": "connected",
+        }
+    except (SQLAlchemyError, Exception):
+        return JSONResponse(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            content={
+                "status": "unhealthy",
+                "database": "disconnected",
+                "detail": "Database is unreachable or query execution failed",
+            },
+        )
 
 
 if __name__ == "__main__":
