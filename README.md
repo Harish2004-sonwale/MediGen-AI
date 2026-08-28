@@ -9,6 +9,7 @@
 
 MediGen AI is an AI-powered Clinical Decision Support System (CDSS) designed to assist healthcare professionals with:
 - Patient information management
+- Doctor profile verification and discovery
 - Medical document analysis
 - Clinical knowledge retrieval
 - AI-assisted documentation
@@ -30,14 +31,17 @@ MediGen AI is an AI-powered Clinical Decision Support System (CDSS) designed to 
 - **Milestone 2 — PostgreSQL Database Foundation**: Completed & Pushed ✅
 - **Milestone 3 — Authentication & User Roles**: Completed & Pushed ✅
 - **Milestone 4 — Patient Management**: Completed & Pushed ✅
-- **Milestone 5 — Medical Records & Clinical Encounters**: Implemented & Verified ✅
-  - [x] Clinical encounter ORM model with relational foreign keys (`patients.id`, `users.id`)
-  - [x] Clinician authorship attribution and structured encounter taxonomy
-  - [x] Endpoints for encounter registration, chronological listing, lookup, and updates
-  - [x] Paginated patient encounter histories
-  - [x] Alembic migration (`0003_create_encounters_table.py`)
-  - [x] Comprehensive test suite (29 unit tests, 2 live integration tests)
-  - [x] Module documentation ([`docs/medical_records.md`](docs/medical_records.md))
+- **Milestone 5 — Medical Records & Clinical Encounters**: Completed & Pushed ✅
+- **Milestone 6 — Doctor Management Foundation**: Implemented & Verified ✅
+  - [x] Doctor ORM model with 1-to-1 user association and unique registration number
+  - [x] Doctor verification lifecycle (`pending`, `verified`, `rejected`, `inactive`)
+  - [x] Multi-field patient discovery search (specialization, experience, location, mode)
+  - [x] Doctor self-profile management (`GET/PATCH /api/v1/doctors/me`)
+  - [x] Admin credential verification & rejection workflows
+  - [x] Availability toggle (`available`, `busy`, `on_leave`, `unavailable`)
+  - [x] Alembic migration (`0004_create_doctors_table.py`)
+  - [x] Comprehensive automated test suite (40 unit tests, 2 live integration tests)
+  - [x] Module documentation ([`docs/doctors.md`](docs/doctors.md))
 
 ---
 
@@ -63,7 +67,8 @@ MediGen-AI/
 │   │   ├── versions/      # Migration scripts
 │   │   │   ├── 0001_create_users_table.py
 │   │   │   ├── 0002_create_patients_table.py
-│   │   │   └── 0003_create_encounters_table.py
+│   │   │   ├── 0003_create_encounters_table.py
+│   │   │   └── 0004_create_doctors_table.py
 │   │   └── env.py         # Migration environment configuration
 │   ├── app/
 │   │   ├── ai/            # AI pipelines & model integrations (planned)
@@ -71,8 +76,9 @@ MediGen-AI/
 │   │   │   ├── v1/
 │   │   │   │   ├── endpoints/
 │   │   │   │   │   ├── auth.py       # Authentication endpoints
-│   │   │   │   │   ├── patients.py   # Patient management endpoints
-│   │   │   │   │   └── encounters.py # Clinical encounter endpoints
+│   │   │   │   │   ├── doctors.py    # Doctor management endpoints
+│   │   │   │   │   ├── encounters.py # Clinical encounter endpoints
+│   │   │   │   │   └── patients.py   # Patient management endpoints
 │   │   │   │   └── api.py            # API v1 router aggregator
 │   │   │   └── deps.py    # Auth & role-checking dependencies
 │   │   ├── core/          # Configuration & security
@@ -82,16 +88,17 @@ MediGen-AI/
 │   │   │   ├── base.py    # SQLAlchemy 2.0 DeclarativeBase
 │   │   │   ├── connection.py # Engine & pool setup
 │   │   │   └── session.py # Request-scoped session dependency
-│   │   ├── models/        # Database ORM models (User, Patient, Encounter)
-│   │   ├── schemas/       # Pydantic schemas (User, Patient, Encounter, Token)
-│   │   ├── services/      # Business logic (user, patient, encounter services)
+│   │   ├── models/        # Database ORM models (User, Patient, Encounter, Doctor)
+│   │   ├── schemas/       # Pydantic schemas (User, Patient, Encounter, Doctor, Token)
+│   │   ├── services/      # Business logic (user, patient, encounter, doctor services)
 │   │   ├── __init__.py
 │   │   └── main.py        # FastAPI entrypoint
 │   ├── tests/             # Automated test suite
 │   │   ├── conftest.py    # Pytest fixtures & in-memory test database
 │   │   ├── test_auth.py   # Auth, JWT, and RBAC tests
-│   │   ├── test_patients.py # Patient management tests
+│   │   ├── test_doctors.py# Doctor profile, verification, and discovery tests
 │   │   ├── test_encounters.py # Clinical encounter tests
+│   │   ├── test_patients.py # Patient management tests
 │   │   ├── test_database_health.py      # DB health tests
 │   │   ├── test_database_integration.py # Live PostgreSQL integration tests
 │   │   └── test_main.py   # Root & app health tests
@@ -105,8 +112,9 @@ MediGen-AI/
 ├── docs/                  # Architecture & system documentation
 │   ├── authentication.md  # Auth & RBAC documentation
 │   ├── database.md        # PostgreSQL database guide
-│   ├── patients.md        # Patient management documentation
-│   └── medical_records.md # Clinical encounters documentation
+│   ├── doctors.md         # Doctor management documentation
+│   ├── medical_records.md # Clinical encounters documentation
+│   └── patients.md        # Patient management documentation
 ├── frontend/              # Web application user interface (planned)
 ├── screenshots/           # UI captures & visual assets (planned)
 ├── tests/                 # Integration & end-to-end test suites (planned)
@@ -178,6 +186,7 @@ The API will be available at:
 - **Application Health:** [http://127.0.0.1:8000/health](http://127.0.0.1:8000/health)
 - **Database Health:** [http://127.0.0.1:8000/health/db](http://127.0.0.1:8000/health/db)
 - **Auth Health:** [http://127.0.0.1:8000/api/v1/auth/health](http://127.0.0.1:8000/api/v1/auth/health)
+- **Doctors API:** [http://127.0.0.1:8000/api/v1/doctors](http://127.0.0.1:8000/api/v1/doctors)
 - **Patients API:** [http://127.0.0.1:8000/api/v1/patients](http://127.0.0.1:8000/api/v1/patients)
 - **Interactive Swagger Docs:** [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
 - **ReDoc Documentation:** [http://127.0.0.1:8000/redoc](http://127.0.0.1:8000/redoc)
@@ -209,6 +218,17 @@ RUN_DB_INTEGRATION_TESTS=1 pytest -v
 | `POST` | `/api/v1/auth/login` | Public | Login and obtain JWT Bearer Token | `200 OK` |
 | `GET` | `/api/v1/auth/me` | Authenticated | Get current user profile | `200 OK` |
 | `GET` | `/api/v1/auth/health` | Public | Auth Module Health Check | `200 OK` |
+| `POST` | `/api/v1/doctors` | Admin / Doctor | Register doctor profile | `201 Created` |
+| `GET` | `/api/v1/doctors` | Authenticated | Search and discover doctors (verified only for non-admin) | `200 OK` |
+| `GET` | `/api/v1/doctors/me` | Doctor / Admin | Retrieve own doctor profile | `200 OK` |
+| `PATCH` | `/api/v1/doctors/me` | Doctor / Admin | Update own professional profile | `200 OK` |
+| `GET` | `/api/v1/doctors/{doctor_id}` | Authenticated | Retrieve doctor profile (verified only for non-admin) | `200 OK` |
+| `PATCH` | `/api/v1/doctors/{doctor_id}` | Admin / Doctor | Update doctor profile | `200 OK` |
+| `DELETE` | `/api/v1/doctors/{doctor_id}` | Admin | Soft-deactivate doctor profile | `200 OK` |
+| `POST` | `/api/v1/doctors/{doctor_id}/verify` | Admin | Verify doctor credentials and profile | `200 OK` |
+| `POST` | `/api/v1/doctors/{doctor_id}/reject` | Admin | Reject doctor verification application | `200 OK` |
+| `POST` | `/api/v1/doctors/{doctor_id}/activate` | Admin / Doctor | Set doctor availability to available | `200 OK` |
+| `POST` | `/api/v1/doctors/{doctor_id}/deactivate`| Admin / Doctor | Set doctor availability to unavailable | `200 OK` |
 | `POST` | `/api/v1/patients` | Clinical Roles | Register new patient record | `201 Created` |
 | `GET` | `/api/v1/patients` | Clinical Roles | Search and list patients (paginated) | `200 OK` |
 | `GET` | `/api/v1/patients/{patient_id}` | Clinical Roles | Retrieve patient profile by patient_id | `200 OK` |
@@ -229,7 +249,9 @@ RUN_DB_INTEGRATION_TESTS=1 pytest -v
 2. **Milestone 2: Database Layer & Relational Modeling** *(Completed & Pushed)* ✅
 3. **Milestone 3: Authentication & Role-Based Access Control** *(Completed & Pushed)* ✅
 4. **Milestone 4: Patient Management** *(Completed & Pushed)* ✅
-5. **Milestone 5: Medical Records & Clinical Encounters** *(Implemented & Ready for Review)* ✅
-6. **Milestone 6: Clinical Retrieval-Augmented Generation (RAG) & Document Analysis** *(Planned)*
-7. **Milestone 7: Clinical Frontend Dashboard** *(Planned)*
-8. **Milestone 8: End-to-End Testing, Security Audits, and Production Deployment** *(Planned)*
+5. **Milestone 5: Medical Records & Clinical Encounters** *(Completed & Pushed)* ✅
+6. **Milestone 6: Doctor Management Foundation** *(Implemented & Ready for Review)* ✅
+7. **Milestone 7: Appointment Scheduling & Care Team Allocation** *(Planned)*
+8. **Milestone 8: Clinical Retrieval-Augmented Generation (RAG) & Document Analysis** *(Planned)*
+9. **Milestone 9: Clinical Frontend Dashboard** *(Planned)*
+10. **Milestone 10: End-to-End Testing, Security Audits, and Production Deployment** *(Planned)*

@@ -1,5 +1,19 @@
 """Services package for business logic implementations."""
 
+from app.services.doctor_service import (
+    activate_doctor,
+    create_doctor,
+    deactivate_doctor,
+    generate_unique_doctor_id,
+    get_doctor_by_doctor_id,
+    get_doctor_by_id,
+    get_doctor_by_registration_number,
+    get_doctor_by_user_id,
+    list_doctors,
+    reject_doctor,
+    update_doctor,
+    verify_doctor,
+)
 from app.services.encounter_service import (
     create_encounter,
     generate_unique_encounter_id,
@@ -42,4 +56,16 @@ __all__ = [
     "get_encounter_by_id",
     "list_patient_encounters",
     "update_encounter",
+    "generate_unique_doctor_id",
+    "get_doctor_by_doctor_id",
+    "get_doctor_by_user_id",
+    "get_doctor_by_registration_number",
+    "get_doctor_by_id",
+    "create_doctor",
+    "list_doctors",
+    "update_doctor",
+    "verify_doctor",
+    "reject_doctor",
+    "deactivate_doctor",
+    "activate_doctor",
 ]

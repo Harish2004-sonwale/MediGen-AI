@@ -7,6 +7,7 @@ class UserRole(str, Enum):
     ADMIN = "admin"
     DOCTOR = "doctor"
     HEALTHCARE_STAFF = "healthcare_staff"
+    PATIENT = "patient"
 
 
 class UserRegisterRequest(BaseModel):
@@ -15,7 +16,7 @@ class UserRegisterRequest(BaseModel):
     password: str = Field(..., min_length=8, max_length=128, description="Plain text password (min 8 chars)")
     role: UserRole = Field(
         default=UserRole.HEALTHCARE_STAFF,
-        description="Assigned system role (admin, doctor, healthcare_staff)",
+        description="Assigned system role (admin, doctor, healthcare_staff, patient)",
     )
 
 

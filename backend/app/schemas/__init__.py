@@ -1,5 +1,18 @@
 """Schemas package for data validation and serialization."""
 
+from app.schemas.doctor import (
+    ConsultationMode,
+    DoctorAdminUpdate,
+    DoctorAvailabilityStatus,
+    DoctorCreate,
+    DoctorDetailResponse,
+    DoctorListResponse,
+    DoctorPublicResponse,
+    DoctorRejectRequest,
+    DoctorUpdate,
+    DoctorVerificationStatus,
+    DoctorVerifyRequest,
+)
 from app.schemas.encounter import (
     EncounterCreate,
     EncounterListResponse,
@@ -43,4 +56,15 @@ __all__ = [
     "EncounterUpdate",
     "EncounterResponse",
     "EncounterListResponse",
+    "DoctorVerificationStatus",
+    "DoctorAvailabilityStatus",
+    "ConsultationMode",
+    "DoctorCreate",
+    "DoctorUpdate",
+    "DoctorAdminUpdate",
+    "DoctorVerifyRequest",
+    "DoctorRejectRequest",
+    "DoctorPublicResponse",
+    "DoctorDetailResponse",
+    "DoctorListResponse",
 ]

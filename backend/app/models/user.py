@@ -7,6 +7,7 @@ from app.database.base import Base
 from app.schemas.user import UserRole
 
 if TYPE_CHECKING:
+    from app.models.doctor import Doctor
     from app.models.encounter import Encounter
 
 
@@ -43,6 +44,11 @@ class User(Base):
     encounters: Mapped[list["Encounter"]] = relationship(
         "Encounter",
         back_populates="attending_user",
+    )
+    doctor_profile: Mapped["Doctor | None"] = relationship(
+        "Doctor",
+        back_populates="user",
+        uselist=False,
     )
 
     def __repr__(self) -> str:
