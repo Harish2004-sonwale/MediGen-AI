@@ -1,5 +1,15 @@
 """Schemas package for data validation and serialization."""
 
+from app.schemas.appointment import (
+    AppointmentBase,
+    AppointmentCancelRequest,
+    AppointmentCreate,
+    AppointmentListResponse,
+    AppointmentRejectRequest,
+    AppointmentResponse,
+    AppointmentStatus,
+    AppointmentUpdate,
+)
 from app.schemas.doctor import (
     ConsultationMode,
     DoctorAdminUpdate,
@@ -67,4 +77,12 @@ __all__ = [
     "DoctorPublicResponse",
     "DoctorDetailResponse",
     "DoctorListResponse",
+    "AppointmentStatus",
+    "AppointmentBase",
+    "AppointmentCreate",
+    "AppointmentUpdate",
+    "AppointmentCancelRequest",
+    "AppointmentRejectRequest",
+    "AppointmentResponse",
+    "AppointmentListResponse",
 ]

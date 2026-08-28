@@ -1,5 +1,19 @@
 """Services package for business logic implementations."""
 
+from app.services.appointment_service import (
+    build_appointment_response,
+    cancel_appointment,
+    check_doctor_slot_conflict,
+    complete_appointment,
+    confirm_appointment,
+    create_appointment,
+    generate_unique_appointment_id,
+    get_appointment_by_id,
+    list_appointments,
+    resolve_doctor,
+    resolve_patient,
+    update_appointment,
+)
 from app.services.doctor_service import (
     activate_doctor,
     create_doctor,
@@ -68,4 +82,16 @@ __all__ = [
     "reject_doctor",
     "deactivate_doctor",
     "activate_doctor",
+    "generate_unique_appointment_id",
+    "resolve_patient",
+    "resolve_doctor",
+    "check_doctor_slot_conflict",
+    "build_appointment_response",
+    "create_appointment",
+    "get_appointment_by_id",
+    "list_appointments",
+    "update_appointment",
+    "confirm_appointment",
+    "cancel_appointment",
+    "complete_appointment",
 ]

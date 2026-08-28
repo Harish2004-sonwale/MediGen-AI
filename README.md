@@ -9,7 +9,8 @@
 
 MediGen AI is an AI-powered Clinical Decision Support System (CDSS) designed to assist healthcare professionals with:
 - Patient information management
-- Doctor profile verification and discovery
+- Doctor profile verification and department discovery
+- Clinical appointment scheduling and conflict prevention
 - Medical document analysis
 - Clinical knowledge retrieval
 - AI-assisted documentation
@@ -32,16 +33,15 @@ MediGen AI is an AI-powered Clinical Decision Support System (CDSS) designed to 
 - **Milestone 3 — Authentication & User Roles**: Completed & Pushed ✅
 - **Milestone 4 — Patient Management**: Completed & Pushed ✅
 - **Milestone 5 — Medical Records & Clinical Encounters**: Completed & Pushed ✅
-- **Milestone 6 — Doctor Management Foundation**: Implemented & Verified ✅
-  - [x] Doctor ORM model with 1-to-1 user association and unique registration number
-  - [x] Doctor verification lifecycle (`pending`, `verified`, `rejected`, `inactive`)
-  - [x] Multi-field patient discovery search (specialization, experience, location, mode)
-  - [x] Doctor self-profile management (`GET/PATCH /api/v1/doctors/me`)
-  - [x] Admin credential verification & rejection workflows
-  - [x] Availability toggle (`available`, `busy`, `on_leave`, `unavailable`)
-  - [x] Alembic migration (`0004_create_doctors_table.py`)
-  - [x] Comprehensive automated test suite (40 unit tests, 2 live integration tests)
-  - [x] Module documentation ([`docs/doctors.md`](docs/doctors.md))
+- **Milestone 6 — Doctor Management & Department Discovery**: Implemented & Verified ✅
+- **Milestone 7 — Appointment Scheduling & Care Team Allocation**: Implemented & Verified ✅
+  - [x] Appointment ORM model with foreign keys to Patient & Doctor (`ondelete="RESTRICT"`)
+  - [x] Appointment status lifecycle (`scheduled`, `confirmed`, `completed`, `cancelled`, `rejected`)
+  - [x] Conflict prevention (validates future time & prevents overlapping doctor bookings)
+  - [x] Role-based permissions (patients view own, doctors view assigned, admin/staff manage all)
+  - [x] Alembic migration (`0006_create_appointments_table.py`)
+  - [x] Comprehensive automated test suite (46 unit tests, 2 live integration tests)
+  - [x] Module documentation ([`docs/appointments.md`](docs/appointments.md))
 
 ---
 
@@ -68,18 +68,21 @@ MediGen-AI/
 │   │   │   ├── 0001_create_users_table.py
 │   │   │   ├── 0002_create_patients_table.py
 │   │   │   ├── 0003_create_encounters_table.py
-│   │   │   └── 0004_create_doctors_table.py
+│   │   │   ├── 0004_create_doctors_table.py
+│   │   │   ├── 0005_add_doctor_department.py
+│   │   │   └── 0006_create_appointments_table.py
 │   │   └── env.py         # Migration environment configuration
 │   ├── app/
 │   │   ├── ai/            # AI pipelines & model integrations (planned)
 │   │   ├── api/           # API routers & endpoints
 │   │   │   ├── v1/
 │   │   │   │   ├── endpoints/
-│   │   │   │   │   ├── auth.py       # Authentication endpoints
-│   │   │   │   │   ├── doctors.py    # Doctor management endpoints
-│   │   │   │   │   ├── encounters.py # Clinical encounter endpoints
-│   │   │   │   │   └── patients.py   # Patient management endpoints
-│   │   │   │   └── api.py            # API v1 router aggregator
+│   │   │   │   │   ├── appointments.py # Appointment scheduling endpoints
+│   │   │   │   │   ├── auth.py         # Authentication endpoints
+│   │   │   │   │   ├── doctors.py      # Doctor management endpoints
+│   │   │   │   │   ├── encounters.py   # Clinical encounter endpoints
+│   │   │   │   │   └── patients.py     # Patient management endpoints
+│   │   │   │   └── api.py              # API v1 router aggregator
 │   │   │   └── deps.py    # Auth & role-checking dependencies
 │   │   ├── core/          # Configuration & security
 │   │   │   ├── config.py  # Pydantic Settings configuration
@@ -88,13 +91,14 @@ MediGen-AI/
 │   │   │   ├── base.py    # SQLAlchemy 2.0 DeclarativeBase
 │   │   │   ├── connection.py # Engine & pool setup
 │   │   │   └── session.py # Request-scoped session dependency
-│   │   ├── models/        # Database ORM models (User, Patient, Encounter, Doctor)
-│   │   ├── schemas/       # Pydantic schemas (User, Patient, Encounter, Doctor, Token)
-│   │   ├── services/      # Business logic (user, patient, encounter, doctor services)
+│   │   ├── models/        # Database ORM models (User, Patient, Encounter, Doctor, Appointment)
+│   │   ├── schemas/       # Pydantic schemas
+│   │   ├── services/      # Business logic services
 │   │   ├── __init__.py
 │   │   └── main.py        # FastAPI entrypoint
 │   ├── tests/             # Automated test suite
 │   │   ├── conftest.py    # Pytest fixtures & in-memory test database
+│   │   ├── test_appointments.py # Appointment scheduling & conflict tests
 │   │   ├── test_auth.py   # Auth, JWT, and RBAC tests
 │   │   ├── test_doctors.py# Doctor profile, verification, and discovery tests
 │   │   ├── test_encounters.py # Clinical encounter tests
@@ -106,103 +110,15 @@ MediGen-AI/
 │   ├── alembic.ini        # Alembic configuration
 │   ├── pytest.ini         # Pytest configuration
 │   └── requirements.txt   # Backend dependencies
-├── database/              # Database scripts and seeds (planned)
-├── datasets/              # Clinical test datasets (planned)
-├── docker/                # Container configurations (planned)
 ├── docs/                  # Architecture & system documentation
+│   ├── appointments.md    # Appointment scheduling documentation
 │   ├── authentication.md  # Auth & RBAC documentation
 │   ├── database.md        # PostgreSQL database guide
 │   ├── doctors.md         # Doctor management documentation
 │   ├── medical_records.md # Clinical encounters documentation
 │   └── patients.md        # Patient management documentation
-├── frontend/              # Web application user interface (planned)
-├── screenshots/           # UI captures & visual assets (planned)
-├── tests/                 # Integration & end-to-end test suites (planned)
-├── .gitignore             # Git ignore definitions
 ├── LICENSE                # MIT License
 └── README.md              # Project documentation
-```
-
----
-
-## 🚀 Backend Setup & Local Development
-
-### Prerequisites
-
-- Python 3.11 or higher
-- PostgreSQL 14+ (installed locally)
-- Git
-
-### 1. Set Up Virtual Environment
-
-From the project root:
-
-```bash
-cd backend
-python -m venv .venv
-
-# Activate the virtual environment
-# On Windows (PowerShell):
-.venv\Scripts\Activate.ps1
-# On Windows (CMD):
-.venv\Scripts\activate.bat
-# On Linux/macOS:
-source .venv/bin/activate
-```
-
-### 2. Install Backend Dependencies
-
-```bash
-pip install -r requirements.txt
-```
-
-### 3. Configure Environment Variables
-
-```bash
-cp .env.example .env
-```
-
-Update `.env` with your local PostgreSQL credentials and a secure JWT secret key:
-
-```env
-DATABASE_URL="postgresql+psycopg://postgres:YOUR_POSTGRES_PASSWORD@localhost:5432/medigen_ai"
-JWT_SECRET_KEY="YOUR_ACTUAL_SECURE_JWT_SECRET_KEY"
-```
-
-### 4. Apply Database Migrations
-
-```bash
-alembic upgrade head
-```
-
-### 5. Start the FastAPI Development Server
-
-```bash
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-```
-
-The API will be available at:
-- **Root Endpoint:** [http://127.0.0.1:8000/](http://127.0.0.1:8000/)
-- **Application Health:** [http://127.0.0.1:8000/health](http://127.0.0.1:8000/health)
-- **Database Health:** [http://127.0.0.1:8000/health/db](http://127.0.0.1:8000/health/db)
-- **Auth Health:** [http://127.0.0.1:8000/api/v1/auth/health](http://127.0.0.1:8000/api/v1/auth/health)
-- **Doctors API:** [http://127.0.0.1:8000/api/v1/doctors](http://127.0.0.1:8000/api/v1/doctors)
-- **Patients API:** [http://127.0.0.1:8000/api/v1/patients](http://127.0.0.1:8000/api/v1/patients)
-- **Interactive Swagger Docs:** [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
-- **ReDoc Documentation:** [http://127.0.0.1:8000/redoc](http://127.0.0.1:8000/redoc)
-
----
-
-## 🧪 Running Automated Tests
-
-Run the complete test suite with `pytest`:
-
-```bash
-# Run unit tests
-pytest -v
-
-# Run including live PostgreSQL integration tests (requires live database)
-RUN_DB_INTEGRATION_TESTS=1 pytest -v
 ```
 
 ---
@@ -219,13 +135,13 @@ RUN_DB_INTEGRATION_TESTS=1 pytest -v
 | `GET` | `/api/v1/auth/me` | Authenticated | Get current user profile | `200 OK` |
 | `GET` | `/api/v1/auth/health` | Public | Auth Module Health Check | `200 OK` |
 | `POST` | `/api/v1/doctors` | Admin / Doctor | Register doctor profile | `201 Created` |
-| `GET` | `/api/v1/doctors` | Authenticated | Search and discover doctors (verified only for non-admin) | `200 OK` |
+| `GET` | `/api/v1/doctors` | Authenticated | Search and discover doctors across departments | `200 OK` |
 | `GET` | `/api/v1/doctors/me` | Doctor / Admin | Retrieve own doctor profile | `200 OK` |
 | `PATCH` | `/api/v1/doctors/me` | Doctor / Admin | Update own professional profile | `200 OK` |
-| `GET` | `/api/v1/doctors/{doctor_id}` | Authenticated | Retrieve doctor profile (verified only for non-admin) | `200 OK` |
+| `GET` | `/api/v1/doctors/{doctor_id}` | Authenticated | Retrieve doctor profile | `200 OK` |
 | `PATCH` | `/api/v1/doctors/{doctor_id}` | Admin / Doctor | Update doctor profile | `200 OK` |
 | `DELETE` | `/api/v1/doctors/{doctor_id}` | Admin | Soft-deactivate doctor profile | `200 OK` |
-| `POST` | `/api/v1/doctors/{doctor_id}/verify` | Admin | Verify doctor credentials and profile | `200 OK` |
+| `POST` | `/api/v1/doctors/{doctor_id}/verify` | Admin | Verify doctor credentials | `200 OK` |
 | `POST` | `/api/v1/doctors/{doctor_id}/reject` | Admin | Reject doctor verification application | `200 OK` |
 | `POST` | `/api/v1/doctors/{doctor_id}/activate` | Admin / Doctor | Set doctor availability to available | `200 OK` |
 | `POST` | `/api/v1/doctors/{doctor_id}/deactivate`| Admin / Doctor | Set doctor availability to unavailable | `200 OK` |
@@ -237,7 +153,14 @@ RUN_DB_INTEGRATION_TESTS=1 pytest -v
 | `POST` | `/api/v1/patients/{patient_id}/encounters` | Clinical Roles | Record a new clinical encounter for patient | `201 Created` |
 | `GET` | `/api/v1/patients/{patient_id}/encounters` | Clinical Roles | List chronological encounters for patient | `200 OK` |
 | `GET` | `/api/v1/encounters/{encounter_id}` | Clinical Roles | Retrieve encounter details by encounter identifier | `200 OK` |
-| `PATCH` | `/api/v1/encounters/{encounter_id}` | Clinical Roles | Update encounter notes, assessment, plan, status | `200 OK` |
+| `PATCH` | `/api/v1/encounters/{encounter_id}` | Clinical Roles | Update encounter notes, assessment, plan | `200 OK` |
+| `POST` | `/api/v1/appointments` | Authenticated | Schedule a new appointment | `201 Created` |
+| `GET` | `/api/v1/appointments` | Authenticated | List and filter appointments | `200 OK` |
+| `GET` | `/api/v1/appointments/{appointment_id}` | Authenticated | Get appointment details | `200 OK` |
+| `PATCH` | `/api/v1/appointments/{appointment_id}` | Admin / Staff / Doctor | Reschedule / update appointment | `200 OK` |
+| `POST` | `/api/v1/appointments/{appointment_id}/confirm` | Admin / Staff / Doctor | Confirm scheduled appointment | `200 OK` |
+| `POST` | `/api/v1/appointments/{appointment_id}/cancel` | Authenticated | Cancel scheduled appointment | `200 OK` |
+| `POST` | `/api/v1/appointments/{appointment_id}/complete` | Admin / Staff / Doctor | Mark appointment completed | `200 OK` |
 | `GET` | `/docs` | Public | OpenAPI / Swagger Documentation | `200 OK` |
 | `GET` | `/redoc` | Public | ReDoc API Documentation | `200 OK` |
 
@@ -250,8 +173,8 @@ RUN_DB_INTEGRATION_TESTS=1 pytest -v
 3. **Milestone 3: Authentication & Role-Based Access Control** *(Completed & Pushed)* ✅
 4. **Milestone 4: Patient Management** *(Completed & Pushed)* ✅
 5. **Milestone 5: Medical Records & Clinical Encounters** *(Completed & Pushed)* ✅
-6. **Milestone 6: Doctor Management Foundation** *(Implemented & Ready for Review)* ✅
-7. **Milestone 7: Appointment Scheduling & Care Team Allocation** *(Planned)*
+6. **Milestone 6: Doctor Management & Department Discovery** *(Implemented & Verified)* ✅
+7. **Milestone 7: Appointment Scheduling & Care Team Allocation** *(Implemented & Verified)* ✅
 8. **Milestone 8: Clinical Retrieval-Augmented Generation (RAG) & Document Analysis** *(Planned)*
 9. **Milestone 9: Clinical Frontend Dashboard** *(Planned)*
 10. **Milestone 10: End-to-End Testing, Security Audits, and Production Deployment** *(Planned)*
