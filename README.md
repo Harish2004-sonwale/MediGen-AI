@@ -193,6 +193,11 @@ MediGen-AI/
 | `GET` | `/api/v1/tasks` | Authenticated | List authorized background tasks with filtering & pagination | `200 OK` |
 | `POST` | `/api/v1/tasks/{task_id}/retry` | Clinical Roles | Re-enqueue a failed or cancelled background task | `200 OK` |
 | `POST` | `/api/v1/tasks/{task_id}/cancel` | Clinical Roles | Cancel a pending background task | `200 OK` |
+| `GET` | `/health` | Public | Lightweight application liveness probe | `200 OK` |
+| `GET` | `/ready` | Public | Core readiness probe verifying database connectivity | `200 OK` |
+| `GET` | `/api/v1/health/live` | Public | API liveness probe with correlation ID | `200 OK` |
+| `GET` | `/api/v1/health/ready` | Public | Deep dependency readiness probe (database, vector store, task workers) | `200 OK` |
+| `GET` | `/api/v1/health/metrics` | Public | In-memory operational metrics snapshot (latency, errors, task queues) | `200 OK` |
 | `GET` | `/docs` | Public | OpenAPI / Swagger Documentation | `200 OK` |
 | `GET` | `/redoc` | Public | ReDoc API Documentation | `200 OK` |
 
@@ -208,15 +213,17 @@ MediGen-AI/
 6. **Milestone 6: Doctor Management & Department Discovery** *(Completed & Verified)* ✅
 7. **Milestone 7: Appointment Scheduling & Care Team Allocation** *(Completed & Verified)* ✅
 8. **Milestone 8: Clinical AI, RAG & Clinical Intelligence** *(Completed & Verified)* ✅
-9. **Milestone 9: Healthcare Interoperability & Integrations**
+9. **Milestone 9: Healthcare Interoperability & Operational Reliability**
    - **Phase 9.0.1 — FHIR R4 Ingestion & Interoperability**: Completed & Verified ✅
    - **Phase 9.0.2 — Authoritative Drug Knowledge Base Adapter**: Completed & Verified ✅
    - **Phase 9.0.3 — Background Asynchronous Worker Architecture**: Completed & Verified ✅
+   - **Phase 9.0.4 — Production Observability, Reliability & Operational Monitoring**: Completed & Verified ✅
 
-### Next — Planned Future Work
+### Next — Planned Future Work (Roadmap Only)
 
-- Distributed production caching (Redis) & cluster worker topologies
-- Real-time WebSocket task progress streaming
-- Additional authoritative drug knowledge integrations (e.g. NLM RxNorm, First Databank)
-- Further FHIR R4 interoperability improvements
-- Frontend clinical decision support & task management UI
+- **Phase 9.0.5 — Advanced Production Deployment & Scalability**:
+  - Container orchestration & horizontal scaling architectures
+  - Production distributed worker topologies & cluster caching
+  - Distributed tracing (OpenTelemetry integration points)
+  - Real-time WebSocket task progress streaming
+  - Frontend clinical decision support & task monitoring UI

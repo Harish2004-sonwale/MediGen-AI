@@ -104,3 +104,14 @@
 | `GET` | `/api/v1/tasks` | Authorized | List authorized background tasks with filtering & pagination |
 | `POST` | `/api/v1/tasks/{task_id}/retry` | Doctors / Staff / Admin | Re-enqueue a failed or cancelled background task |
 | `POST` | `/api/v1/tasks/{task_id}/cancel` | Doctors / Staff / Admin | Cancel a pending background task |
+
+---
+
+## 10. Observability & Health Diagnostics
+| Method | Path | Access | Description |
+|---|---|---|---|
+| `GET` | `/health` | Public | Lightweight process liveness probe |
+| `GET` | `/ready` | Public | System readiness probe verifying PostgreSQL connection |
+| `GET` | `/api/v1/health/live` | Public | API liveness probe |
+| `GET` | `/api/v1/health/ready` | Public | Deep dependency readiness probe (database, vector store, task workers) |
+| `GET` | `/api/v1/health/metrics` | Public | In-memory operational metrics snapshot (request latency, task counts) |

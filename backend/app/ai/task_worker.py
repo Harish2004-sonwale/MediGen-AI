@@ -23,6 +23,7 @@ import secrets
 import threading
 from typing import Any, Callable, Optional
 
+from app.core.observability import get_correlation_id, set_correlation_id
 from app.schemas.task import BackgroundTask, BackgroundTaskStatus, BackgroundTaskType
 
 logger = logging.getLogger("medigen.tasks")
@@ -80,6 +81,11 @@ class BaseBackgroundTaskProvider(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def get_metrics(self) -> dict[str, Any]:
+        """Return operational metrics for worker pool and task queues."""
+        raise NotImplementedError
+
+    @abstractmethod
     def shutdown(self, wait: bool = True) -> None:
         """Cleanly shutdown any background threads or worker pools."""
         pass
@@ -96,7 +102,7 @@ class LocalBackgroundTaskProvider(BaseBackgroundTaskProvider):
         self._max_workers = max_workers
         self._executor = ThreadPoolExecutor(max_workers=max_workers, thread_name_prefix="medigen-worker")
         self._tasks: dict[str, BackgroundTask] = {}
-        self._task_callables: dict[str, tuple[Callable, tuple, dict]] = {}
+        self._task_callables: dict[str, tuple[Callable, tuple, dict, str]] = {}
         self._lock = threading.Lock()
 
     def submit_task(
@@ -114,6 +120,7 @@ class LocalBackgroundTaskProvider(BaseBackgroundTaskProvider):
         now = datetime.now(timezone.utc)
         kwargs = fn_kwargs or {}
         sanitized_payload = payload or {}
+        corr_id = get_correlation_id()
 
         task = BackgroundTask(
             task_id=task_id,
@@ -134,13 +141,14 @@ class LocalBackgroundTaskProvider(BaseBackgroundTaskProvider):
 
         with self._lock:
             self._tasks[task_id] = task
-            self._task_callables[task_id] = (fn, fn_args, kwargs)
+            self._task_callables[task_id] = (fn, fn_args, kwargs, corr_id)
 
         logger.info(
-            "Enqueued background task task_id=%s task_type=%s patient_id=%s",
+            "Enqueued background task task_id=%s task_type=%s patient_id=%s correlation_id=%s",
             task_id,
             task_type.value,
             patient_id,
+            corr_id,
         )
 
         # Dispatch execution to thread pool
@@ -160,7 +168,8 @@ class LocalBackgroundTaskProvider(BaseBackgroundTaskProvider):
             logger.info("Skipping cancelled task task_id=%s", task_id)
             return
 
-        fn, args, kwargs = callable_info
+        fn, args, kwargs, corr_id = callable_info
+        set_correlation_id(corr_id)
         start_time = datetime.now(timezone.utc)
 
         with self._lock:
@@ -209,6 +218,21 @@ class LocalBackgroundTaskProvider(BaseBackgroundTaskProvider):
                 task.task_type.value,
                 type(exc).__name__,
             )
+
+    def get_metrics(self) -> dict[str, Any]:
+        with self._lock:
+            tasks = list(self._tasks.values())
+        counts = {
+            "queued": sum(1 for t in tasks if t.status == BackgroundTaskStatus.QUEUED),
+            "running": sum(1 for t in tasks if t.status == BackgroundTaskStatus.RUNNING),
+            "completed": sum(1 for t in tasks if t.status == BackgroundTaskStatus.COMPLETED),
+            "failed": sum(1 for t in tasks if t.status == BackgroundTaskStatus.FAILED),
+            "cancelled": sum(1 for t in tasks if t.status == BackgroundTaskStatus.CANCELLED),
+            "total": len(tasks),
+            "max_workers": self._max_workers,
+            "provider": "local",
+        }
+        return counts
 
     def get_task(self, task_id: str) -> Optional[BackgroundTask]:
         with self._lock:
@@ -407,6 +431,19 @@ class SyncBackgroundTaskProvider(BaseBackgroundTaskProvider):
 
         return task.model_copy()
 
+    def get_metrics(self) -> dict[str, Any]:
+        tasks = list(self._tasks.values())
+        return {
+            "queued": sum(1 for t in tasks if t.status == BackgroundTaskStatus.QUEUED),
+            "running": sum(1 for t in tasks if t.status == BackgroundTaskStatus.RUNNING),
+            "completed": sum(1 for t in tasks if t.status == BackgroundTaskStatus.COMPLETED),
+            "failed": sum(1 for t in tasks if t.status == BackgroundTaskStatus.FAILED),
+            "cancelled": sum(1 for t in tasks if t.status == BackgroundTaskStatus.CANCELLED),
+            "total": len(tasks),
+            "max_workers": 1,
+            "provider": "sync",
+        }
+
     def shutdown(self, wait: bool = True) -> None:
         pass
 
@@ -510,6 +547,12 @@ class CeleryBackgroundTaskProvider(BaseBackgroundTaskProvider):
 
     def retry_task(self, task_id: str) -> Optional[BackgroundTask]:
         return self._fallback.retry_task(task_id)
+
+    def get_metrics(self) -> dict[str, Any]:
+        metrics = self._fallback.get_metrics()
+        metrics["provider"] = "celery" if self.is_celery_active else "celery_fallback_local"
+        metrics["celery_active"] = self.is_celery_active
+        return metrics
 
     def shutdown(self, wait: bool = True) -> None:
         self._fallback.shutdown(wait=wait)

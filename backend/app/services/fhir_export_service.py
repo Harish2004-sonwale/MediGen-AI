@@ -75,31 +75,30 @@ def _extract_patient_from_resource_id(db: Session, resource_id: str, prefix: str
             return p
     all_patients = db.scalars(select(Patient)).all()
     for pat in all_patients:
-        if pat.patient_id in resource_id or str(pat.id) in resource_id:
+        if pat.patient_id and pat.patient_id in resource_id:
             return pat
     return None
 
 
 def export_condition_as_fhir(db: Session, current_user: User, condition_id_str: str) -> FHIRCondition:
     """Export a condition resource by condition ID."""
+    enc_id = condition_id_str[5:] if condition_id_str.startswith("COND-") else condition_id_str
+    enc = get_encounter_by_encounter_id(db, enc_id) or get_encounter_by_encounter_id(db, condition_id_str)
+    if enc:
+        patient = db.scalars(select(Patient).where(Patient.id == enc.patient_id)).first()
+        if patient:
+            validate_patient_rag_access(db, current_user, patient)
+            return FHIRConditionMapper.to_fhir(
+                condition_id=f"COND-{enc.encounter_id}",
+                diagnosis_title=enc.assessment or enc.chief_complaint,
+                patient_id=patient.patient_id,
+                encounter_id=enc.encounter_id,
+                clinical_status="active",
+                recorded_date=enc.encounter_date,
+                notes=enc.clinical_notes,
+            )
+
     patient = _extract_patient_from_resource_id(db, condition_id_str, "COND")
-
-    if not patient:
-        enc = get_encounter_by_encounter_id(db, condition_id_str)
-        if enc:
-            patient = db.scalars(select(Patient).where(Patient.id == enc.patient_id)).first()
-            if patient:
-                validate_patient_rag_access(db, current_user, patient)
-                return FHIRConditionMapper.to_fhir(
-                    condition_id=f"COND-{enc.encounter_id}",
-                    diagnosis_title=enc.assessment or enc.chief_complaint,
-                    patient_id=patient.patient_id,
-                    encounter_id=enc.encounter_id,
-                    clinical_status="active",
-                    recorded_date=enc.encounter_date,
-                    notes=enc.clinical_notes,
-                )
-
     if not patient:
         raise ValueError(f"Condition with identifier '{condition_id_str}' was not found.")
 

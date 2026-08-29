@@ -73,6 +73,11 @@ class Settings(BaseSettings):
     CELERY_BROKER_URL: str | None = None
     CELERY_RESULT_BACKEND: str | None = None
 
+    # Production Observability & Monitoring Configuration (Phase 9.0.4)
+    LOG_LEVEL: str = "INFO"
+    LOG_FORMAT: str = "text"  # 'text' | 'json'
+    METRICS_ENABLED: bool = True
+
 
     model_config = SettingsConfigDict(
         env_file=".env",

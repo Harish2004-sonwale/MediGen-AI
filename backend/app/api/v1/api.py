@@ -7,6 +7,7 @@ from app.api.v1.endpoints import (
     documents,
     encounters,
     fhir,
+    health,
     patients,
     rag,
     safety,
@@ -27,3 +28,4 @@ api_router.include_router(timeline.router)
 api_router.include_router(safety.router)
 api_router.include_router(fhir.router)
 api_router.include_router(tasks.router)
+api_router.include_router(health.router)

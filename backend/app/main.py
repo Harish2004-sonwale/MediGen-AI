@@ -1,4 +1,5 @@
-from fastapi import Depends, FastAPI, status
+import logging
+from fastapi import Depends, FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
@@ -7,14 +8,27 @@ from sqlalchemy.orm import Session
 import uvicorn
 
 from app.api.v1.api import api_router
+from app.ai.task_worker import get_background_task_provider
 from app.core.config import settings
+from app.core.observability import (
+    CorrelationIdMiddleware,
+    configure_logging,
+    get_correlation_id,
+)
 from app.database import get_db
+
+# Configure structured logging with PHI sanitization
+configure_logging(log_level=settings.LOG_LEVEL, log_format=settings.LOG_FORMAT)
+logger = logging.getLogger("medigen.app")
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
     version=settings.VERSION,
     description="MediGen AI - Clinical Decision Support System API",
 )
+
+# Correlation ID and Request Timing Middleware
+app.add_middleware(CorrelationIdMiddleware)
 
 # CORS configuration
 app.add_middleware(
@@ -24,6 +38,29 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    """Catch-all global exception handler ensuring safe diagnostics and correlation ID linkage."""
+    corr_id = get_correlation_id()
+    logger.error(
+        "Unhandled server exception on %s %s: %s",
+        request.method,
+        request.url.path,
+        type(exc).__name__,
+        exc_info=True,
+    )
+    return JSONResponse(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        content={
+            "status": "error",
+            "error_code": "INTERNAL_SERVER_ERROR",
+            "message": "An unexpected internal server error occurred. Please reference the correlation ID for support.",
+            "correlation_id": corr_id,
+        },
+    )
+
 
 # Include API v1 router
 app.include_router(api_router, prefix=settings.API_V1_STR)
@@ -42,6 +79,28 @@ def health_check():
     return {
         "status": "healthy",
     }
+
+
+@app.get("/ready")
+def readiness_check_root(db: Session = Depends(get_db)):
+    """Top-level readiness check verifying application database and core dependencies."""
+    try:
+        db.execute(text("SELECT 1"))
+        return {
+            "status": "ready",
+            "database": "connected",
+            "correlation_id": get_correlation_id(),
+        }
+    except (SQLAlchemyError, Exception):
+        return JSONResponse(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            content={
+                "status": "not_ready",
+                "database": "disconnected",
+                "detail": "Database is unreachable or query execution failed",
+                "correlation_id": get_correlation_id(),
+            },
+        )
 
 
 @app.get("/health/db")
