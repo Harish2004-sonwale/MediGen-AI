@@ -18,6 +18,7 @@ import { ClinicalNoteWorkspace } from '../components/notes/ClinicalNoteWorkspace
 import { VitalTelemetryWorkspace } from '../components/telemetry/VitalTelemetryWorkspace';
 import { CarePlanWorkspace } from '../components/care/CarePlanWorkspace';
 import { CohortWorkspace } from '../components/cohorts/CohortWorkspace';
+import { TransitionsWorkspace } from '../components/transitions/TransitionsWorkspace';
 import { TaskMonitor } from '../components/tasks/TaskMonitor';
 import { carePlansApi, mediaApi, notesApi } from '../api/client';
 import { CarePlanCategory, NoteType } from '../types';
@@ -32,8 +33,17 @@ export const DashboardPage: React.FC = () => {
   const [isSafetyModalOpen, setIsSafetyModalOpen] = useState<boolean>(false);
   const [isTasksModalOpen, setIsTasksModalOpen] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<
-    'timeline' | 'chat' | 'documents' | 'media' | 'notes' | 'vitals' | 'care_plans' | 'cohorts'
+    | 'timeline'
+    | 'chat'
+    | 'documents'
+    | 'media'
+    | 'notes'
+    | 'vitals'
+    | 'care_plans'
+    | 'cohorts'
+    | 'transitions'
   >('chat');
+
 
 
   const triggerMediaAnalysis = async (mediaId: string) => {
@@ -129,6 +139,12 @@ export const DashboardPage: React.FC = () => {
             >
               👥 Population & Risk Analytics
             </button>
+            <button
+              className={`btn btn-sm ${activeTab === 'transitions' ? 'btn-primary' : 'btn-secondary'}`}
+              onClick={() => setActiveTab('transitions')}
+            >
+              🔄 Transitions & Discharge
+            </button>
           </div>
 
           {/* Active Workspace View */}
@@ -171,7 +187,14 @@ export const DashboardPage: React.FC = () => {
                 onSelectPatient={(pid) => selectPatientById(pid)}
               />
             )}
+            {activeTab === 'transitions' && (
+              <TransitionsWorkspace
+                patientId={selectedPatient?.patient_id}
+                currentUser={user}
+              />
+            )}
           </div>
+
 
         </section>
 

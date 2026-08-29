@@ -6,9 +6,11 @@ from app.models.care_plan import CarePlan
 from app.models.care_task import CareTask
 from app.models.chat import ChatMessage, ChatSession
 from app.models.cohort import CohortMembership, PatientCohort
+from app.models.discharge import DischargeProtocol
 from app.models.doctor import Doctor
 from app.models.document import DocumentChunk, MedicalDocument
 from app.models.encounter import Encounter
+from app.models.handoff import ClinicalHandoff
 from app.models.media import DiagnosticMedia
 from app.models.note import ClinicalNote
 from app.models.patient import Patient
@@ -35,4 +37,6 @@ __all__ = [
     "PatientCohort",
     "CohortMembership",
     "ClinicalRiskAssessment",
+    "ClinicalHandoff",
+    "DischargeProtocol",
 ]

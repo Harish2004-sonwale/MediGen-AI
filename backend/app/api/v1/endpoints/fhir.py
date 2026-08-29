@@ -9,6 +9,8 @@ from app.schemas.fhir import (
     FHIRBatchImportResponse,
     FHIRBundle,
     FHIRCarePlan,
+    FHIRCommunication,
+    FHIRComposition,
     FHIRCondition,
     FHIREncounter,
     FHIRGroup,
@@ -24,13 +26,17 @@ from app.services.fhir_export_service import (
     export_care_task_as_fhir,
     export_cohort_as_fhir_group,
     export_condition_as_fhir,
+    export_discharge_as_fhir_composition,
+
     export_encounter_as_fhir,
+    export_handoff_as_fhir_communication,
     export_medication_statement_as_fhir,
     export_observation_as_fhir,
     export_patient_as_fhir,
     export_patient_bundle_as_fhir,
     export_risk_assessment_as_fhir,
 )
+
 
 from app.services.fhir_import_service import (
     import_fhir_bundle,
@@ -242,6 +248,47 @@ def get_fhir_risk_assessment(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
     except PermissionError as exc:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+
+
+@router.get(
+    "/Composition/{discharge_id}",
+    response_model=FHIRComposition,
+    status_code=status.HTTP_200_OK,
+    summary="Export clinical discharge protocol as a FHIR R4 Composition resource",
+)
+def get_fhir_composition(
+    discharge_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+) -> FHIRComposition:
+    """Retrieve and export a discharge summary protocol as a standard FHIR R4 Composition resource."""
+    try:
+        return export_discharge_as_fhir_composition(db, current_user, discharge_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+
+
+@router.get(
+    "/Communication/{handoff_id}",
+    response_model=FHIRCommunication,
+    status_code=status.HTTP_200_OK,
+    summary="Export clinical handoff as a FHIR R4 Communication resource",
+)
+def get_fhir_communication(
+    handoff_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+) -> FHIRCommunication:
+    """Retrieve and export a clinical shift handoff as a standard FHIR R4 Communication resource."""
+    try:
+        return export_handoff_as_fhir_communication(db, current_user, handoff_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+
 
 
 # ============================================================================

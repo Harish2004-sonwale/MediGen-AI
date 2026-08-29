@@ -7,7 +7,9 @@ from sqlalchemy.orm import Session
 from app.models.care_plan import CarePlan
 from app.models.care_task import CareTask
 from app.models.cohort import CohortMembership, PatientCohort
+from app.models.discharge import DischargeProtocol
 from app.models.encounter import Encounter
+from app.models.handoff import ClinicalHandoff
 from app.models.patient import Patient
 from app.models.risk_assessment import ClinicalRiskAssessment
 from app.models.user import User, UserRole
@@ -15,6 +17,8 @@ from app.schemas.fhir import (
     FHIRBundle,
     FHIRBundleEntry,
     FHIRCarePlan,
+    FHIRCommunication,
+    FHIRComposition,
     FHIRCondition,
     FHIREncounter,
     FHIRGroup,
@@ -28,6 +32,8 @@ from app.services.appointment_service import resolve_patient
 from app.services.encounter_service import get_encounter_by_encounter_id
 from app.services.fhir_mapper_service import (
     FHIRCarePlanMapper,
+    FHIRCommunicationMapper,
+    FHIRCompositionMapper,
     FHIRConditionMapper,
     FHIREncounterMapper,
     FHIRGroupMapper,
@@ -37,6 +43,7 @@ from app.services.fhir_mapper_service import (
     FHIRRiskAssessmentMapper,
     FHIRTaskMapper,
 )
+
 
 from app.services.rag_service import validate_patient_rag_access
 from app.services.timeline_service import get_patient_timeline
@@ -323,3 +330,35 @@ def export_risk_assessment_as_fhir(db: Session, current_user: User, assessment_i
         assessment.patient.patient_id,
     )
     return FHIRRiskAssessmentMapper.to_fhir(assessment, assessment.patient.patient_id)
+
+
+def export_discharge_as_fhir_composition(db: Session, current_user: User, discharge_id_str: str) -> FHIRComposition:
+    """Export internal clinical discharge protocol as standard FHIR R4 Composition resource."""
+    stmt = select(DischargeProtocol).where(DischargeProtocol.discharge_id == discharge_id_str)
+    discharge = db.execute(stmt).scalar_one_or_none()
+    if not discharge:
+        raise ValueError(f"Discharge protocol with identifier '{discharge_id_str}' was not found.")
+
+    validate_patient_rag_access(db, current_user, discharge.patient)
+    logger.info(
+        "Exporting FHIR Composition resource id=%s for patient=%s",
+        discharge.discharge_id,
+        discharge.patient.patient_id,
+    )
+    return FHIRCompositionMapper.to_fhir(discharge, discharge.patient.patient_id)
+
+
+def export_handoff_as_fhir_communication(db: Session, current_user: User, handoff_id_str: str) -> FHIRCommunication:
+    """Export internal clinical handoff as standard FHIR R4 Communication resource."""
+    stmt = select(ClinicalHandoff).where(ClinicalHandoff.handoff_id == handoff_id_str)
+    handoff = db.execute(stmt).scalar_one_or_none()
+    if not handoff:
+        raise ValueError(f"Clinical handoff with identifier '{handoff_id_str}' was not found.")
+
+    validate_patient_rag_access(db, current_user, handoff.patient)
+    logger.info(
+        "Exporting FHIR Communication resource id=%s for patient=%s",
+        handoff.handoff_id,
+        handoff.patient.patient_id,
+    )
+    return FHIRCommunicationMapper.to_fhir(handoff, handoff.patient.patient_id)

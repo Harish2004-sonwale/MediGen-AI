@@ -38,6 +38,9 @@ class BackgroundTaskType(str, Enum):
     CARE_PLAN_GENERATION = "care_plan_generation"
     COHORT_ANALYSIS = "cohort_analysis"
     RISK_STRATIFICATION = "risk_stratification"
+    HANDOFF_SYNTHESIS = "handoff_synthesis"
+    DISCHARGE_SYNTHESIS = "discharge_synthesis"
+
 
 
 class BackgroundTask(BaseModel):

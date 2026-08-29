@@ -15,7 +15,10 @@ class FHIRResourceType(str, Enum):
     TASK = "Task"
     GROUP = "Group"
     RISK_ASSESSMENT = "RiskAssessment"
+    COMPOSITION = "Composition"
+    COMMUNICATION = "Communication"
     BUNDLE = "Bundle"
+
 
 
 
@@ -285,6 +288,50 @@ class FHIRRiskAssessment(BaseModel):
     occurrenceDateTime: Optional[str] = Field(default=None, description="When was assessment made?")
     prediction: list[FHIRRiskAssessmentPrediction] = Field(default_factory=list, description="Outcome predicted")
     mitigation: Optional[str] = Field(default=None, description="How to reduce risk")
+
+
+class FHIRCompositionSection(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    title: Optional[str] = Field(default=None, description="Label for section (e.g. for TOC)")
+    code: Optional[FHIRCodeableConcept] = Field(default=None, description="Classification of section (recommended)")
+    text: Optional[dict[str, Any]] = Field(default=None, description="Text summary of the section, for human interpretation")
+
+
+class FHIRComposition(BaseModel):
+    model_config = ConfigDict(extra="allow", populate_by_name=True)
+
+    resourceType: str = Field(default="Composition", description="FHIR resource type")
+    id: Optional[str] = Field(default=None, description="Logical id of this artifact")
+    identifier: list[FHIRIdentifier] = Field(default_factory=list, description="Version-independent identifier")
+    status: str = Field(default="final", description="preliminary | final | amended | entered-in-error")
+    type: FHIRCodeableConcept = Field(..., description="Kind of composition (e.g. LOINC 18842-5 Discharge Summary)")
+    category: list[FHIRCodeableConcept] = Field(default_factory=list, description="Categorization of Composition")
+    subject: Optional[FHIRReference] = Field(default=None, description="Who and/or what the composition is about")
+    encounter: Optional[FHIRReference] = Field(default=None, description="Context of the Composition")
+    date: Optional[str] = Field(default=None, description="Composition editing time")
+    author: list[FHIRReference] = Field(default_factory=list, description="Who and/or what authored the composition")
+    title: str = Field(..., description="Human Readable name/title")
+    section: list[FHIRCompositionSection] = Field(default_factory=list, description="Composition is broken into sections")
+
+
+class FHIRCommunication(BaseModel):
+    model_config = ConfigDict(extra="allow", populate_by_name=True)
+
+    resourceType: str = Field(default="Communication", description="FHIR resource type")
+    id: Optional[str] = Field(default=None, description="Logical id of this artifact")
+    identifier: list[FHIRIdentifier] = Field(default_factory=list, description="Unique identifier")
+    status: str = Field(default="completed", description="preparation | in-progress | on-hold | stopped | completed | entered-in-error | unknown")
+    category: list[FHIRCodeableConcept] = Field(default_factory=list, description="Message category (e.g. clinical-handoff)")
+    priority: Optional[str] = Field(default="routine", description="routine | urgent | asap | stat")
+    subject: Optional[FHIRReference] = Field(default=None, description="Focus of message (e.g. Patient)")
+    encounter: Optional[FHIRReference] = Field(default=None, description="Encounter associated with communication")
+    sent: Optional[str] = Field(default=None, description="When sent")
+    received: Optional[str] = Field(default=None, description="When received")
+    sender: Optional[FHIRReference] = Field(default=None, description="Message sender")
+    recipient: list[FHIRReference] = Field(default_factory=list, description="Message recipient")
+    payload: list[dict[str, Any]] = Field(default_factory=list, description="Message payload content")
+
 
 
 

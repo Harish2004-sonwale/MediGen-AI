@@ -5,7 +5,9 @@ from typing import Any, Optional
 from app.models.care_plan import CarePlan
 from app.models.care_task import CareTask
 from app.models.cohort import CohortMembership, PatientCohort
+from app.models.discharge import DischargeProtocol
 from app.models.encounter import Encounter
+from app.models.handoff import ClinicalHandoff
 from app.models.patient import Patient
 from app.models.risk_assessment import ClinicalRiskAssessment
 from app.schemas.encounter import EncounterCreate, EncounterStatus, EncounterType
@@ -17,6 +19,9 @@ from app.schemas.fhir import (
     FHIRCarePlanActivityDetail,
     FHIRCodeableConcept,
     FHIRCoding,
+    FHIRCommunication,
+    FHIRComposition,
+    FHIRCompositionSection,
     FHIRContactPoint,
     FHIRDosage,
     FHIREncounter,
@@ -38,6 +43,7 @@ from app.schemas.fhir import (
     FHIRRiskAssessmentPrediction,
     FHIRTask,
 )
+
 
 from app.schemas.patient import Gender, PatientCreate, PatientStatus
 
@@ -814,4 +820,152 @@ class FHIRRiskAssessmentMapper(BaseFHIRMapper):
                 )
             ],
             mitigation=mitigation_text,
+        )
+
+
+class FHIRCompositionMapper(BaseFHIRMapper):
+    """Maps internal DischargeProtocol to standard FHIR R4 Composition resource."""
+
+    @staticmethod
+    def to_fhir(discharge: DischargeProtocol, patient_id_str: str) -> FHIRComposition:
+        sections = [
+            FHIRCompositionSection(
+                title="Hospital Course",
+                code=FHIRCodeableConcept(
+                    coding=[FHIRCoding(system="http://loinc.org", code="8648-8", display="Hospital Course Narrative")]
+                ),
+                text={"status": "generated", "div": f"<div xmlns=\"http://www.w3.org/1999/xhtml\"><p>{discharge.hospital_course_summary}</p></div>"},
+            ),
+            FHIRCompositionSection(
+                title="Discharge Diagnoses",
+                code=FHIRCodeableConcept(
+                    coding=[FHIRCoding(system="http://loinc.org", code="11535-2", display="Hospital Discharge Diagnosis")]
+                ),
+                text={
+                    "status": "generated",
+                    "div": f"<div xmlns=\"http://www.w3.org/1999/xhtml\"><p><strong>Primary:</strong> {discharge.primary_discharge_diagnosis}</p></div>",
+                },
+            ),
+        ]
+
+        if discharge.medication_reconciliation_json:
+            med_lines = "; ".join(
+                f"{m.get('medication_name', '')} ({m.get('dose', '')} {m.get('frequency', '')}) - [{m.get('reconciliation_status', '')}]"
+                for m in discharge.medication_reconciliation_json
+                if isinstance(m, dict)
+            )
+            sections.append(
+                FHIRCompositionSection(
+                    title="Discharge Medications",
+                    code=FHIRCodeableConcept(
+                        coding=[FHIRCoding(system="http://loinc.org", code="10183-2", display="Hospital Discharge Medications")]
+                    ),
+                    text={"status": "generated", "div": f"<div xmlns=\"http://www.w3.org/1999/xhtml\"><p>{med_lines}</p></div>"},
+                )
+            )
+
+        if discharge.warning_symptoms_json:
+            warn_lines = "; ".join(
+                f"{w.get('symptom_title', '')} ({w.get('urgency_level', '')})"
+                for w in discharge.warning_symptoms_json
+                if isinstance(w, dict)
+            )
+            sections.append(
+                FHIRCompositionSection(
+                    title="Warning Signs & Red Flags",
+                    code=FHIRCodeableConcept(
+                        coding=[FHIRCoding(system="http://loinc.org", code="8653-8", display="Hospital Discharge Instructions")]
+                    ),
+                    text={"status": "generated", "div": f"<div xmlns=\"http://www.w3.org/1999/xhtml\"><p>{warn_lines}</p></div>"},
+                )
+            )
+
+        authors = []
+        if discharge.attending_user_id:
+            authors.append(FHIRReference(reference=f"Practitioner/{discharge.attending_user_id}"))
+
+        return FHIRComposition(
+            id=discharge.discharge_id,
+            identifier=[
+                FHIRIdentifier(
+                    system="http://medigen.ai/fhir/discharge-protocols",
+                    value=discharge.discharge_id,
+                )
+            ],
+            status="final" if discharge.status in ("ready_for_discharge", "completed") else "preliminary",
+            type=FHIRCodeableConcept(
+                coding=[
+                    FHIRCoding(
+                        system="http://loinc.org",
+                        code="18842-5",
+                        display="Discharge Summary",
+                    )
+                ],
+                text="Discharge Summary & Protocol",
+            ),
+            category=[
+                FHIRCodeableConcept(
+                    coding=[
+                        FHIRCoding(
+                            system="http://hl7.org/fhir/us/core/CodeSystem/us-core-documentreference-category",
+                            code="clinical-note",
+                            display="Clinical Note",
+                        )
+                    ]
+                )
+            ],
+            subject=FHIRReference(reference=f"Patient/{patient_id_str}"),
+            encounter=FHIRReference(reference=f"Encounter/{discharge.encounter_id}") if discharge.encounter_id else None,
+            date=discharge.discharge_date.isoformat() if discharge.discharge_date else discharge.created_at.isoformat(),
+            author=authors,
+            title=f"Discharge Summary for {patient_id_str} ({discharge.disposition.replace('_', ' ').title()})",
+            section=sections,
+        )
+
+
+class FHIRCommunicationMapper(BaseFHIRMapper):
+    """Maps internal ClinicalHandoff to standard FHIR R4 Communication resource."""
+
+    @staticmethod
+    def to_fhir(handoff: ClinicalHandoff, patient_id_str: str) -> FHIRCommunication:
+        recipients = []
+        if handoff.receiver_user_id:
+            recipients.append(FHIRReference(reference=f"Practitioner/{handoff.receiver_user_id}"))
+
+        payload_items = [
+            {"contentString": f"[{handoff.framework.upper()}] {handoff.summary}"}
+        ]
+        if handoff.action_items_json:
+            payload_items.append({"actionItems": handoff.action_items_json})
+        if handoff.situational_awareness_json:
+            payload_items.append({"contingencyPlans": handoff.situational_awareness_json})
+
+        return FHIRCommunication(
+            id=handoff.handoff_id,
+            identifier=[
+                FHIRIdentifier(
+                    system="http://medigen.ai/fhir/clinical-handoffs",
+                    value=handoff.handoff_id,
+                )
+            ],
+            status="completed" if handoff.status in ("acknowledged", "completed") else "in-progress",
+            category=[
+                FHIRCodeableConcept(
+                    coding=[
+                        FHIRCoding(
+                            system="http://terminology.hl7.org/CodeSystem/communication-category",
+                            code="clinical-handoff",
+                            display=f"Clinical Handoff ({handoff.handoff_type})",
+                        )
+                    ]
+                )
+            ],
+            priority="urgent" if handoff.illness_severity in ("watcher", "unstable") else "routine",
+            subject=FHIRReference(reference=f"Patient/{patient_id_str}"),
+            encounter=FHIRReference(reference=f"Encounter/{handoff.encounter_id}") if handoff.encounter_id else None,
+            sent=handoff.created_at.isoformat() if handoff.created_at else None,
+            received=handoff.acknowledged_at.isoformat() if handoff.acknowledged_at else None,
+            sender=FHIRReference(reference=f"Practitioner/{handoff.sender_user_id}") if handoff.sender_user_id else None,
+            recipient=recipients,
+            payload=payload_items,
         )

@@ -18,6 +18,7 @@ import {
   ChatSessionDetail,
   ClinicalAlert,
   ClinicalAlertListResponse,
+  ClinicalHandoff,
   ClinicalNote,
   ClinicalNoteListResponse,
   ClinicalRiskAssessment,
@@ -28,8 +29,16 @@ import {
   CohortMembership,
   CohortType,
   DiagnosticMedia,
-
   DiagnosticMediaListResponse,
+  DischargeDisposition,
+  DischargeProtocol,
+  DischargeProtocolListResponse,
+  DischargeStatus,
+  HandoffFramework,
+  HandoffListResponse,
+  HandoffStatus,
+  HandoffType,
+  IllnessSeverity,
   MediaBodySite,
   MediaModality,
   MedicalDocument,
@@ -39,6 +48,7 @@ import {
   RiskAssessmentListResponse,
   RiskType,
   TaskListResponse,
+
 
   TaskPriority,
   TimelineCitation,
@@ -938,6 +948,145 @@ export const cohortsApi = {
     return apiRequest<ClinicalRiskAssessment>(
       `/risk-assessments/${encodeURIComponent(assessmentId)}`,
       { method: 'GET' }
+    );
+  },
+};
+
+export const transitionsApi = {
+  // Handoffs
+  listHandoffs: async (patientId: string, status?: HandoffStatus): Promise<HandoffListResponse> => {
+    const q = status ? `?status=${encodeURIComponent(status)}` : '';
+    return apiRequest<HandoffListResponse>(
+      `/patients/${encodeURIComponent(patientId)}/handoffs${q}`,
+      { method: 'GET' }
+    );
+  },
+
+  getHandoff: async (handoffId: string): Promise<ClinicalHandoff> => {
+    return apiRequest<ClinicalHandoff>(`/handoffs/${encodeURIComponent(handoffId)}`, {
+      method: 'GET',
+    });
+  },
+
+  createHandoff: async (patientId: string, data: Partial<ClinicalHandoff>): Promise<ClinicalHandoff> => {
+    return apiRequest<ClinicalHandoff>(
+      `/patients/${encodeURIComponent(patientId)}/handoffs`,
+      {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }
+    );
+  },
+
+  synthesizeHandoff: async (
+    patientId: string,
+    data: {
+      framework?: HandoffFramework;
+      handoff_type?: HandoffType;
+      receiver_user_id?: number;
+      encounter_id?: number;
+      custom_context?: string;
+    }
+  ): Promise<ClinicalHandoff> => {
+    return apiRequest<ClinicalHandoff>(
+      `/patients/${encodeURIComponent(patientId)}/handoffs/synthesize`,
+      {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }
+    );
+  },
+
+  updateHandoff: async (handoffId: string, data: Partial<ClinicalHandoff>): Promise<ClinicalHandoff> => {
+    return apiRequest<ClinicalHandoff>(`/handoffs/${encodeURIComponent(handoffId)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  },
+
+  acknowledgeHandoff: async (handoffId: string, synthesisNotes: string): Promise<ClinicalHandoff> => {
+    return apiRequest<ClinicalHandoff>(
+      `/handoffs/${encodeURIComponent(handoffId)}/acknowledge`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ synthesis_notes: synthesisNotes }),
+      }
+    );
+  },
+
+  // Discharge Protocols
+  listDischargeProtocols: async (
+    patientId: string,
+    status?: DischargeStatus
+  ): Promise<DischargeProtocolListResponse> => {
+    const q = status ? `?status=${encodeURIComponent(status)}` : '';
+    return apiRequest<DischargeProtocolListResponse>(
+      `/patients/${encodeURIComponent(patientId)}/discharge-protocols${q}`,
+      { method: 'GET' }
+    );
+  },
+
+  getDischargeProtocol: async (dischargeId: string): Promise<DischargeProtocol> => {
+    return apiRequest<DischargeProtocol>(
+      `/discharge-protocols/${encodeURIComponent(dischargeId)}`,
+      { method: 'GET' }
+    );
+  },
+
+  createDischargeProtocol: async (
+    patientId: string,
+    data: Partial<DischargeProtocol>
+  ): Promise<DischargeProtocol> => {
+    return apiRequest<DischargeProtocol>(
+      `/patients/${encodeURIComponent(patientId)}/discharge-protocols`,
+      {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }
+    );
+  },
+
+  synthesizeDischargeProtocol: async (
+    patientId: string,
+    data: {
+      encounter_id?: number;
+      disposition?: DischargeDisposition;
+      custom_instructions?: string;
+    }
+  ): Promise<DischargeProtocol> => {
+    return apiRequest<DischargeProtocol>(
+      `/patients/${encodeURIComponent(patientId)}/discharge-protocols/synthesize`,
+      {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }
+    );
+  },
+
+  updateDischargeProtocol: async (
+    dischargeId: string,
+    data: Partial<DischargeProtocol>
+  ): Promise<DischargeProtocol> => {
+    return apiRequest<DischargeProtocol>(
+      `/discharge-protocols/${encodeURIComponent(dischargeId)}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+      }
+    );
+  },
+
+  signoffDischargeProtocol: async (
+    dischargeId: string,
+    signoffRole: string,
+    clinicalNotes?: string
+  ): Promise<DischargeProtocol> => {
+    return apiRequest<DischargeProtocol>(
+      `/discharge-protocols/${encodeURIComponent(dischargeId)}/signoff`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ signoff_role: signoffRole, clinical_notes: clinicalNotes }),
+      }
     );
   },
 };

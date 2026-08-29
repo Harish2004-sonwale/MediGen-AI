@@ -159,11 +159,37 @@ from app.schemas.risk_assessment import (
     RiskType,
 )
 from app.schemas.timeline import (
-
     ClinicalTimelineEvent,
     TimelineEventType,
     TimelineListResponse,
     TimelineSummaryResponse,
+)
+from app.schemas.handoff import (
+    ContingencyPlan,
+    HandoffActionItem,
+    HandoffAcknowledge,
+    HandoffCreate,
+    HandoffFramework,
+    HandoffListResponse,
+    HandoffResponse,
+    HandoffStatus,
+    HandoffSynthesizeRequest,
+    HandoffType,
+    IllnessSeverity,
+)
+from app.schemas.discharge import (
+    DischargeDisposition,
+    DischargeProtocolCreate,
+    DischargeProtocolListResponse,
+    DischargeProtocolResponse,
+    DischargeProtocolSynthesizeRequest,
+    DischargeProtocolUpdate,
+    DischargeSignoffRequest,
+    DischargeStatus,
+    FollowupAppointmentItem,
+    MedicationReconciliationItem,
+    PendingDiagnosticItem,
+    WarningSymptomItem,
 )
 from app.schemas.token import TokenPayload, TokenResponse
 from app.schemas.user import (
@@ -270,4 +296,27 @@ __all__ = [
     "RiskAssessmentCreate",
     "RiskAssessmentResponse",
     "RiskAssessmentListResponse",
+    "HandoffFramework",
+    "HandoffType",
+    "IllnessSeverity",
+    "HandoffStatus",
+    "HandoffActionItem",
+    "ContingencyPlan",
+    "HandoffCreate",
+    "HandoffSynthesizeRequest",
+    "HandoffAcknowledge",
+    "HandoffResponse",
+    "HandoffListResponse",
+    "DischargeDisposition",
+    "DischargeStatus",
+    "MedicationReconciliationItem",
+    "FollowupAppointmentItem",
+    "PendingDiagnosticItem",
+    "WarningSymptomItem",
+    "DischargeProtocolCreate",
+    "DischargeProtocolSynthesizeRequest",
+    "DischargeProtocolUpdate",
+    "DischargeSignoffRequest",
+    "DischargeProtocolResponse",
+    "DischargeProtocolListResponse",
 ]

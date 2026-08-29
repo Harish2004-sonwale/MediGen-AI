@@ -559,3 +559,136 @@ export interface RiskAssessmentListResponse {
   items: ClinicalRiskAssessment[];
   total: number;
 }
+
+export type HandoffFramework = 'ipass' | 'sbar';
+export type HandoffType =
+  | 'shift_change'
+  | 'unit_transfer'
+  | 'discharge_transition'
+  | 'service_consultation';
+export type IllnessSeverity = 'stable' | 'watcher' | 'unstable';
+export type HandoffStatus = 'draft' | 'active' | 'acknowledged' | 'completed' | 'cancelled';
+
+export interface HandoffActionItem {
+  item_id: string;
+  task_description: string;
+  role_required: string;
+  priority: string;
+  is_completed: boolean;
+}
+
+export interface ContingencyPlan {
+  plan_id: string;
+  trigger_condition: string;
+  immediate_action: string;
+  escalation_contact: string;
+}
+
+export interface ClinicalHandoff {
+  id: number;
+  handoff_id: string;
+  patient_id: number;
+  patient_identifier?: string;
+  patient_name?: string;
+  encounter_id?: number;
+  sender_user_id?: number;
+  sender_name?: string;
+  receiver_user_id?: number;
+  receiver_name?: string;
+  framework: HandoffFramework;
+  handoff_type: HandoffType;
+  illness_severity: IllnessSeverity;
+  status: HandoffStatus;
+  summary: string;
+  action_items_json?: HandoffActionItem[];
+  situational_awareness_json?: ContingencyPlan[];
+  synthesis_notes?: string;
+  is_ai_generated: boolean;
+  acknowledged_at?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface HandoffListResponse {
+  items: ClinicalHandoff[];
+  total: number;
+}
+
+export type DischargeDisposition =
+  | 'home_self_care'
+  | 'home_health_services'
+  | 'skilled_nursing_facility'
+  | 'rehab_facility'
+  | 'hospice'
+  | 'transfer_acute_care';
+
+export type DischargeStatus =
+  | 'draft'
+  | 'under_review'
+  | 'ready_for_discharge'
+  | 'completed'
+  | 'cancelled';
+
+export interface MedicationReconciliationItem {
+  medication_name: string;
+  dose: string;
+  route: string;
+  frequency: string;
+  reconciliation_status: string;
+  clinical_rationale: string;
+}
+
+export interface FollowupAppointmentItem {
+  provider_or_specialty: string;
+  timeframe: string;
+  purpose: string;
+  contact_phone?: string;
+}
+
+export interface PendingDiagnosticItem {
+  test_name: string;
+  ordered_date?: string;
+  follow_up_physician: string;
+  instructions: string;
+}
+
+export interface WarningSymptomItem {
+  symptom_title: string;
+  urgency_level: string;
+  action_instructions: string;
+}
+
+export interface DischargeProtocol {
+  id: number;
+  discharge_id: string;
+  patient_id: number;
+  patient_identifier?: string;
+  patient_name?: string;
+  encounter_id?: number;
+  attending_user_id?: number;
+  attending_name?: string;
+  nurse_user_id?: number;
+  nurse_name?: string;
+  pharmacist_user_id?: number;
+  pharmacist_name?: string;
+  status: DischargeStatus;
+  disposition: DischargeDisposition;
+  discharge_date?: string;
+  hospital_course_summary: string;
+  primary_discharge_diagnosis: string;
+  secondary_diagnoses_json?: string[];
+  medication_reconciliation_json?: MedicationReconciliationItem[];
+  followup_instructions_json?: FollowupAppointmentItem[];
+  pending_tests_json?: PendingDiagnosticItem[];
+  warning_symptoms_json?: WarningSymptomItem[];
+  activity_and_diet_instructions?: string;
+  is_ai_generated: boolean;
+  signed_off_at?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DischargeProtocolListResponse {
+  items: DischargeProtocol[];
+  total: number;
+}
