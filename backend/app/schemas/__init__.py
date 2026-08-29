@@ -58,6 +58,16 @@ from app.schemas.patient import (
     PatientStatus,
     PatientUpdate,
 )
+from app.schemas.media import (
+    ClinicianReviewRequest,
+    DiagnosticMediaListResponse,
+    DiagnosticMediaResponse,
+    ImagingFindingItem,
+    MediaBodySite,
+    MediaModality,
+    MediaStatus,
+    StructuredImagingFinding,
+)
 from app.schemas.rag import (
     RAGCitation,
     RAGQueryRequest,
@@ -165,4 +175,12 @@ __all__ = [
     "TaskListResponse",
     "DocumentTaskRequest",
     "TimelineTaskRequest",
+    "MediaModality",
+    "MediaBodySite",
+    "MediaStatus",
+    "ImagingFindingItem",
+    "StructuredImagingFinding",
+    "ClinicianReviewRequest",
+    "DiagnosticMediaResponse",
+    "DiagnosticMediaListResponse",
 ]

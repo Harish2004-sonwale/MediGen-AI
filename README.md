@@ -79,10 +79,11 @@ MediGen-AI/
 │   │   │   ├── 0005_add_doctor_department.py
 │   │   │   ├── 0006_create_appointments_table.py
 │   │   │   ├── 0007_create_medical_documents_table.py
-│   │   │   └── 0008_create_chat_sessions_tables.py
+│   │   │   ├── 0008_create_chat_sessions_tables.py
+│   │   │   └── 0009_diagnostic_media.py
 │   │   └── env.py         # Migration environment configuration
 │   ├── app/
-│   │   ├── ai/            # AI pipelines, RAG, embeddings, OCR, LLM adapters
+│   │   ├── ai/            # AI pipelines, RAG, embeddings, OCR, LLM adapters, imaging
 │   │   ├── api/           # API routers & endpoints
 │   │   │   ├── v1/
 │   │   │   │   ├── endpoints/
@@ -92,6 +93,7 @@ MediGen-AI/
 │   │   │   │   │   ├── doctors.py      # Doctor management endpoints
 │   │   │   │   │   ├── documents.py    # Document upload & processing endpoints
 │   │   │   │   │   ├── encounters.py   # Clinical encounter endpoints
+│   │   │   │   │   ├── media.py        # Multi-modal medical diagnostics endpoints
 │   │   │   │   │   ├── patients.py     # Patient management endpoints
 │   │   │   │   │   ├── rag.py          # Clinical RAG query endpoints
 │   │   │   │   │   ├── safety.py       # Clinical safety & drug check endpoints
@@ -100,15 +102,16 @@ MediGen-AI/
 │   │   │   └── deps.py    # Auth & role-checking dependencies
 │   │   ├── core/          # Configuration & security
 │   │   ├── database/      # Database foundation
-│   │   ├── models/        # Database ORM models
+│   │   ├── models/        # Database ORM models (including DiagnosticMedia)
 │   │   ├── schemas/       # Pydantic schemas
-│   │   ├── services/      # Business logic services
+│   │   ├── services/      # Business logic services (including media_service)
 │   │   └── main.py        # FastAPI entrypoint
-│   ├── tests/             # Automated test suite (163 tests, 100% passing)
+│   ├── tests/             # Automated test suite (322 tests, 100% passing)
 │   ├── .env.example       # Environment configuration template
 │   ├── alembic.ini        # Alembic configuration
 │   ├── pytest.ini         # Pytest configuration
 │   └── requirements.txt   # Backend dependencies
+├── frontend/              # React 18 + Vite + TypeScript Clinical Dashboard
 ├── docs/                  # Architecture & system documentation
 │   ├── appointments.md    # Appointment scheduling documentation
 │   ├── authentication.md  # Auth & RBAC documentation
@@ -124,6 +127,7 @@ MediGen-AI/
 │   ├── clinical_timeline.md # Longitudinal timeline aggregation
 │   ├── clinical_safety.md # Clinical safety and interaction checks
 │   ├── deployment.md      # Deployment guide
+│   ├── phase_9_0_7.md     # Multi-modal medical diagnostics guide
 │   └── api_overview.md    # Full API reference
 ├── LICENSE                # MIT License
 └── README.md              # Project documentation
@@ -172,6 +176,12 @@ MediGen-AI/
 | `POST` | `/api/v1/documents/upload` | Clinical Roles | Upload medical document (PDF, DOCX, TXT) | `201 Created` |
 | `GET` | `/api/v1/documents/{document_id}` | Clinical Roles | Get document metadata & processing status | `200 OK` |
 | `GET` | `/api/v1/documents/patient/{patient_id}` | Clinical Roles | List documents for a patient | `200 OK` |
+| `POST` | `/api/v1/patients/{patient_id}/media` | Clinical Roles | Upload clinical diagnostic media (X-ray, CT, MRI) | `201 Created` |
+| `GET` | `/api/v1/patients/{patient_id}/media` | Authenticated | List diagnostic media records for patient | `200 OK` |
+| `GET` | `/api/v1/media/{media_id}` | Authenticated | Get diagnostic media details & AI observations | `200 OK` |
+| `GET` | `/api/v1/media/{media_id}/file` | Authenticated | Stream authorized media binary file | `200 OK` |
+| `POST` | `/api/v1/tasks/media/{media_id}/analyze`| Clinical Roles | Enqueue background AI imaging analysis | `202 Accepted` |
+| `POST` | `/api/v1/media/{media_id}/review` | Doctor / Admin | Record physician verification signoff | `200 OK` |
 | `POST` | `/api/v1/rag/query` | Authenticated | Execute grounded clinical RAG query | `200 OK` |
 | `POST` | `/api/v1/chat/sessions` | Authenticated | Create a new clinical chat session | `201 Created` |
 | `POST` | `/api/v1/chat/sessions/{session_id}/messages` | Authenticated | Send message in session (grounded RAG) | `200 OK` |
@@ -220,10 +230,4 @@ MediGen-AI/
    - **Phase 9.0.4 — Production Observability, Reliability & Operational Monitoring**: Completed & Verified ✅
    - **Phase 9.0.5 — Advanced Production Deployment & Scalability**: Completed & Verified ✅
    - **Phase 9.0.6 — Frontend Clinical Dashboard & Real-Time Decision Support UI**: Completed & Verified ✅
-
-### Next — Planned Future Work (Roadmap Only)
-
-- **Phase 9.0.7 — Advanced Multi-Modal Medical Diagnostics & Imaging Support**:
-  - DICOM/Medical imaging ingestion & visual feature extraction
-  - Multi-modal clinical report synthesis and radiology grounding
-  - End-to-end multi-modal safety and decision-support integration
+   - **Phase 9.0.7 — Advanced Multi-Modal Medical Diagnostics & Imaging Support**: Completed & Verified ✅

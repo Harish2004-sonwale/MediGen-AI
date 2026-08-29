@@ -177,3 +177,77 @@ export interface TaskListResponse {
   page: number;
   size: number;
 }
+
+export type MediaModality =
+  | 'xray_chest'
+  | 'ct_scan'
+  | 'mri'
+  | 'ultrasound'
+  | 'dermatology'
+  | 'pathology'
+  | 'other';
+
+export type MediaBodySite =
+  | 'chest'
+  | 'brain'
+  | 'abdomen'
+  | 'pelvis'
+  | 'extremity'
+  | 'spine'
+  | 'skin'
+  | 'whole_body'
+  | 'other';
+
+export type MediaStatus =
+  | 'uploaded'
+  | 'analyzing'
+  | 'analyzed'
+  | 'reviewed'
+  | 'failed';
+
+export interface ImagingFindingItem {
+  observation: string;
+  anatomical_region: string;
+  confidence: number;
+  is_abnormal: boolean;
+  severity?: string;
+}
+
+export interface StructuredImagingFinding {
+  modality: MediaModality;
+  confidence_score: number;
+  primary_observation: string;
+  findings: ImagingFindingItem[];
+  differential_notes: string[];
+  disclaimer: string;
+}
+
+export interface DiagnosticMedia {
+  id: number;
+  media_id: string;
+  patient_id: number;
+  uploader_user_id?: number;
+  encounter_id?: number;
+  title: string;
+  modality: MediaModality;
+  body_site?: MediaBodySite;
+  original_filename: string;
+  file_size_bytes: number;
+  mime_type: string;
+  status: MediaStatus;
+  confidence_score?: number;
+  findings_summary?: string;
+  structured_findings?: StructuredImagingFinding;
+  anomalies_detected?: ImagingFindingItem[];
+  requires_clinician_review: boolean;
+  clinician_confirmed: boolean;
+  clinician_notes?: string;
+  created_at: string;
+  analyzed_at?: string;
+  reviewed_at?: string;
+}
+
+export interface DiagnosticMediaListResponse {
+  items: DiagnosticMedia[];
+  total: number;
+}

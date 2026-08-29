@@ -12,7 +12,9 @@ import { TimelineView } from '../components/timeline/TimelineView';
 import { ClinicalChat } from '../components/chat/ClinicalChat';
 import { SafetyPrescriberModal } from '../components/safety/SafetyPrescriberModal';
 import { DocumentHub } from '../components/documents/DocumentHub';
+import { MediaDiagnosticsHub } from '../components/media/MediaDiagnosticsHub';
 import { TaskMonitor } from '../components/tasks/TaskMonitor';
+import { mediaApi } from '../api/client';
 
 export const DashboardPage: React.FC = () => {
   const { selectedPatient } = usePatient();
@@ -22,7 +24,12 @@ export const DashboardPage: React.FC = () => {
 
   const [isSafetyModalOpen, setIsSafetyModalOpen] = useState<boolean>(false);
   const [isTasksModalOpen, setIsTasksModalOpen] = useState<boolean>(false);
-  const [activeTab, setActiveTab] = useState<'timeline' | 'chat' | 'documents'>('chat');
+  const [activeTab, setActiveTab] = useState<'timeline' | 'chat' | 'documents' | 'media'>('chat');
+
+  const triggerMediaAnalysis = async (mediaId: string) => {
+    await mediaApi.enqueueAnalysis(mediaId);
+    await loadTasks();
+  };
 
   const activeTaskCount = tasks.filter(
     (t) => t.status === 'queued' || t.status === 'running' || t.status === 'retrying'
@@ -47,10 +54,10 @@ export const DashboardPage: React.FC = () => {
           <PatientDirectory />
         </section>
 
-        {/* Center Column: Interactive Workspaces (Chat, Timeline, Documents Tabs) */}
+        {/* Center Column: Interactive Workspaces (Chat, Timeline, Documents, Media Tabs) */}
         <section style={{ height: '100%', display: 'flex', flexDirection: 'column', gap: '12px', overflow: 'hidden' }}>
           {/* Navigation Tab Bar */}
-          <div style={{ display: 'flex', gap: '8px', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>
+          <div style={{ display: 'flex', gap: '8px', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px', flexWrap: 'wrap' }}>
             <button
               className={`btn btn-sm ${activeTab === 'chat' ? 'btn-primary' : 'btn-secondary'}`}
               onClick={() => setActiveTab('chat')}
@@ -69,6 +76,12 @@ export const DashboardPage: React.FC = () => {
             >
               📁 Medical Documents
             </button>
+            <button
+              className={`btn btn-sm ${activeTab === 'media' ? 'btn-primary' : 'btn-secondary'}`}
+              onClick={() => setActiveTab('media')}
+            >
+              🖼️ Diagnostics & Imaging
+            </button>
           </div>
 
           {/* Active Workspace View */}
@@ -79,6 +92,12 @@ export const DashboardPage: React.FC = () => {
               <DocumentHub
                 patientId={selectedPatient?.patient_id}
                 onTriggerOCR={triggerDocumentOCR}
+              />
+            )}
+            {activeTab === 'media' && (
+              <MediaDiagnosticsHub
+                patientId={selectedPatient?.patient_id}
+                onTriggerAnalysis={triggerMediaAnalysis}
               />
             )}
           </div>

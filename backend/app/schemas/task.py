@@ -32,6 +32,8 @@ class BackgroundTaskType(str, Enum):
     TIMELINE_SUMMARY = "timeline_summary"
     SAFETY_CHECK = "safety_check"
     BATCH_INDEXING = "batch_indexing"
+    MEDIA_ANALYSIS = "media_analysis"
+
 
 
 class BackgroundTask(BaseModel):

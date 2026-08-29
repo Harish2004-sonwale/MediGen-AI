@@ -5,6 +5,7 @@ from app.models.chat import ChatMessage, ChatSession
 from app.models.doctor import Doctor
 from app.models.document import DocumentChunk, MedicalDocument
 from app.models.encounter import Encounter
+from app.models.media import DiagnosticMedia
 from app.models.patient import Patient
 from app.models.user import User
 
@@ -18,4 +19,5 @@ __all__ = [
     "DocumentChunk",
     "ChatSession",
     "ChatMessage",
+    "DiagnosticMedia",
 ]

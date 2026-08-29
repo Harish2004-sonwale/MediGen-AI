@@ -82,6 +82,11 @@ class Settings(BaseSettings):
     LOG_FORMAT: str = "text"  # 'text' | 'json'
     METRICS_ENABLED: bool = True
 
+    # Multi-Modal Medical Diagnostics & Imaging Configuration (Phase 9.0.7)
+    MEDIA_STORAGE_DIR: str = "data/medical_media"
+    MEDIA_MAX_FILE_SIZE_BYTES: int = 52428800  # 50 MB
+    IMAGING_PROVIDER: str = "mock"
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

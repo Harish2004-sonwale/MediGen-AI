@@ -10,6 +10,10 @@ import {
   ChatSession,
   ChatSessionDetail,
   ClinicalSafetyReport,
+  DiagnosticMedia,
+  DiagnosticMediaListResponse,
+  MediaBodySite,
+  MediaModality,
   MedicalDocument,
   Patient,
   TaskListResponse,
@@ -402,5 +406,72 @@ export const tasksApi = {
         body: JSON.stringify({ focus }),
       }
     );
+  },
+};
+
+// 8. Multi-Modal Medical Diagnostics APIs
+export const mediaApi = {
+  list: async (patientId: string): Promise<DiagnosticMediaListResponse> => {
+    return apiRequest<DiagnosticMediaListResponse>(
+      `/patients/${encodeURIComponent(patientId)}/media`,
+      { method: 'GET' }
+    );
+  },
+
+  get: async (mediaId: string): Promise<DiagnosticMedia> => {
+    return apiRequest<DiagnosticMedia>(
+      `/media/${encodeURIComponent(mediaId)}`,
+      { method: 'GET' }
+    );
+  },
+
+  upload: async (
+    patientId: string,
+    file: File,
+    title: string,
+    modality: MediaModality,
+    bodySite?: MediaBodySite
+  ): Promise<DiagnosticMedia> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('title', title);
+    formData.append('modality', modality);
+    if (bodySite) formData.append('body_site', bodySite);
+
+    return apiRequest<DiagnosticMedia>(
+      `/patients/${encodeURIComponent(patientId)}/media`,
+      {
+        method: 'POST',
+        body: formData,
+      }
+    );
+  },
+
+  enqueueAnalysis: async (mediaId: string): Promise<BackgroundTask> => {
+    return apiRequest<BackgroundTask>(
+      `/tasks/media/${encodeURIComponent(mediaId)}/analyze`,
+      { method: 'POST' }
+    );
+  },
+
+  review: async (
+    mediaId: string,
+    clinicianConfirmed: boolean,
+    clinicianNotes?: string
+  ): Promise<DiagnosticMedia> => {
+    return apiRequest<DiagnosticMedia>(
+      `/media/${encodeURIComponent(mediaId)}/review`,
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          clinician_confirmed: clinicianConfirmed,
+          clinician_notes: clinicianNotes,
+        }),
+      }
+    );
+  },
+
+  getFileUrl: (mediaId: string): string => {
+    return `${API_BASE_URL}/media/${encodeURIComponent(mediaId)}/file`;
   },
 };
