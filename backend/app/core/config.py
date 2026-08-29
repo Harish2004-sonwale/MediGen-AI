@@ -1,14 +1,18 @@
+from typing import Any
+import json
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
     PROJECT_NAME: str = "MediGen AI"
     VERSION: str = "0.1.0"
-    ENVIRONMENT: str = "development"
+    ENVIRONMENT: str = "development"  # 'development' | 'staging' | 'production' | 'test'
     DEBUG: bool = True
     HOST: str = "0.0.0.0"
     PORT: int = 8000
     API_V1_STR: str = "/api/v1"
+    ASGI_WORKERS: int = 1
+    CORS_ORIGINS: str = "*"  # Comma-separated or JSON list of origins: "https://app.medigen.ai,https://admin.medigen.ai"
 
     # PostgreSQL Database Configuration
     DATABASE_URL: str = (
@@ -78,13 +82,99 @@ class Settings(BaseSettings):
     LOG_FORMAT: str = "text"  # 'text' | 'json'
     METRICS_ENABLED: bool = True
 
-
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
         case_sensitive=True,
         extra="ignore",
     )
+
+    def get_cors_origins(self) -> list[str]:
+        """Parse CORS_ORIGINS into a clean list of allowed origin URLs."""
+        raw = self.CORS_ORIGINS.strip()
+        if not raw or raw == "*":
+            return ["*"]
+        if raw.startswith("[") and raw.endswith("]"):
+            try:
+                parsed = json.loads(raw)
+                if isinstance(parsed, list):
+                    return [str(item).strip() for item in parsed if str(item).strip()]
+            except json.JSONDecodeError:
+                pass
+        return [origin.strip() for origin in raw.split(",") if origin.strip()]
+
+    def is_production(self) -> bool:
+        """Return True if running in a hardened production or staging environment."""
+        return self.ENVIRONMENT.lower() in ("production", "prod", "staging")
+
+    def validate_production_settings(self) -> list[str]:
+        """Validate critical configuration settings for production safety.
+
+        Returns a list of error messages. If empty, the configuration is valid.
+        """
+        errors: list[str] = []
+        if not self.is_production():
+            return errors
+
+        # 1. Insecure JWT Secret Key check
+        if (
+            not self.JWT_SECRET_KEY
+            or "YOUR_JWT_SECRET_KEY" in self.JWT_SECRET_KEY
+            or len(self.JWT_SECRET_KEY) < 32
+        ):
+            errors.append(
+                "Insecure JWT_SECRET_KEY in production. Must be a cryptographically strong secret with at least 32 characters."
+            )
+
+        # 2. Insecure DEBUG check
+        if self.DEBUG:
+            errors.append(
+                "DEBUG mode must be set to False in production environments."
+            )
+
+        # 3. Database URL placeholder check
+        if "YOUR_POSTGRES_PASSWORD" in self.DATABASE_URL:
+            errors.append(
+                "DATABASE_URL contains placeholder password in production."
+            )
+
+        # 4. Production CORS wildcard warning / validation
+        cors_origins = self.get_cors_origins()
+        if "*" in cors_origins and self.is_production():
+            errors.append(
+                "CORS_ORIGINS cannot be wildcard '*' in production. Specify explicit allowed domains."
+            )
+
+        return errors
+
+    def safe_dump(self) -> dict[str, Any]:
+        """Dump settings with all sensitive keys, tokens, and database passwords redacted."""
+        raw = self.model_dump()
+        sensitive_keys = {
+            "JWT_SECRET_KEY",
+            "OPENAI_API_KEY",
+            "ANTHROPIC_API_KEY",
+            "AWS_SECRET_ACCESS_KEY",
+            "OPENFDA_API_KEY",
+            "CELERY_BROKER_URL",
+            "CELERY_RESULT_BACKEND",
+        }
+        safe: dict[str, Any] = {}
+        for k, v in raw.items():
+            if k in sensitive_keys and v:
+                safe[k] = "[REDACTED]"
+            elif k == "DATABASE_URL" and isinstance(v, str):
+                # Redact password in connection string: postgresql://user:pass@host/db -> postgresql://user:[REDACTED]@host/db
+                if "@" in v and ":" in v.split("@")[0]:
+                    parts = v.split("@", 1)
+                    prefix = parts[0]
+                    scheme_and_user = prefix.rsplit(":", 1)[0]
+                    safe[k] = f"{scheme_and_user}:[REDACTED]@{parts[1]}"
+                else:
+                    safe[k] = v
+            else:
+                safe[k] = v
+        return safe
 
 
 settings = Settings()

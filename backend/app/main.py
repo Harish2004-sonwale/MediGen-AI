@@ -1,3 +1,4 @@
+from contextlib import asynccontextmanager
 import logging
 from fastapi import Depends, FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -21,10 +22,53 @@ from app.database import get_db
 configure_logging(log_level=settings.LOG_LEVEL, log_format=settings.LOG_FORMAT)
 logger = logging.getLogger("medigen.app")
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Production ASGI Lifespan manager: Handles graceful startup diagnostics and worker drain upon shutdown."""
+    # 1. Startup phase
+    logger.info(
+        "Starting %s v%s in [%s] environment (debug=%s, workers=%s)",
+        settings.PROJECT_NAME,
+        settings.VERSION,
+        settings.ENVIRONMENT,
+        settings.DEBUG,
+        settings.ASGI_WORKERS,
+    )
+
+    if settings.is_production():
+        prod_errors = settings.validate_production_settings()
+        if prod_errors:
+            for err in prod_errors:
+                logger.error("Production configuration issue detected: %s", err)
+
+    # Initialize background worker provider
+    worker_provider = get_background_task_provider()
+    logger.info(
+        "Background task provider initialised: provider=%s",
+        type(worker_provider).__name__,
+    )
+
+    yield
+
+    # 2. Shutdown phase: Gracefully drain background tasks
+    logger.info("Application shutdown initiated. Draining background task worker pool...")
+    try:
+        if hasattr(worker_provider, "shutdown"):
+            worker_provider.shutdown(wait=True)
+        from app.ai.task_worker import reset_background_task_provider
+        reset_background_task_provider()
+        logger.info("Background task worker pool shutdown successfully.")
+    except Exception as exc:
+        logger.warning("Error during background task worker shutdown: %s", exc)
+    logger.info("MediGen AI application shutdown complete.")
+
+
 app = FastAPI(
     title=settings.PROJECT_NAME,
     version=settings.VERSION,
     description="MediGen AI - Clinical Decision Support System API",
+    lifespan=lifespan,
 )
 
 # Correlation ID and Request Timing Middleware
@@ -33,7 +77,7 @@ app.add_middleware(CorrelationIdMiddleware)
 # CORS configuration
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=settings.get_cors_origins(),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

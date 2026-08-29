@@ -1,0 +1,40 @@
+# Git and IDE metadata
+.git
+.gitignore
+.idea
+.vscode
+
+# Python and testing artifacts
+__pycache__
+*.py[cod]
+*.so
+.pytest_cache
+.coverage
+htmlcov
+.tox
+.venv
+venv
+ENV
+env
+
+# Runtime databases, vector data, and logs
+*.db
+*.sqlite
+*.sqlite3
+*.log
+backend/data/
+data/
+vector_db/
+medical_documents/
+
+# Secrets and environment files
+.env
+.env.*
+!*.example
+*.pem
+*.key
+credentials.json
+service-account*.json
+
+# Documentation and tests (optional for lean deployment)
+docs/

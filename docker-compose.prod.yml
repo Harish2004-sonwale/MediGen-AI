@@ -1,0 +1,73 @@
+# ==============================================================================
+# MediGen AI - Production Docker Compose Reference Stack
+# ==============================================================================
+
+version: "3.8"
+
+services:
+  # 1. PostgreSQL Database Service
+  postgres:
+    image: postgres:16-alpine
+    container_name: medigen-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change_in_production_password}
+      POSTGRES_DB: ${POSTGRES_DB:-medigen_ai}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-medigen_ai}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - medigen-internal
+
+  # 2. MediGen AI Application API Service
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: medigen-api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      ENVIRONMENT: production
+      DEBUG: "False"
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-change_in_production_password}@postgres:5432/${POSTGRES_DB:-medigen_ai}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
+      ASGI_WORKERS: ${ASGI_WORKERS:-2}
+      CORS_ORIGINS: ${CORS_ORIGINS:-https://app.medigen.ai}
+      LOG_LEVEL: INFO
+      LOG_FORMAT: json
+      METRICS_ENABLED: "True"
+      BACKGROUND_TASK_PROVIDER: local
+      BACKGROUND_TASK_WORKERS: 4
+      DRUG_KNOWLEDGE_PROVIDER: mock
+    volumes:
+      - medigen_data:/app/backend/data
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    networks:
+      - medigen-internal
+
+volumes:
+  postgres_data:
+    driver: local
+  medigen_data:
+    driver: local
+
+networks:
+  medigen-internal:
+    driver: bridge
