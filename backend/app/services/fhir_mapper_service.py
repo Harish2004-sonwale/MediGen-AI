@@ -2,18 +2,24 @@ from abc import ABC, abstractmethod
 from datetime import date, datetime
 from typing import Any, Optional
 
+from app.models.care_plan import CarePlan
+from app.models.care_task import CareTask
 from app.models.encounter import Encounter
 from app.models.patient import Patient
 from app.schemas.encounter import EncounterCreate, EncounterStatus, EncounterType
 from app.schemas.fhir import (
     FHIRAddress,
     FHIRAnnotation,
+    FHIRCarePlan,
+    FHIRCarePlanActivity,
+    FHIRCarePlanActivityDetail,
     FHIRCodeableConcept,
     FHIRCoding,
     FHIRContactPoint,
     FHIRDosage,
     FHIREncounter,
     FHIREncounterDiagnosis,
+    FHIRGoal,
     FHIRHumanName,
     FHIRIdentifier,
     FHIRMedicationStatement,
@@ -24,6 +30,7 @@ from app.schemas.fhir import (
     FHIRQuantity,
     FHIRReference,
     FHIRCondition,
+    FHIRTask,
 )
 from app.schemas.patient import Gender, PatientCreate, PatientStatus
 
@@ -554,4 +561,154 @@ class FHIRObservationMapper(BaseFHIRMapper):
             valueQuantity=q_val,
             valueString=value_string,
             note=annotations,
+        )
+
+
+class FHIRGoalMapper(BaseFHIRMapper):
+    """Mapper from internal goal dictionary to FHIR R4 Goal resource."""
+
+    @staticmethod
+    def to_fhir(goal_dict: dict[str, Any], patient_id: str) -> FHIRGoal:
+        goal_id = goal_dict.get("goal_id", "G-01")
+        title = goal_dict.get("title", "Clinical Health Goal")
+        metric = goal_dict.get("target_metric")
+        target_text = f"{title}: {metric}" if metric else title
+
+        return FHIRGoal(
+            id=goal_id,
+            identifier=[
+                FHIRIdentifier(
+                    system="http://medigen.ai/fhir/goals",
+                    value=goal_id,
+                )
+            ],
+            lifecycleStatus=goal_dict.get("status", "active"),
+            description=FHIRCodeableConcept(
+                text=target_text,
+                coding=[
+                    FHIRCoding(
+                        system="http://snomed.info/sct",
+                        display=title,
+                    )
+                ],
+            ),
+            subject=FHIRReference(
+                reference=f"Patient/{patient_id}",
+            ),
+            targetDate=str(goal_dict.get("target_date")) if goal_dict.get("target_date") else None,
+        )
+
+
+class FHIRTaskMapper(BaseFHIRMapper):
+    """Mapper from internal CareTask ORM to FHIR R4 Task resource."""
+
+    @staticmethod
+    def to_fhir(task: CareTask, patient_id: str) -> FHIRTask:
+        status_map = {
+            "pending": "requested",
+            "in_progress": "in-progress",
+            "completed": "completed",
+            "cancelled": "cancelled",
+        }
+        fhir_status = status_map.get(task.status.value if hasattr(task.status, "value") else str(task.status), "requested")
+        priority_str = (task.priority.value if hasattr(task.priority, "value") else str(task.priority)).lower()
+
+        return FHIRTask(
+            id=task.task_id,
+            identifier=[
+                FHIRIdentifier(
+                    system="http://medigen.ai/fhir/tasks",
+                    value=task.task_id,
+                )
+            ],
+            status=fhir_status,
+            intent="order",
+            priority=priority_str,
+            description=task.title,
+            for_reference=FHIRReference(
+                reference=f"Patient/{patient_id}",
+            ),
+            executionPeriod=FHIRPeriod(
+                end=task.due_date.isoformat() if task.due_date else None,
+            ),
+            authoredOn=task.created_at.isoformat() if task.created_at else None,
+        )
+
+
+class FHIRCarePlanMapper(BaseFHIRMapper):
+    """Bidirectional mapper between internal CarePlan ORM and FHIR R4 CarePlan."""
+
+    @staticmethod
+    def to_fhir(plan: CarePlan, patient_id: str) -> FHIRCarePlan:
+        status_map = {
+            "draft": "draft",
+            "reviewed": "draft",
+            "active": "active",
+            "completed": "completed",
+            "suspended": "on-hold",
+            "cancelled": "revoked",
+        }
+        fhir_status = status_map.get(plan.status.value if hasattr(plan.status, "value") else str(plan.status), "draft")
+        category_str = plan.category.value if hasattr(plan.category, "value") else str(plan.category)
+
+        activities: list[FHIRCarePlanActivity] = []
+        if plan.interventions_json:
+            for intervention in plan.interventions_json:
+                desc = intervention.get("description", "Clinical intervention")
+                act_detail = FHIRCarePlanActivityDetail(
+                    kind="ServiceRequest",
+                    status="in-progress" if fhir_status == "active" else "not-started",
+                    description=desc,
+                    code=FHIRCodeableConcept(
+                        text=desc,
+                        coding=[
+                            FHIRCoding(
+                                system="http://snomed.info/sct",
+                                display=desc,
+                            )
+                        ],
+                    ),
+                )
+                activities.append(FHIRCarePlanActivity(detail=act_detail))
+
+        goals_refs: list[FHIRReference] = []
+        if plan.goals_json:
+            for g in plan.goals_json:
+                gid = g.get("goal_id", "G-01")
+                gtitle = g.get("title", "Clinical Goal")
+                goals_refs.append(FHIRReference(reference=f"Goal/{gid}", display=gtitle))
+
+        return FHIRCarePlan(
+            id=plan.plan_id,
+            identifier=[
+                FHIRIdentifier(
+                    system="http://medigen.ai/fhir/care-plans",
+                    value=plan.plan_id,
+                )
+            ],
+            status=fhir_status,
+            intent=plan.intent or "plan",
+            category=[
+                FHIRCodeableConcept(
+                    text=category_str.replace("_", " ").title(),
+                    coding=[
+                        FHIRCoding(
+                            system="http://hl7.org/fhir/us/core/CodeSystem/careplan-category",
+                            code=category_str,
+                            display=category_str.replace("_", " ").title(),
+                        )
+                    ],
+                )
+            ],
+            title=plan.title,
+            description=plan.description,
+            subject=FHIRReference(
+                reference=f"Patient/{patient_id}",
+            ),
+            period=FHIRPeriod(
+                start=plan.start_date.isoformat() if plan.start_date else None,
+                end=plan.end_date.isoformat() if plan.end_date else None,
+            ),
+            goal=goals_refs,
+            activity=activities,
         )

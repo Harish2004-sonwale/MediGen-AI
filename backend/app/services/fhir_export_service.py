@@ -4,26 +4,32 @@ from typing import Any, Optional
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.models.care_plan import CarePlan
+from app.models.care_task import CareTask
 from app.models.encounter import Encounter
 from app.models.patient import Patient
 from app.models.user import User
 from app.schemas.fhir import (
     FHIRBundle,
     FHIRBundleEntry,
+    FHIRCarePlan,
     FHIRCondition,
     FHIREncounter,
     FHIRMedicationStatement,
     FHIRObservation,
     FHIRPatient,
+    FHIRTask,
 )
 from app.services.appointment_service import resolve_patient
 from app.services.encounter_service import get_encounter_by_encounter_id
 from app.services.fhir_mapper_service import (
+    FHIRCarePlanMapper,
     FHIRConditionMapper,
     FHIREncounterMapper,
     FHIRMedicationStatementMapper,
     FHIRObservationMapper,
     FHIRPatientMapper,
+    FHIRTaskMapper,
 )
 from app.services.rag_service import validate_patient_rag_access
 from app.services.timeline_service import get_patient_timeline
@@ -244,3 +250,27 @@ def export_patient_bundle_as_fhir(db: Session, current_user: User, patient_id_st
         total=len(entries),
         entry=entries,
     )
+
+
+def export_care_plan_as_fhir(db: Session, current_user: User, plan_id_str: str) -> FHIRCarePlan:
+    """Export internal clinical care plan as standard FHIR R4 CarePlan resource."""
+    stmt = select(CarePlan).where(CarePlan.plan_id == plan_id_str)
+    plan = db.execute(stmt).scalar_one_or_none()
+    if not plan:
+        raise ValueError(f"Care plan with identifier '{plan_id_str}' was not found.")
+
+    validate_patient_rag_access(db, current_user, plan.patient)
+    logger.info("Exporting FHIR CarePlan resource plan=%s for patient=%s", plan.plan_id, plan.patient.patient_id)
+    return FHIRCarePlanMapper.to_fhir(plan, plan.patient.patient_id)
+
+
+def export_care_task_as_fhir(db: Session, current_user: User, task_id_str: str) -> FHIRTask:
+    """Export internal clinical care task as standard FHIR R4 Task resource."""
+    stmt = select(CareTask).where(CareTask.task_id == task_id_str)
+    task = db.execute(stmt).scalar_one_or_none()
+    if not task:
+        raise ValueError(f"Care task with identifier '{task_id_str}' was not found.")
+
+    validate_patient_rag_access(db, current_user, task.patient)
+    logger.info("Exporting FHIR Task resource task=%s for patient=%s", task.task_id, task.patient.patient_id)
+    return FHIRTaskMapper.to_fhir(task, task.patient.patient_id)

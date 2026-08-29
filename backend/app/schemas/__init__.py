@@ -76,6 +76,28 @@ from app.schemas.alert import (
     ClinicalAlertListResponse,
     ClinicalAlertResponse,
 )
+from app.schemas.care_plan import (
+    CarePlanCategory,
+    CarePlanCreate,
+    CarePlanGoal,
+    CarePlanIntervention,
+    CarePlanListResponse,
+    CarePlanResponse,
+    CarePlanReviewRequest,
+    CarePlanStatus,
+    CarePlanSynthesizeRequest,
+    CarePlanUpdate,
+)
+from app.schemas.care_task import (
+    CareTaskCompleteRequest,
+    CareTaskCreate,
+    CareTaskListResponse,
+    CareTaskResponse,
+    CareTaskStatus,
+    CareTaskType,
+    CareTaskUpdate,
+    TaskPriority,
+)
 from app.schemas.note import (
     ClinicalNoteCreate,
     ClinicalNoteListResponse,

@@ -350,3 +350,98 @@ export interface ClinicalAlertListResponse {
   items: ClinicalAlert[];
   total: number;
 }
+
+export type CarePlanStatus =
+  | 'draft'
+  | 'reviewed'
+  | 'active'
+  | 'completed'
+  | 'suspended'
+  | 'cancelled';
+
+export type CarePlanCategory =
+  | 'chronic_disease_management'
+  | 'post_discharge_followup'
+  | 'preventive_care'
+  | 'rehabilitation'
+  | 'acute_care_plan';
+
+export interface CarePlanGoal {
+  goal_id: string;
+  title: string;
+  target_metric?: string;
+  target_date?: string;
+  status: string;
+  notes?: string;
+}
+
+export interface CarePlanIntervention {
+  intervention_id: string;
+  description: string;
+  category: string;
+  responsible_party?: string;
+  status: string;
+}
+
+export interface CarePlan {
+  id: number;
+  plan_id: string;
+  patient_id: number;
+  author_user_id?: number;
+  encounter_id?: number;
+  title: string;
+  category: CarePlanCategory;
+  status: CarePlanStatus;
+  intent: string;
+  description: string;
+  goals_json?: CarePlanGoal[];
+  interventions_json?: CarePlanIntervention[];
+  is_ai_generated: boolean;
+  reviewed_by_user_id?: number;
+  reviewed_at?: string;
+  start_date: string;
+  end_date?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CarePlanListResponse {
+  items: CarePlan[];
+  total: number;
+}
+
+export type TaskPriority = 'LOW' | 'ROUTINE' | 'URGENT' | 'STAT';
+export type CareTaskStatus = 'pending' | 'in_progress' | 'completed' | 'cancelled';
+export type CareTaskType =
+  | 'followup_appointment'
+  | 'lab_test_order'
+  | 'diagnostic_imaging_order'
+  | 'patient_education'
+  | 'medication_reconciliation'
+  | 'telemetry_check'
+  | 'general_task';
+
+export interface CareTask {
+  id: number;
+  task_id: string;
+  patient_id: number;
+  care_plan_id?: number;
+  encounter_id?: number;
+  appointment_id?: number;
+  assigned_user_id?: number;
+  title: string;
+  task_type: CareTaskType;
+  priority: TaskPriority;
+  status: CareTaskStatus;
+  instructions?: string;
+  due_date: string;
+  is_overdue: boolean;
+  completed_at?: string;
+  completion_notes?: string;
+  created_at: string;
+}
+
+export interface CareTaskListResponse {
+  items: CareTask[];
+  total: number;
+}

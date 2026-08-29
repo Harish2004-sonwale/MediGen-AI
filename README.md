@@ -80,7 +80,11 @@ MediGen-AI/
 │   │   │   ├── 0006_create_appointments_table.py
 │   │   │   ├── 0007_create_medical_documents_table.py
 │   │   │   ├── 0008_create_chat_sessions_tables.py
-│   │   │   └── 0009_diagnostic_media.py
+│   │   │   ├── 0009_diagnostic_media.py
+│   │   │   ├── 0010_clinical_notes.py
+│   │   │   ├── 0011_vitals_and_clinical_alerts.py
+│   │   │   └── 0012_care_plans_and_tasks.py
+
 │   │   └── env.py         # Migration environment configuration
 │   ├── app/
 │   │   ├── ai/            # AI pipelines, RAG, embeddings, OCR, LLM adapters, imaging
@@ -196,6 +200,22 @@ MediGen-AI/
 | `POST` | `/api/v1/alerts/{alert_id}/acknowledge` | Clinical Roles | Clinician acknowledgement of active alert | `200 OK` |
 | `POST` | `/api/v1/alerts/{alert_id}/dismiss` | Clinical Roles | Clinician dismissal with mandatory reason | `200 OK` |
 | `GET` | `/api/v1/alerts/{alert_id}` | Authenticated | Retrieve alert details and parameter snapshot | `200 OK` |
+| `POST` | `/api/v1/patients/{patient_id}/care-plans` | Clinical Roles | Create structured clinical care plan | `201 Created` |
+| `GET` | `/api/v1/patients/{patient_id}/care-plans` | Authenticated | List clinical care plans for patient | `200 OK` |
+| `GET` | `/api/v1/care-plans/{care_plan_id}` | Authenticated | Retrieve details of specific care plan | `200 OK` |
+| `PATCH` | `/api/v1/care-plans/{care_plan_id}` | Clinical Roles | Update draft or active care plan | `200 OK` |
+| `POST` | `/api/v1/care-plans/{care_plan_id}/review` | Doctor / Admin | Physician review, signoff, and activation | `200 OK` |
+| `POST` | `/api/v1/care-plans/{care_plan_id}/complete` | Clinical Roles | Mark care plan as completed | `200 OK` |
+| `POST` | `/api/v1/care-plans/{care_plan_id}/cancel` | Doctor / Admin | Cancel or suspend care plan | `200 OK` |
+| `POST` | `/api/v1/tasks/care-plans/synthesize` | Clinical Roles | Enqueue background AI Care Plan synthesis | `202 Accepted` |
+| `POST` | `/api/v1/patients/{patient_id}/care-tasks` | Clinical Roles | Create clinical follow-up task | `201 Created` |
+| `GET` | `/api/v1/patients/{patient_id}/care-tasks` | Authenticated | List follow-up tasks for patient | `200 OK` |
+| `GET` | `/api/v1/care-tasks/{care_task_id}` | Authenticated | Retrieve care task details | `200 OK` |
+| `PATCH` | `/api/v1/care-tasks/{care_task_id}` | Clinical Roles | Update care task details | `200 OK` |
+| `POST` | `/api/v1/care-tasks/{care_task_id}/complete` | Clinical Roles | Mark care task complete with outcome notes | `200 OK` |
+| `GET` | `/api/v1/fhir/CarePlan/{care_plan_id}` | Authenticated | Export care plan as FHIR R4 CarePlan | `200 OK` |
+| `GET` | `/api/v1/fhir/Task/{task_id}` | Authenticated | Export care task as FHIR R4 Task | `200 OK` |
+
 | `POST` | `/api/v1/rag/query` | Authenticated | Execute grounded clinical RAG query | `200 OK` |
 | `POST` | `/api/v1/chat/sessions` | Authenticated | Create a new clinical chat session | `201 Created` |
 | `POST` | `/api/v1/chat/sessions/{session_id}/messages` | Authenticated | Send message in session (grounded RAG) | `200 OK` |

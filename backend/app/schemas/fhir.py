@@ -10,7 +10,11 @@ class FHIRResourceType(str, Enum):
     CONDITION = "Condition"
     MEDICATION_STATEMENT = "MedicationStatement"
     OBSERVATION = "Observation"
+    CARE_PLAN = "CarePlan"
+    GOAL = "Goal"
+    TASK = "Task"
     BUNDLE = "Bundle"
+
 
 
 class FHIRCoding(BaseModel):
@@ -176,6 +180,68 @@ class FHIRObservation(BaseModel):
     valueQuantity: Optional[FHIRQuantity] = Field(default=None, description="Actual result if quantitative")
     valueString: Optional[str] = Field(default=None, description="Actual result if string")
     note: list[FHIRAnnotation] = Field(default_factory=list, description="Comments about the observation")
+
+
+# FHIR Goal Resource Schema
+
+class FHIRGoal(BaseModel):
+    model_config = ConfigDict(extra="allow", populate_by_name=True)
+
+    resourceType: str = Field(default="Goal", description="FHIR resource type")
+    id: Optional[str] = Field(default=None, description="Logical id of this artifact")
+    identifier: list[FHIRIdentifier] = Field(default_factory=list, description="External Ids for this goal")
+    lifecycleStatus: str = Field(default="active", description="proposed | planned | accepted | active | on-hold | completed | cancelled")
+    description: FHIRCodeableConcept = Field(..., description="Code or text describing goal")
+    subject: Optional[FHIRReference] = Field(default=None, description="Who this goal is intended for")
+    targetDate: Optional[str] = Field(default=None, description="Target completion date")
+
+
+# FHIR Task Resource Schema
+
+class FHIRTask(BaseModel):
+    model_config = ConfigDict(extra="allow", populate_by_name=True)
+
+    resourceType: str = Field(default="Task", description="FHIR resource type")
+    id: Optional[str] = Field(default=None, description="Logical id of this artifact")
+    identifier: list[FHIRIdentifier] = Field(default_factory=list, description="Task Instance Identifier")
+    status: str = Field(default="requested", description="draft | requested | received | accepted | rejected | ready | cancelled | in-progress | on-hold | failed | completed | entered-in-error")
+    intent: str = Field(default="order", description="proposal | plan | order | original-order | reflex-order | filler-order | instance-order | option")
+    priority: Optional[str] = Field(default="routine", description="routine | urgent | asap | stat")
+    description: Optional[str] = Field(default=None, description="Human-readable explanation of task")
+    focus: Optional[FHIRReference] = Field(default=None, description="What task is acting on")
+    for_reference: Optional[FHIRReference] = Field(default=None, alias="for", description="Beneficiary of the Task")
+    executionPeriod: Optional[FHIRPeriod] = Field(default=None, description="Start and end time of execution")
+    authoredOn: Optional[str] = Field(default=None, description="Task Creation Date")
+
+
+# FHIR CarePlan Resource Schema
+
+class FHIRCarePlanActivityDetail(BaseModel):
+    kind: Optional[str] = Field(default="ServiceRequest", description="Kind of resource")
+    code: Optional[FHIRCodeableConcept] = Field(default=None, description="Detail type of activity")
+    status: str = Field(default="not-started", description="not-started | scheduled | in-progress | on-hold | completed | cancelled | stopped | unknown | entered-in-error")
+    description: Optional[str] = Field(default=None, description="Extra info on activity")
+
+
+class FHIRCarePlanActivity(BaseModel):
+    detail: Optional[FHIRCarePlanActivityDetail] = Field(default=None, description="In-line definition of activity")
+
+
+class FHIRCarePlan(BaseModel):
+    model_config = ConfigDict(extra="allow", populate_by_name=True)
+
+    resourceType: str = Field(default="CarePlan", description="FHIR resource type")
+    id: Optional[str] = Field(default=None, description="Logical id of this artifact")
+    identifier: list[FHIRIdentifier] = Field(default_factory=list, description="External Ids for this plan")
+    status: str = Field(default="draft", description="draft | active | on-hold | revoked | completed | entered-in-error | unknown")
+    intent: str = Field(default="plan", description="proposal | plan | order | option")
+    category: list[FHIRCodeableConcept] = Field(default_factory=list, description="Type of plan")
+    title: Optional[str] = Field(default=None, description="Human-friendly name for the care plan")
+    description: Optional[str] = Field(default=None, description="Summary of nature of plan")
+    subject: Optional[FHIRReference] = Field(default=None, description="Who the care plan is for")
+    period: Optional[FHIRPeriod] = Field(default=None, description="Time period plan covers")
+    goal: list[FHIRReference] = Field(default_factory=list, description="Desired outcome of plan")
+    activity: list[FHIRCarePlanActivity] = Field(default_factory=list, description="Action to occur as part of plan")
 
 
 # FHIR Bundle Models

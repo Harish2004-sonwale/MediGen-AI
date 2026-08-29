@@ -2,6 +2,8 @@
 
 from app.models.alert import ClinicalAlert
 from app.models.appointment import Appointment
+from app.models.care_plan import CarePlan
+from app.models.care_task import CareTask
 from app.models.chat import ChatMessage, ChatSession
 from app.models.doctor import Doctor
 from app.models.document import DocumentChunk, MedicalDocument
@@ -26,4 +28,6 @@ __all__ = [
     "ClinicalNote",
     "VitalTelemetry",
     "ClinicalAlert",
+    "CarePlan",
+    "CareTask",
 ]

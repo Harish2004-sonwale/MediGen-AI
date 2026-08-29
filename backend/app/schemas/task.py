@@ -35,6 +35,8 @@ class BackgroundTaskType(str, Enum):
     MEDIA_ANALYSIS = "media_analysis"
     NOTE_SYNTHESIS = "note_synthesis"
     TELEMETRY_EVALUATION = "telemetry_evaluation"
+    CARE_PLAN_GENERATION = "care_plan_generation"
+
 
 
 

@@ -15,9 +15,10 @@ import { DocumentHub } from '../components/documents/DocumentHub';
 import { MediaDiagnosticsHub } from '../components/media/MediaDiagnosticsHub';
 import { ClinicalNoteWorkspace } from '../components/notes/ClinicalNoteWorkspace';
 import { VitalTelemetryWorkspace } from '../components/telemetry/VitalTelemetryWorkspace';
+import { CarePlanWorkspace } from '../components/care/CarePlanWorkspace';
 import { TaskMonitor } from '../components/tasks/TaskMonitor';
-import { mediaApi, notesApi } from '../api/client';
-import { NoteType } from '../types';
+import { carePlansApi, mediaApi, notesApi } from '../api/client';
+import { CarePlanCategory, NoteType } from '../types';
 
 export const DashboardPage: React.FC = () => {
   const { selectedPatient } = usePatient();
@@ -27,7 +28,7 @@ export const DashboardPage: React.FC = () => {
 
   const [isSafetyModalOpen, setIsSafetyModalOpen] = useState<boolean>(false);
   const [isTasksModalOpen, setIsTasksModalOpen] = useState<boolean>(false);
-  const [activeTab, setActiveTab] = useState<'timeline' | 'chat' | 'documents' | 'media' | 'notes' | 'vitals'>('chat');
+  const [activeTab, setActiveTab] = useState<'timeline' | 'chat' | 'documents' | 'media' | 'notes' | 'vitals' | 'care_plans'>('chat');
 
   const triggerMediaAnalysis = async (mediaId: string) => {
     await mediaApi.enqueueAnalysis(mediaId);
@@ -39,6 +40,13 @@ export const DashboardPage: React.FC = () => {
     await notesApi.enqueueSynthesis(selectedPatient.patient_id, noteType);
     await loadTasks();
   };
+
+  const triggerCarePlanSynthesis = async (category: CarePlanCategory, customInstructions?: string) => {
+    if (!selectedPatient) return;
+    await carePlansApi.enqueueSynthesis(selectedPatient.patient_id, category, customInstructions);
+    await loadTasks();
+  };
+
 
   const activeTaskCount = tasks.filter(
     (t) => t.status === 'queued' || t.status === 'running' || t.status === 'retrying'
@@ -103,6 +111,12 @@ export const DashboardPage: React.FC = () => {
             >
               💓 Vitals & CDS Alerts
             </button>
+            <button
+              className={`btn btn-sm ${activeTab === 'care_plans' ? 'btn-primary' : 'btn-secondary'}`}
+              onClick={() => setActiveTab('care_plans')}
+            >
+              📋 Care Plans & Tasks
+            </button>
           </div>
 
           {/* Active Workspace View */}
@@ -130,6 +144,12 @@ export const DashboardPage: React.FC = () => {
             {activeTab === 'vitals' && (
               <VitalTelemetryWorkspace
                 patientId={selectedPatient?.patient_id}
+              />
+            )}
+            {activeTab === 'care_plans' && (
+              <CarePlanWorkspace
+                patientId={selectedPatient?.patient_id}
+                onTriggerSynthesis={triggerCarePlanSynthesis}
               />
             )}
           </div>

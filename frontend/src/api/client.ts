@@ -7,6 +7,13 @@
 
 import {
   BackgroundTask,
+
+  CarePlan,
+  CarePlanCategory,
+  CarePlanListResponse,
+  CareTask,
+  CareTaskListResponse,
+  CareTaskType,
   ChatSession,
   ChatSessionDetail,
   ClinicalAlert,
@@ -22,6 +29,7 @@ import {
   NoteType,
   Patient,
   TaskListResponse,
+  TaskPriority,
   TimelineCitation,
   TimelineEvent,
   TimelineSummary,
@@ -660,6 +668,170 @@ export const vitalsApi = {
       {
         method: 'POST',
         body: JSON.stringify({ reason }),
+      }
+    );
+  },
+};
+
+// 11. Clinical Care Plans & Task Orchestration APIs
+export const carePlansApi = {
+  create: async (
+    patientId: string,
+    planData: {
+      title: string;
+      category: CarePlanCategory;
+      description: string;
+      intent?: string;
+      encounter_id?: number;
+      goals?: any[];
+      interventions?: any[];
+      start_date?: string;
+      end_date?: string;
+    }
+  ): Promise<CarePlan> => {
+    return apiRequest<CarePlan>(
+      `/patients/${encodeURIComponent(patientId)}/care-plans`,
+      {
+        method: 'POST',
+        body: JSON.stringify(planData),
+      }
+    );
+  },
+
+  list: async (patientId: string, statusFilter?: string): Promise<CarePlanListResponse> => {
+    const query = statusFilter ? `?status=${encodeURIComponent(statusFilter)}` : '';
+    return apiRequest<CarePlanListResponse>(
+      `/patients/${encodeURIComponent(patientId)}/care-plans${query}`,
+      { method: 'GET' }
+    );
+  },
+
+  get: async (planId: string): Promise<CarePlan> => {
+    return apiRequest<CarePlan>(
+      `/care-plans/${encodeURIComponent(planId)}`,
+      { method: 'GET' }
+    );
+  },
+
+  update: async (planId: string, planData: Partial<CarePlan>): Promise<CarePlan> => {
+    return apiRequest<CarePlan>(
+      `/care-plans/${encodeURIComponent(planId)}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(planData),
+      }
+    );
+  },
+
+  review: async (
+    planId: string,
+    confirmAccuracy: boolean,
+    clinicianNotes?: string,
+    activateImmediately = true
+  ): Promise<CarePlan> => {
+    return apiRequest<CarePlan>(
+      `/care-plans/${encodeURIComponent(planId)}/review`,
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          confirm_accuracy: confirmAccuracy,
+          clinician_notes: clinicianNotes,
+          activate_immediately: activateImmediately,
+        }),
+      }
+    );
+  },
+
+  complete: async (planId: string): Promise<CarePlan> => {
+    return apiRequest<CarePlan>(
+      `/care-plans/${encodeURIComponent(planId)}/complete`,
+      { method: 'POST' }
+    );
+  },
+
+  cancel: async (planId: string): Promise<CarePlan> => {
+    return apiRequest<CarePlan>(
+      `/care-plans/${encodeURIComponent(planId)}/cancel`,
+      { method: 'POST' }
+    );
+  },
+
+  enqueueSynthesis: async (
+    patientId: string,
+    category: CarePlanCategory,
+    customInstructions?: string
+  ): Promise<BackgroundTask> => {
+    return apiRequest<BackgroundTask>(
+      `/tasks/care-plans/synthesize?patient_id=${encodeURIComponent(patientId)}`,
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          category,
+          custom_instructions: customInstructions,
+        }),
+      }
+    );
+  },
+
+  createTask: async (
+    patientId: string,
+    taskData: {
+      title: string;
+      task_type?: CareTaskType;
+      priority?: TaskPriority;
+      instructions?: string;
+      due_date: string;
+      care_plan_id?: number;
+      assigned_user_id?: number;
+    }
+  ): Promise<CareTask> => {
+    return apiRequest<CareTask>(
+      `/patients/${encodeURIComponent(patientId)}/care-tasks`,
+      {
+        method: 'POST',
+        body: JSON.stringify(taskData),
+      }
+    );
+  },
+
+  listTasks: async (
+    patientId: string,
+    carePlanId?: string,
+    statusFilter?: string
+  ): Promise<CareTaskListResponse> => {
+    const params = new URLSearchParams();
+    if (carePlanId) params.append('care_plan_id', carePlanId);
+    if (statusFilter) params.append('status', statusFilter);
+    const qs = params.toString() ? `?${params.toString()}` : '';
+    return apiRequest<CareTaskListResponse>(
+      `/patients/${encodeURIComponent(patientId)}/care-tasks${qs}`,
+      { method: 'GET' }
+    );
+  },
+
+  getTask: async (taskId: string): Promise<CareTask> => {
+    return apiRequest<CareTask>(
+      `/care-tasks/${encodeURIComponent(taskId)}`,
+      { method: 'GET' }
+    );
+  },
+
+  updateTask: async (taskId: string, taskData: Partial<CareTask>): Promise<CareTask> => {
+    return apiRequest<CareTask>(
+      `/care-tasks/${encodeURIComponent(taskId)}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(taskData),
+      }
+    );
+  },
+
+  completeTask: async (taskId: string, completionNotes?: string): Promise<CareTask> => {
+    return apiRequest<CareTask>(
+      `/care-tasks/${encodeURIComponent(taskId)}/complete`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ completion_notes: completionNotes }),
       }
     );
   },

@@ -8,14 +8,18 @@ from app.models.user import User
 from app.schemas.fhir import (
     FHIRBatchImportResponse,
     FHIRBundle,
+    FHIRCarePlan,
     FHIRCondition,
     FHIREncounter,
     FHIRImportResult,
     FHIRMedicationStatement,
     FHIRObservation,
     FHIRPatient,
+    FHIRTask,
 )
 from app.services.fhir_export_service import (
+    export_care_plan_as_fhir,
+    export_care_task_as_fhir,
     export_condition_as_fhir,
     export_encounter_as_fhir,
     export_medication_statement_as_fhir,
@@ -149,6 +153,46 @@ def get_fhir_patient_bundle(
     """Export complete patient clinical records (Patient, Encounters, Conditions, Medications, Observations) as a FHIR R4 Bundle."""
     try:
         return export_patient_bundle_as_fhir(db, current_user, patient_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+
+
+@router.get(
+    "/CarePlan/{care_plan_id}",
+    response_model=FHIRCarePlan,
+    status_code=status.HTTP_200_OK,
+    summary="Export clinical care plan as a FHIR R4 CarePlan resource",
+)
+def get_fhir_care_plan(
+    care_plan_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+) -> FHIRCarePlan:
+    """Retrieve and export a care plan as a standard FHIR R4 CarePlan resource."""
+    try:
+        return export_care_plan_as_fhir(db, current_user, care_plan_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+
+
+@router.get(
+    "/Task/{task_id}",
+    response_model=FHIRTask,
+    status_code=status.HTTP_200_OK,
+    summary="Export clinical care task as a FHIR R4 Task resource",
+)
+def get_fhir_task(
+    task_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+) -> FHIRTask:
+    """Retrieve and export a care task as a standard FHIR R4 Task resource."""
+    try:
+        return export_care_task_as_fhir(db, current_user, task_id)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
     except PermissionError as exc:
