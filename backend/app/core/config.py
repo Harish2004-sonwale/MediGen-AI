@@ -66,6 +66,13 @@ class Settings(BaseSettings):
     OPENFDA_API_KEY: str | None = None
     OPENFDA_TIMEOUT_SECONDS: int = 5
 
+    # Background Asynchronous Worker Configuration (Phase 9.0.3)
+    # Options: 'local' (offline thread pool, default) | 'sync' (inline synchronous for test debugging) | 'celery' (distributed Celery+Redis)
+    BACKGROUND_TASK_PROVIDER: str = "local"
+    BACKGROUND_TASK_WORKERS: int = 4
+    CELERY_BROKER_URL: str | None = None
+    CELERY_RESULT_BACKEND: str | None = None
+
 
     model_config = SettingsConfigDict(
         env_file=".env",

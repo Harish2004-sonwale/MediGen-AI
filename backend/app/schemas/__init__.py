@@ -70,6 +70,15 @@ from app.schemas.safety import (
     SafetyCheckRequest,
     SafetySeverity,
 )
+from app.schemas.task import (
+    BackgroundTask,
+    BackgroundTaskResponse,
+    BackgroundTaskStatus,
+    BackgroundTaskType,
+    DocumentTaskRequest,
+    TaskListResponse,
+    TimelineTaskRequest,
+)
 from app.schemas.timeline import (
     ClinicalTimelineEvent,
     TimelineEventType,
@@ -149,4 +158,11 @@ __all__ = [
     "ClinicalSafetyAlert",
     "SafetyCheckRequest",
     "ClinicalSafetyReport",
+    "BackgroundTaskStatus",
+    "BackgroundTaskType",
+    "BackgroundTask",
+    "BackgroundTaskResponse",
+    "TaskListResponse",
+    "DocumentTaskRequest",
+    "TimelineTaskRequest",
 ]

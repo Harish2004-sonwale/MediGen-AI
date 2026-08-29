@@ -187,6 +187,12 @@ MediGen-AI/
 | `GET` | `/api/v1/fhir/patients/{patient_id}/bundle` | Authenticated | Export patient history as FHIR R4 collection Bundle | `200 OK` |
 | `POST` | `/api/v1/fhir/import` | Clinical Roles | Ingest and persist a single FHIR R4 resource | `200 OK` |
 | `POST` | `/api/v1/fhir/Bundle` | Clinical Roles | Batch ingest multiple resources from FHIR R4 Bundle | `200 OK` |
+| `POST` | `/api/v1/tasks/documents/{document_id}/process` | Clinical Roles | Enqueue background document extraction & vector indexing | `202 Accepted` |
+| `POST` | `/api/v1/tasks/timeline/{patient_id}/summary` | Clinical Roles | Enqueue background longitudinal timeline summary compilation | `202 Accepted` |
+| `GET` | `/api/v1/tasks/{task_id}` | Authenticated | Retrieve background task status, progress, and results | `200 OK` |
+| `GET` | `/api/v1/tasks` | Authenticated | List authorized background tasks with filtering & pagination | `200 OK` |
+| `POST` | `/api/v1/tasks/{task_id}/retry` | Clinical Roles | Re-enqueue a failed or cancelled background task | `200 OK` |
+| `POST` | `/api/v1/tasks/{task_id}/cancel` | Clinical Roles | Cancel a pending background task | `200 OK` |
 | `GET` | `/docs` | Public | OpenAPI / Swagger Documentation | `200 OK` |
 | `GET` | `/redoc` | Public | ReDoc API Documentation | `200 OK` |
 
@@ -205,12 +211,12 @@ MediGen-AI/
 9. **Milestone 9: Healthcare Interoperability & Integrations**
    - **Phase 9.0.1 — FHIR R4 Ingestion & Interoperability**: Completed & Verified ✅
    - **Phase 9.0.2 — Authoritative Drug Knowledge Base Adapter**: Completed & Verified ✅
-   - **Phase 9.0.3 — Background Asynchronous Worker Architecture**: Planned / Roadmap 📋
+   - **Phase 9.0.3 — Background Asynchronous Worker Architecture**: Completed & Verified ✅
 
 ### Next — Planned Future Work
 
-- Background asynchronous worker architecture (e.g. Celery + Redis)
-- Production-scale caching for drug knowledge lookups
+- Distributed production caching (Redis) & cluster worker topologies
+- Real-time WebSocket task progress streaming
 - Additional authoritative drug knowledge integrations (e.g. NLM RxNorm, First Databank)
 - Further FHIR R4 interoperability improvements
-- Frontend clinical decision support UI
+- Frontend clinical decision support & task management UI

@@ -92,3 +92,15 @@
 | `GET` | `/api/v1/fhir/patients/{patient_id}/bundle` | Authorized | Export longitudinal history as a FHIR R4 `collection` `Bundle` |
 | `POST` | `/api/v1/fhir/import` | Authorized / Staff | Ingest & persist a single FHIR R4 resource |
 | `POST` | `/api/v1/fhir/Bundle` | Authorized / Staff | Batch import multiple resources from a FHIR R4 `Bundle` |
+
+---
+
+## 9. Background Asynchronous Tasks (`/api/v1/tasks`)
+| Method | Path | Access | Description |
+|---|---|---|---|
+| `POST` | `/api/v1/tasks/documents/{document_id}/process` | Doctors / Staff / Admin | Enqueue background document extraction & vector indexing |
+| `POST` | `/api/v1/tasks/timeline/{patient_id}/summary` | Doctors / Staff / Admin | Enqueue background longitudinal timeline summary compilation |
+| `GET` | `/api/v1/tasks/{task_id}` | Authorized | Retrieve background task status, progress, and results |
+| `GET` | `/api/v1/tasks` | Authorized | List authorized background tasks with filtering & pagination |
+| `POST` | `/api/v1/tasks/{task_id}/retry` | Doctors / Staff / Admin | Re-enqueue a failed or cancelled background task |
+| `POST` | `/api/v1/tasks/{task_id}/cancel` | Doctors / Staff / Admin | Cancel a pending background task |

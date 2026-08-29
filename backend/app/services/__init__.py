@@ -77,6 +77,15 @@ from app.services.rag_service import (
     validate_patient_rag_access,
 )
 from app.services.safety_service import evaluate_patient_safety
+from app.services.task_service import (
+    build_task_response,
+    cancel_task_for_user,
+    enqueue_document_processing_task,
+    enqueue_timeline_summary_task,
+    get_task_status,
+    list_tasks_for_user,
+    retry_task_for_user,
+)
 from app.services.timeline_service import (
     get_patient_timeline,
     get_patient_timeline_summary,
@@ -164,4 +173,11 @@ __all__ = [
     "get_patient_timeline",
     "get_patient_timeline_summary",
     "evaluate_patient_safety",
+    "enqueue_document_processing_task",
+    "enqueue_timeline_summary_task",
+    "get_task_status",
+    "list_tasks_for_user",
+    "cancel_task_for_user",
+    "retry_task_for_user",
+    "build_task_response",
 ]

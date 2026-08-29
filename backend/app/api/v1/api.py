@@ -10,6 +10,7 @@ from app.api.v1.endpoints import (
     patients,
     rag,
     safety,
+    tasks,
     timeline,
 )
 
@@ -25,3 +26,4 @@ api_router.include_router(chat.router)
 api_router.include_router(timeline.router)
 api_router.include_router(safety.router)
 api_router.include_router(fhir.router)
+api_router.include_router(tasks.router)
