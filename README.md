@@ -188,6 +188,14 @@ MediGen-AI/
 | `PATCH` | `/api/v1/notes/{note_id}` | Clinical Roles | Update draft clinical note contents | `200 OK` |
 | `POST` | `/api/v1/tasks/notes/synthesize` | Clinical Roles | Enqueue background AI Scribe note synthesis | `202 Accepted` |
 | `POST` | `/api/v1/notes/{note_id}/signoff` | Doctor / Admin | Attending physician review and legal signoff | `200 OK` |
+| `POST` | `/api/v1/patients/{patient_id}/vitals` | Clinical Roles | Ingest vital telemetry reading & evaluate CDS rules | `201 Created` |
+| `GET` | `/api/v1/patients/{patient_id}/vitals` | Authenticated | List historical vital telemetry readings | `200 OK` |
+| `GET` | `/api/v1/patients/{patient_id}/vitals/latest` | Authenticated | Retrieve latest vital telemetry snapshot | `200 OK` |
+| `POST` | `/api/v1/patients/{patient_id}/vitals/simulate` | Clinical Roles | Ingest preset simulated vital reading | `201 Created` |
+| `GET` | `/api/v1/patients/{patient_id}/alerts` | Authenticated | List CDS alerts for patient | `200 OK` |
+| `POST` | `/api/v1/alerts/{alert_id}/acknowledge` | Clinical Roles | Clinician acknowledgement of active alert | `200 OK` |
+| `POST` | `/api/v1/alerts/{alert_id}/dismiss` | Clinical Roles | Clinician dismissal with mandatory reason | `200 OK` |
+| `GET` | `/api/v1/alerts/{alert_id}` | Authenticated | Retrieve alert details and parameter snapshot | `200 OK` |
 | `POST` | `/api/v1/rag/query` | Authenticated | Execute grounded clinical RAG query | `200 OK` |
 | `POST` | `/api/v1/chat/sessions` | Authenticated | Create a new clinical chat session | `201 Created` |
 | `POST` | `/api/v1/chat/sessions/{session_id}/messages` | Authenticated | Send message in session (grounded RAG) | `200 OK` |
@@ -238,3 +246,4 @@ MediGen-AI/
    - **Phase 9.0.6 — Frontend Clinical Dashboard & Real-Time Decision Support UI**: Completed & Verified ✅
    - **Phase 9.0.7 — Advanced Multi-Modal Medical Diagnostics & Imaging Support**: Completed & Verified ✅
    - **Phase 9.0.8 — Automated Clinical Documentation, AI Scribe Synthesis & Structured Note Generation**: Completed & Verified ✅
+   - **Phase 9.0.9 — Clinical Decision Support Alerting & Real-Time Vital Telemetry Ingestion**: Completed & Verified ✅

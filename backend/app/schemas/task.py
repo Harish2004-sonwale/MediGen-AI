@@ -34,6 +34,8 @@ class BackgroundTaskType(str, Enum):
     BATCH_INDEXING = "batch_indexing"
     MEDIA_ANALYSIS = "media_analysis"
     NOTE_SYNTHESIS = "note_synthesis"
+    TELEMETRY_EVALUATION = "telemetry_evaluation"
+
 
 
 

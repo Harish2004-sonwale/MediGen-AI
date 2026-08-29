@@ -68,6 +68,14 @@ from app.schemas.media import (
     MediaStatus,
     StructuredImagingFinding,
 )
+from app.schemas.alert import (
+    AlertAcknowledgeRequest,
+    AlertDismissRequest,
+    AlertSeverity,
+    AlertStatus,
+    ClinicalAlertListResponse,
+    ClinicalAlertResponse,
+)
 from app.schemas.note import (
     ClinicalNoteCreate,
     ClinicalNoteListResponse,
@@ -78,6 +86,13 @@ from app.schemas.note import (
     NoteStatus,
     NoteType,
     SOAPSection,
+)
+from app.schemas.vital import (
+    VitalSimulateRequest,
+    VitalSimulationProfile,
+    VitalTelemetryCreate,
+    VitalTelemetryListResponse,
+    VitalTelemetryResponse,
 )
 from app.schemas.rag import (
     RAGCitation,

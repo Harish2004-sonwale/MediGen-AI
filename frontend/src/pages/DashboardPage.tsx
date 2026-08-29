@@ -14,6 +14,7 @@ import { SafetyPrescriberModal } from '../components/safety/SafetyPrescriberModa
 import { DocumentHub } from '../components/documents/DocumentHub';
 import { MediaDiagnosticsHub } from '../components/media/MediaDiagnosticsHub';
 import { ClinicalNoteWorkspace } from '../components/notes/ClinicalNoteWorkspace';
+import { VitalTelemetryWorkspace } from '../components/telemetry/VitalTelemetryWorkspace';
 import { TaskMonitor } from '../components/tasks/TaskMonitor';
 import { mediaApi, notesApi } from '../api/client';
 import { NoteType } from '../types';
@@ -26,7 +27,7 @@ export const DashboardPage: React.FC = () => {
 
   const [isSafetyModalOpen, setIsSafetyModalOpen] = useState<boolean>(false);
   const [isTasksModalOpen, setIsTasksModalOpen] = useState<boolean>(false);
-  const [activeTab, setActiveTab] = useState<'timeline' | 'chat' | 'documents' | 'media' | 'notes'>('chat');
+  const [activeTab, setActiveTab] = useState<'timeline' | 'chat' | 'documents' | 'media' | 'notes' | 'vitals'>('chat');
 
   const triggerMediaAnalysis = async (mediaId: string) => {
     await mediaApi.enqueueAnalysis(mediaId);
@@ -62,7 +63,7 @@ export const DashboardPage: React.FC = () => {
           <PatientDirectory />
         </section>
 
-        {/* Center Column: Interactive Workspaces (Chat, Timeline, Documents, Media, Notes Tabs) */}
+        {/* Center Column: Interactive Workspaces (Chat, Timeline, Documents, Media, Notes, Vitals Tabs) */}
         <section style={{ height: '100%', display: 'flex', flexDirection: 'column', gap: '12px', overflow: 'hidden' }}>
           {/* Navigation Tab Bar */}
           <div style={{ display: 'flex', gap: '8px', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px', flexWrap: 'wrap' }}>
@@ -96,6 +97,12 @@ export const DashboardPage: React.FC = () => {
             >
               📝 Clinical Notes
             </button>
+            <button
+              className={`btn btn-sm ${activeTab === 'vitals' ? 'btn-primary' : 'btn-secondary'}`}
+              onClick={() => setActiveTab('vitals')}
+            >
+              💓 Vitals & CDS Alerts
+            </button>
           </div>
 
           {/* Active Workspace View */}
@@ -118,6 +125,11 @@ export const DashboardPage: React.FC = () => {
               <ClinicalNoteWorkspace
                 patientId={selectedPatient?.patient_id}
                 onTriggerSynthesis={triggerNoteSynthesis}
+              />
+            )}
+            {activeTab === 'vitals' && (
+              <VitalTelemetryWorkspace
+                patientId={selectedPatient?.patient_id}
               />
             )}
           </div>

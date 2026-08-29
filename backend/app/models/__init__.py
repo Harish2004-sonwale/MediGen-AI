@@ -1,5 +1,6 @@
 """Models package exposing ORM entities."""
 
+from app.models.alert import ClinicalAlert
 from app.models.appointment import Appointment
 from app.models.chat import ChatMessage, ChatSession
 from app.models.doctor import Doctor
@@ -9,6 +10,7 @@ from app.models.media import DiagnosticMedia
 from app.models.note import ClinicalNote
 from app.models.patient import Patient
 from app.models.user import User
+from app.models.vital import VitalTelemetry
 
 __all__ = [
     "User",
@@ -22,4 +24,6 @@ __all__ = [
     "ChatMessage",
     "DiagnosticMedia",
     "ClinicalNote",
+    "VitalTelemetry",
+    "ClinicalAlert",
 ]

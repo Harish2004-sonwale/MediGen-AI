@@ -291,3 +291,62 @@ export interface ClinicalNoteListResponse {
   items: ClinicalNote[];
   total: number;
 }
+
+export type VitalSimulationProfile =
+  | 'normal'
+  | 'hypoxic'
+  | 'hypertensive_crisis'
+  | 'tachycardic'
+  | 'bradycardic';
+
+export interface VitalTelemetry {
+  id: number;
+  reading_id: string;
+  patient_id: number;
+  encounter_id?: number;
+  heart_rate?: number;
+  systolic_bp?: number;
+  diastolic_bp?: number;
+  respiratory_rate?: number;
+  temperature_c?: number;
+  spo2_percent?: number;
+  weight_kg?: number;
+  device_id?: string;
+  source: string;
+  measured_at: string;
+  created_at: string;
+}
+
+export interface VitalTelemetryListResponse {
+  items: VitalTelemetry[];
+  total: number;
+}
+
+export type AlertSeverity = 'INFO' | 'LOW' | 'MODERATE' | 'HIGH' | 'CRITICAL';
+export type AlertStatus = 'active' | 'acknowledged' | 'dismissed' | 'resolved';
+
+export interface ClinicalAlert {
+  id: number;
+  alert_id: string;
+  patient_id: number;
+  encounter_id?: number;
+  reading_id?: number;
+  alert_type: string;
+  severity: AlertSeverity;
+  status: AlertStatus;
+  title: string;
+  explanation: string;
+
+  parameters_json?: Record<string, any>;
+  recurrence_count: number;
+  acknowledged_by_user_id?: number;
+  acknowledged_at?: string;
+  dismissal_reason?: string;
+  last_triggered_at: string;
+  created_at: string;
+}
+
+export interface ClinicalAlertListResponse {
+  items: ClinicalAlert[];
+  total: number;
+}

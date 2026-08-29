@@ -9,6 +9,8 @@ import {
   BackgroundTask,
   ChatSession,
   ChatSessionDetail,
+  ClinicalAlert,
+  ClinicalAlertListResponse,
   ClinicalNote,
   ClinicalNoteListResponse,
   ClinicalSafetyReport,
@@ -26,6 +28,9 @@ import {
   TokenResponse,
   User,
   UserRole,
+  VitalSimulationProfile,
+  VitalTelemetry,
+  VitalTelemetryListResponse,
 } from '../types';
 
 const API_BASE_URL = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_URL) || '/api/v1';
@@ -566,6 +571,95 @@ export const notesApi = {
           confirm_accuracy: confirmAccuracy,
           clinician_notes: clinicianNotes,
         }),
+      }
+    );
+  },
+};
+
+// 10. Vital Telemetry & CDS Alerting APIs
+export const vitalsApi = {
+  ingest: async (
+    patientId: string,
+    vitalData: {
+      heart_rate?: number;
+      systolic_bp?: number;
+      diastolic_bp?: number;
+      respiratory_rate?: number;
+      temperature?: number;
+      spo2_percent?: number;
+      weight_kg?: number;
+      device_id?: string;
+      source?: string;
+    }
+  ): Promise<VitalTelemetry> => {
+    return apiRequest<VitalTelemetry>(
+      `/patients/${encodeURIComponent(patientId)}/vitals`,
+      {
+        method: 'POST',
+        body: JSON.stringify(vitalData),
+      }
+    );
+  },
+
+  simulate: async (
+    patientId: string,
+    profile: VitalSimulationProfile,
+    deviceId?: string
+  ): Promise<VitalTelemetry> => {
+    return apiRequest<VitalTelemetry>(
+      `/patients/${encodeURIComponent(patientId)}/vitals/simulate`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ profile, device_id: deviceId }),
+      }
+    );
+  },
+
+  list: async (patientId: string, skip = 0, limit = 50): Promise<VitalTelemetryListResponse> => {
+    return apiRequest<VitalTelemetryListResponse>(
+      `/patients/${encodeURIComponent(patientId)}/vitals?skip=${skip}&limit=${limit}`,
+      { method: 'GET' }
+    );
+  },
+
+  getLatest: async (patientId: string): Promise<VitalTelemetry | null> => {
+    return apiRequest<VitalTelemetry | null>(
+      `/patients/${encodeURIComponent(patientId)}/vitals/latest`,
+      { method: 'GET' }
+    );
+  },
+
+  listAlerts: async (patientId: string, statusFilter?: string): Promise<ClinicalAlertListResponse> => {
+    const query = statusFilter ? `?status=${encodeURIComponent(statusFilter)}` : '';
+    return apiRequest<ClinicalAlertListResponse>(
+      `/patients/${encodeURIComponent(patientId)}/alerts${query}`,
+      { method: 'GET' }
+    );
+  },
+
+  getAlert: async (alertId: string): Promise<ClinicalAlert> => {
+    return apiRequest<ClinicalAlert>(
+      `/alerts/${encodeURIComponent(alertId)}`,
+      { method: 'GET' }
+    );
+  },
+
+  acknowledgeAlert: async (alertId: string, notes?: string): Promise<ClinicalAlert> => {
+    return apiRequest<ClinicalAlert>(
+      `/alerts/${encodeURIComponent(alertId)}/acknowledge`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ notes }),
+      }
+    );
+  },
+
+  dismissAlert: async (alertId: string, reason: string): Promise<ClinicalAlert> => {
+    return apiRequest<ClinicalAlert>(
+      `/alerts/${encodeURIComponent(alertId)}/dismiss`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ reason }),
       }
     );
   },
