@@ -13,8 +13,10 @@ import { ClinicalChat } from '../components/chat/ClinicalChat';
 import { SafetyPrescriberModal } from '../components/safety/SafetyPrescriberModal';
 import { DocumentHub } from '../components/documents/DocumentHub';
 import { MediaDiagnosticsHub } from '../components/media/MediaDiagnosticsHub';
+import { ClinicalNoteWorkspace } from '../components/notes/ClinicalNoteWorkspace';
 import { TaskMonitor } from '../components/tasks/TaskMonitor';
-import { mediaApi } from '../api/client';
+import { mediaApi, notesApi } from '../api/client';
+import { NoteType } from '../types';
 
 export const DashboardPage: React.FC = () => {
   const { selectedPatient } = usePatient();
@@ -24,10 +26,16 @@ export const DashboardPage: React.FC = () => {
 
   const [isSafetyModalOpen, setIsSafetyModalOpen] = useState<boolean>(false);
   const [isTasksModalOpen, setIsTasksModalOpen] = useState<boolean>(false);
-  const [activeTab, setActiveTab] = useState<'timeline' | 'chat' | 'documents' | 'media'>('chat');
+  const [activeTab, setActiveTab] = useState<'timeline' | 'chat' | 'documents' | 'media' | 'notes'>('chat');
 
   const triggerMediaAnalysis = async (mediaId: string) => {
     await mediaApi.enqueueAnalysis(mediaId);
+    await loadTasks();
+  };
+
+  const triggerNoteSynthesis = async (noteType: NoteType) => {
+    if (!selectedPatient) return;
+    await notesApi.enqueueSynthesis(selectedPatient.patient_id, noteType);
     await loadTasks();
   };
 
@@ -54,7 +62,7 @@ export const DashboardPage: React.FC = () => {
           <PatientDirectory />
         </section>
 
-        {/* Center Column: Interactive Workspaces (Chat, Timeline, Documents, Media Tabs) */}
+        {/* Center Column: Interactive Workspaces (Chat, Timeline, Documents, Media, Notes Tabs) */}
         <section style={{ height: '100%', display: 'flex', flexDirection: 'column', gap: '12px', overflow: 'hidden' }}>
           {/* Navigation Tab Bar */}
           <div style={{ display: 'flex', gap: '8px', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px', flexWrap: 'wrap' }}>
@@ -82,6 +90,12 @@ export const DashboardPage: React.FC = () => {
             >
               🖼️ Diagnostics & Imaging
             </button>
+            <button
+              className={`btn btn-sm ${activeTab === 'notes' ? 'btn-primary' : 'btn-secondary'}`}
+              onClick={() => setActiveTab('notes')}
+            >
+              📝 Clinical Notes
+            </button>
           </div>
 
           {/* Active Workspace View */}
@@ -98,6 +112,12 @@ export const DashboardPage: React.FC = () => {
               <MediaDiagnosticsHub
                 patientId={selectedPatient?.patient_id}
                 onTriggerAnalysis={triggerMediaAnalysis}
+              />
+            )}
+            {activeTab === 'notes' && (
+              <ClinicalNoteWorkspace
+                patientId={selectedPatient?.patient_id}
+                onTriggerSynthesis={triggerNoteSynthesis}
               />
             )}
           </div>

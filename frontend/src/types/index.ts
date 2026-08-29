@@ -251,3 +251,43 @@ export interface DiagnosticMediaListResponse {
   items: DiagnosticMedia[];
   total: number;
 }
+
+export type NoteType =
+  | 'soap'
+  | 'consultation'
+  | 'discharge_summary'
+  | 'procedure_note'
+  | 'referral_letter';
+
+export type NoteStatus = 'draft' | 'finalized' | 'amended';
+
+export interface SOAPSection {
+  subjective: string;
+  objective: string;
+  assessment: string;
+  plan: string;
+}
+
+export interface ClinicalNote {
+  id: number;
+  note_id: string;
+  patient_id: number;
+  author_user_id?: number;
+  encounter_id?: number;
+  title: string;
+  note_type: NoteType;
+  status: NoteStatus;
+  content_json?: Record<string, any>;
+  raw_text: string;
+  is_ai_generated: boolean;
+  requires_clinician_review: boolean;
+  signed_by_user_id?: number;
+  signed_at?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ClinicalNoteListResponse {
+  items: ClinicalNote[];
+  total: number;
+}

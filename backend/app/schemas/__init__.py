@@ -68,6 +68,17 @@ from app.schemas.media import (
     MediaStatus,
     StructuredImagingFinding,
 )
+from app.schemas.note import (
+    ClinicalNoteCreate,
+    ClinicalNoteListResponse,
+    ClinicalNoteResponse,
+    ClinicalNoteSignoff,
+    ClinicalNoteSynthesizeRequest,
+    ClinicalNoteUpdate,
+    NoteStatus,
+    NoteType,
+    SOAPSection,
+)
 from app.schemas.rag import (
     RAGCitation,
     RAGQueryRequest,

@@ -9,12 +9,15 @@ import {
   BackgroundTask,
   ChatSession,
   ChatSessionDetail,
+  ClinicalNote,
+  ClinicalNoteListResponse,
   ClinicalSafetyReport,
   DiagnosticMedia,
   DiagnosticMediaListResponse,
   MediaBodySite,
   MediaModality,
   MedicalDocument,
+  NoteType,
   Patient,
   TaskListResponse,
   TimelineCitation,
@@ -473,5 +476,97 @@ export const mediaApi = {
 
   getFileUrl: (mediaId: string): string => {
     return `${API_BASE_URL}/media/${encodeURIComponent(mediaId)}/file`;
+  },
+};
+
+// 9. Clinical Notes & AI Scribe APIs
+export const notesApi = {
+  list: async (patientId: string): Promise<ClinicalNoteListResponse> => {
+    return apiRequest<ClinicalNoteListResponse>(
+      `/patients/${encodeURIComponent(patientId)}/notes`,
+      { method: 'GET' }
+    );
+  },
+
+  get: async (noteId: string): Promise<ClinicalNote> => {
+    return apiRequest<ClinicalNote>(
+      `/notes/${encodeURIComponent(noteId)}`,
+      { method: 'GET' }
+    );
+  },
+
+  create: async (
+    patientId: string,
+    title: string,
+    noteType: NoteType,
+    rawText: string,
+    contentJson?: Record<string, any>,
+    encounterId?: number
+  ): Promise<ClinicalNote> => {
+    return apiRequest<ClinicalNote>(
+      `/patients/${encodeURIComponent(patientId)}/notes`,
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          title,
+          note_type: noteType,
+          raw_text: rawText,
+          content_json: contentJson,
+          encounter_id: encounterId,
+        }),
+      }
+    );
+  },
+
+  update: async (
+    noteId: string,
+    data: { title?: string; raw_text?: string; content_json?: Record<string, any> }
+  ): Promise<ClinicalNote> => {
+    return apiRequest<ClinicalNote>(
+      `/notes/${encodeURIComponent(noteId)}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+      }
+    );
+  },
+
+  enqueueSynthesis: async (
+    patientId: string,
+    noteType: NoteType,
+    encounterId?: number,
+    chatSessionId?: string,
+    customInstructions?: string
+  ): Promise<BackgroundTask> => {
+    return apiRequest<BackgroundTask>(
+      `/tasks/notes/synthesize`,
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          patient_id: patientId,
+          note_type: noteType,
+          encounter_id: encounterId,
+          chat_session_id: chatSessionId,
+          custom_instructions: customInstructions,
+        }),
+      }
+    );
+  },
+
+  signoff: async (
+    noteId: string,
+    confirmAccuracy: boolean,
+    clinicianNotes?: string
+  ): Promise<ClinicalNote> => {
+    return apiRequest<ClinicalNote>(
+      `/notes/${encodeURIComponent(noteId)}/signoff`,
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          confirm_accuracy: confirmAccuracy,
+          clinician_notes: clinicianNotes,
+        }),
+      }
+    );
   },
 };

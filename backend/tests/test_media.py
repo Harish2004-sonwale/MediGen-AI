@@ -226,7 +226,8 @@ def test_async_media_analysis_task_and_review(
     headers, _ = get_auth_headers(client, role=UserRole.DOCTOR, email="doc_review@test.com")
     reset_background_task_provider()
     # Use sync task provider for synchronous test execution
-    get_background_task_provider(provider_type="sync", force_new=True)
+    get_background_task_provider(provider_type="sync", force_new=False)
+
 
     with patch("app.services.media_service.SessionLocal", TestingSessionLocal):
         # 1. Upload media

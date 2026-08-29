@@ -182,6 +182,12 @@ MediGen-AI/
 | `GET` | `/api/v1/media/{media_id}/file` | Authenticated | Stream authorized media binary file | `200 OK` |
 | `POST` | `/api/v1/tasks/media/{media_id}/analyze`| Clinical Roles | Enqueue background AI imaging analysis | `202 Accepted` |
 | `POST` | `/api/v1/media/{media_id}/review` | Doctor / Admin | Record physician verification signoff | `200 OK` |
+| `POST` | `/api/v1/patients/{patient_id}/notes` | Clinical Roles | Manually draft a structured clinical note | `201 Created` |
+| `GET` | `/api/v1/patients/{patient_id}/notes` | Authenticated | List clinical notes for patient | `200 OK` |
+| `GET` | `/api/v1/notes/{note_id}` | Authenticated | Retrieve clinical note details and narrative | `200 OK` |
+| `PATCH` | `/api/v1/notes/{note_id}` | Clinical Roles | Update draft clinical note contents | `200 OK` |
+| `POST` | `/api/v1/tasks/notes/synthesize` | Clinical Roles | Enqueue background AI Scribe note synthesis | `202 Accepted` |
+| `POST` | `/api/v1/notes/{note_id}/signoff` | Doctor / Admin | Attending physician review and legal signoff | `200 OK` |
 | `POST` | `/api/v1/rag/query` | Authenticated | Execute grounded clinical RAG query | `200 OK` |
 | `POST` | `/api/v1/chat/sessions` | Authenticated | Create a new clinical chat session | `201 Created` |
 | `POST` | `/api/v1/chat/sessions/{session_id}/messages` | Authenticated | Send message in session (grounded RAG) | `200 OK` |
@@ -231,3 +237,4 @@ MediGen-AI/
    - **Phase 9.0.5 — Advanced Production Deployment & Scalability**: Completed & Verified ✅
    - **Phase 9.0.6 — Frontend Clinical Dashboard & Real-Time Decision Support UI**: Completed & Verified ✅
    - **Phase 9.0.7 — Advanced Multi-Modal Medical Diagnostics & Imaging Support**: Completed & Verified ✅
+   - **Phase 9.0.8 — Automated Clinical Documentation, AI Scribe Synthesis & Structured Note Generation**: Completed & Verified ✅

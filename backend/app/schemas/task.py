@@ -33,6 +33,8 @@ class BackgroundTaskType(str, Enum):
     SAFETY_CHECK = "safety_check"
     BATCH_INDEXING = "batch_indexing"
     MEDIA_ANALYSIS = "media_analysis"
+    NOTE_SYNTHESIS = "note_synthesis"
+
 
 
 
