@@ -1,0 +1,406 @@
+// ==============================================================================
+// MediGen AI - Centralized HTTP & SSE API Client
+// Strict Zero-Secret Architecture, Typed Endpoints & Robust Error Handling
+// ==============================================================================
+
+/// <reference types="vite/client" />
+
+import {
+  BackgroundTask,
+  ChatSession,
+  ChatSessionDetail,
+  ClinicalSafetyReport,
+  MedicalDocument,
+  Patient,
+  TaskListResponse,
+  TimelineCitation,
+  TimelineEvent,
+  TimelineSummary,
+  TokenResponse,
+  User,
+  UserRole,
+} from '../types';
+
+const API_BASE_URL = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_URL) || '/api/v1';
+
+// Token Management
+export const getStoredToken = (): string | null => {
+  return localStorage.getItem('medigen_token') || sessionStorage.getItem('medigen_token');
+};
+
+export const setStoredToken = (token: string, remember = true): void => {
+  if (remember) {
+    localStorage.setItem('medigen_token', token);
+  } else {
+    sessionStorage.setItem('medigen_token', token);
+  }
+};
+
+export const clearStoredToken = (): void => {
+  localStorage.removeItem('medigen_token');
+  sessionStorage.removeItem('medigen_token');
+  localStorage.removeItem('medigen_user');
+  sessionStorage.removeItem('medigen_user');
+};
+
+// Generic Fetch Wrapper
+export async function apiRequest<T>(
+  endpoint: string,
+  options: RequestInit = {}
+): Promise<T> {
+  const token = getStoredToken();
+  const headers = new Headers(options.headers || {});
+
+  if (token && !headers.has('Authorization')) {
+    headers.set('Authorization', `Bearer ${token}`);
+  }
+
+  if (!(options.body instanceof FormData) && !headers.has('Content-Type')) {
+    headers.set('Content-Type', 'application/json');
+  }
+
+  const url = `${API_BASE_URL}${endpoint}`;
+  const response = await fetch(url, {
+    ...options,
+    headers,
+  });
+
+  if (response.status === 401) {
+    // Token expired or invalid
+    clearStoredToken();
+    window.dispatchEvent(new Event('medigen:unauthorized'));
+    throw new Error('Your session has expired. Please sign in again.');
+  }
+
+  if (!response.ok) {
+    let errorDetail = `Request failed with status ${response.status}`;
+    try {
+      const errorData = await response.json();
+      errorDetail = errorData.detail || errorData.message || errorDetail;
+    } catch {
+      // Non-JSON response
+    }
+    throw new Error(errorDetail);
+  }
+
+  return response.json() as Promise<T>;
+}
+
+// 1. Authentication APIs
+export const authApi = {
+  login: async (email: string, password: string): Promise<TokenResponse> => {
+    return apiRequest<TokenResponse>('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email, password }),
+    });
+  },
+
+  register: async (
+    name: string,
+    email: string,
+    password: string,
+    role: UserRole
+  ): Promise<User> => {
+    return apiRequest<User>('/auth/register', {
+      method: 'POST',
+      body: JSON.stringify({ name, email, password, role }),
+    });
+  },
+
+  getMe: async (): Promise<User> => {
+    return apiRequest<User>('/auth/me', {
+      method: 'GET',
+    });
+  },
+};
+
+// 2. Patient Management APIs
+export const patientsApi = {
+  list: async (search?: string, status?: string): Promise<Patient[]> => {
+    const params = new URLSearchParams();
+    if (search) params.append('search', search);
+    if (status) params.append('status', status);
+    const query = params.toString() ? `?${params.toString()}` : '';
+    return apiRequest<Patient[]>(`/patients${query}`, { method: 'GET' });
+  },
+
+  get: async (patientId: string): Promise<Patient> => {
+    return apiRequest<Patient>(`/patients/${encodeURIComponent(patientId)}`, {
+      method: 'GET',
+    });
+  },
+
+  create: async (data: Partial<Patient>): Promise<Patient> => {
+    return apiRequest<Patient>('/patients', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+};
+
+// 3. Clinical Timeline APIs
+export const timelineApi = {
+  getTimeline: async (
+    patientId: string,
+    eventType?: string
+  ): Promise<TimelineEvent[]> => {
+    const params = new URLSearchParams();
+    if (eventType) params.append('event_type', eventType);
+    const query = params.toString() ? `?${params.toString()}` : '';
+    return apiRequest<TimelineEvent[]>(
+      `/patients/${encodeURIComponent(patientId)}/timeline${query}`,
+      { method: 'GET' }
+    );
+  },
+
+  getSummary: async (
+    patientId: string,
+    focus?: string
+  ): Promise<TimelineSummary> => {
+    const params = new URLSearchParams();
+    if (focus) params.append('focus', focus);
+    const query = params.toString() ? `?${params.toString()}` : '';
+    return apiRequest<TimelineSummary>(
+      `/patients/${encodeURIComponent(patientId)}/timeline/summary${query}`,
+      { method: 'GET' }
+    );
+  },
+};
+
+// 4. Clinical Decision Support / Safety APIs
+export const safetyApi = {
+  checkSafety: async (
+    patientId: string,
+    candidateMedications?: string[],
+    activeConditions?: string[]
+  ): Promise<ClinicalSafetyReport> => {
+    return apiRequest<ClinicalSafetyReport>(
+      `/safety/check?patient_id=${encodeURIComponent(patientId)}`,
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          candidate_medications: candidateMedications,
+          active_conditions: activeConditions,
+        }),
+      }
+    );
+  },
+};
+
+// 5. Medical Documents APIs
+export const documentsApi = {
+  list: async (patientId: string): Promise<MedicalDocument[]> => {
+    return apiRequest<MedicalDocument[]>(
+      `/patients/${encodeURIComponent(patientId)}/documents`,
+      { method: 'GET' }
+    );
+  },
+
+  upload: async (
+    patientId: string,
+    file: File,
+    title: string,
+    documentType: string
+  ): Promise<MedicalDocument> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('title', title);
+    formData.append('document_type', documentType);
+
+    return apiRequest<MedicalDocument>(
+      `/patients/${encodeURIComponent(patientId)}/documents`,
+      {
+        method: 'POST',
+        body: formData,
+      }
+    );
+  },
+};
+
+// 6. Real-Time AI Clinical Chat & SSE Streaming
+export interface StreamChatHandlers {
+  onStart?: (data: { session_id: string; message_id: string }) => void;
+  onDelta?: (text: string) => void;
+  onCitation?: (citation: TimelineCitation) => void;
+  onDone?: (data: {
+    message_id: string;
+    completed: boolean;
+    insufficient_information: boolean;
+    retrieved_chunks: number;
+  }) => void;
+  onError?: (error: string) => void;
+}
+
+export const chatApi = {
+  listSessions: async (patientId?: string): Promise<{ total: number; sessions: ChatSession[] }> => {
+    const params = new URLSearchParams();
+    if (patientId) params.append('patient_id', patientId);
+    const query = params.toString() ? `?${params.toString()}` : '';
+    return apiRequest<{ total: number; sessions: ChatSession[] }>(`/chat/sessions${query}`, {
+      method: 'GET',
+    });
+  },
+
+  createSession: async (patientId: string, title?: string): Promise<ChatSession> => {
+    return apiRequest<ChatSession>('/chat/sessions', {
+      method: 'POST',
+      body: JSON.stringify({ patient_id: patientId, title }),
+    });
+  },
+
+  getSession: async (sessionId: string): Promise<ChatSessionDetail> => {
+    return apiRequest<ChatSessionDetail>(`/chat/sessions/${encodeURIComponent(sessionId)}`, {
+      method: 'GET',
+    });
+  },
+
+  closeSession: async (sessionId: string): Promise<ChatSession> => {
+    return apiRequest<ChatSession>(`/chat/sessions/${encodeURIComponent(sessionId)}`, {
+      method: 'DELETE',
+    });
+  },
+
+  streamMessage: async (
+    sessionId: string,
+    message: string,
+    handlers: StreamChatHandlers,
+    signal?: AbortSignal
+  ): Promise<void> => {
+    const token = getStoredToken();
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      Accept: 'text/event-stream',
+    };
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(
+      `${API_BASE_URL}/chat/sessions/${encodeURIComponent(sessionId)}/messages/stream`,
+      {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ message }),
+        signal,
+      }
+    );
+
+    if (!response.ok) {
+      let errorMsg = `Streaming failed (${response.status})`;
+      try {
+        const errJson = await response.json();
+        errorMsg = errJson.detail || errorMsg;
+      } catch {
+        // fallback
+      }
+      if (handlers.onError) handlers.onError(errorMsg);
+      throw new Error(errorMsg);
+    }
+
+    const reader = response.body?.getReader();
+    if (!reader) {
+      throw new Error('Unable to read streaming response body.');
+    }
+
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n\n');
+        buffer = lines.pop() || '';
+
+        for (const block of lines) {
+          if (!block.trim()) continue;
+
+          let eventType = 'message';
+          let dataStr = '';
+
+          const blockLines = block.split('\n');
+          for (const line of blockLines) {
+            if (line.startsWith('event:')) {
+              eventType = line.replace('event:', '').trim();
+            } else if (line.startsWith('data:')) {
+              dataStr = line.replace('data:', '').trim();
+            }
+          }
+
+          if (!dataStr) continue;
+
+          try {
+            const data = JSON.parse(dataStr);
+
+            if (eventType === 'start' && handlers.onStart) {
+              handlers.onStart(data);
+            } else if (eventType === 'delta' && handlers.onDelta) {
+              handlers.onDelta(data.text || '');
+            } else if (eventType === 'citation' && handlers.onCitation) {
+              handlers.onCitation(data);
+            } else if (eventType === 'done' && handlers.onDone) {
+              handlers.onDone(data);
+            } else if (eventType === 'error' && handlers.onError) {
+              handlers.onError(data.error || 'Unknown streaming error');
+            }
+          } catch {
+            // Non-JSON SSE chunk fallback
+            if (eventType === 'delta' && handlers.onDelta) {
+              handlers.onDelta(dataStr);
+            }
+          }
+        }
+      }
+    } finally {
+      reader.releaseLock();
+    }
+  },
+};
+
+// 7. Background Task Management APIs
+export const tasksApi = {
+  list: async (page = 1, size = 20, patientId?: string): Promise<TaskListResponse> => {
+    const params = new URLSearchParams({ page: String(page), size: String(size) });
+    if (patientId) params.append('patient_id', patientId);
+    return apiRequest<TaskListResponse>(`/tasks?${params.toString()}`, {
+      method: 'GET',
+    });
+  },
+
+  get: async (taskId: string): Promise<BackgroundTask> => {
+    return apiRequest<BackgroundTask>(`/tasks/${encodeURIComponent(taskId)}`, {
+      method: 'GET',
+    });
+  },
+
+  retry: async (taskId: string): Promise<BackgroundTask> => {
+    return apiRequest<BackgroundTask>(`/tasks/${encodeURIComponent(taskId)}/retry`, {
+      method: 'POST',
+    });
+  },
+
+  cancel: async (taskId: string): Promise<BackgroundTask> => {
+    return apiRequest<BackgroundTask>(`/tasks/${encodeURIComponent(taskId)}/cancel`, {
+      method: 'POST',
+    });
+  },
+
+  triggerDocumentProcessing: async (documentId: string): Promise<BackgroundTask> => {
+    return apiRequest<BackgroundTask>(
+      `/tasks/documents/${encodeURIComponent(documentId)}/process`,
+      { method: 'POST' }
+    );
+  },
+
+  triggerTimelineSummary: async (patientId: string, focus?: string): Promise<BackgroundTask> => {
+    return apiRequest<BackgroundTask>(
+      `/tasks/timeline/${encodeURIComponent(patientId)}/summary`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ focus }),
+      }
+    );
+  },
+};

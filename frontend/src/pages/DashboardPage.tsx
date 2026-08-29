@@ -1,0 +1,113 @@
+// ==============================================================================
+// MediGen AI - Main Clinical Dashboard Page
+// ==============================================================================
+
+import React, { useState } from 'react';
+import { usePatient } from '../context/PatientContext';
+import { useTasks } from '../hooks/useTasks';
+import { Header } from '../components/layout/Header';
+import { PatientRibbon } from '../components/layout/PatientRibbon';
+import { PatientDirectory } from '../components/patients/PatientDirectory';
+import { TimelineView } from '../components/timeline/TimelineView';
+import { ClinicalChat } from '../components/chat/ClinicalChat';
+import { SafetyPrescriberModal } from '../components/safety/SafetyPrescriberModal';
+import { DocumentHub } from '../components/documents/DocumentHub';
+import { TaskMonitor } from '../components/tasks/TaskMonitor';
+
+export const DashboardPage: React.FC = () => {
+  const { selectedPatient } = usePatient();
+  const { tasks, retryTask, cancelTask, loadTasks, triggerDocumentOCR } = useTasks(
+    selectedPatient?.patient_id
+  );
+
+  const [isSafetyModalOpen, setIsSafetyModalOpen] = useState<boolean>(false);
+  const [isTasksModalOpen, setIsTasksModalOpen] = useState<boolean>(false);
+  const [activeTab, setActiveTab] = useState<'timeline' | 'chat' | 'documents'>('chat');
+
+  const activeTaskCount = tasks.filter(
+    (t) => t.status === 'queued' || t.status === 'running' || t.status === 'retrying'
+  ).length;
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
+      {/* Top Application Header */}
+      <Header
+        onOpenSafetyModal={() => setIsSafetyModalOpen(true)}
+        onOpenTasksModal={() => setIsTasksModalOpen(true)}
+        activeTaskCount={activeTaskCount}
+      />
+
+      {/* Active Patient Context Ribbon */}
+      <PatientRibbon />
+
+      {/* Main Clinical Dashboard Grid */}
+      <main className="dashboard-grid">
+        {/* Left Column: Patient Directory */}
+        <section style={{ height: '100%', overflow: 'hidden' }}>
+          <PatientDirectory />
+        </section>
+
+        {/* Center Column: Interactive Workspaces (Chat, Timeline, Documents Tabs) */}
+        <section style={{ height: '100%', display: 'flex', flexDirection: 'column', gap: '12px', overflow: 'hidden' }}>
+          {/* Navigation Tab Bar */}
+          <div style={{ display: 'flex', gap: '8px', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>
+            <button
+              className={`btn btn-sm ${activeTab === 'chat' ? 'btn-primary' : 'btn-secondary'}`}
+              onClick={() => setActiveTab('chat')}
+            >
+              💬 AI Copilot & Chat
+            </button>
+            <button
+              className={`btn btn-sm ${activeTab === 'timeline' ? 'btn-primary' : 'btn-secondary'}`}
+              onClick={() => setActiveTab('timeline')}
+            >
+              📅 Longitudinal Timeline
+            </button>
+            <button
+              className={`btn btn-sm ${activeTab === 'documents' ? 'btn-primary' : 'btn-secondary'}`}
+              onClick={() => setActiveTab('documents')}
+            >
+              📁 Medical Documents
+            </button>
+          </div>
+
+          {/* Active Workspace View */}
+          <div style={{ flex: 1, overflow: 'hidden' }}>
+            {activeTab === 'chat' && <ClinicalChat patientId={selectedPatient?.patient_id} />}
+            {activeTab === 'timeline' && <TimelineView patientId={selectedPatient?.patient_id} />}
+            {activeTab === 'documents' && (
+              <DocumentHub
+                patientId={selectedPatient?.patient_id}
+                onTriggerOCR={triggerDocumentOCR}
+              />
+            )}
+          </div>
+        </section>
+
+        {/* Right Column: Longitudinal Timeline Mini-Feed & Quick Actions */}
+        <section className="right-sidebar" style={{ height: '100%', overflow: 'hidden', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div style={{ flex: 1, overflow: 'hidden' }}>
+            <TimelineView patientId={selectedPatient?.patient_id} />
+          </div>
+        </section>
+      </main>
+
+      {/* Safety Decision Support Modal */}
+      <SafetyPrescriberModal
+        patientId={selectedPatient?.patient_id}
+        isOpen={isSafetyModalOpen}
+        onClose={() => setIsSafetyModalOpen(false)}
+      />
+
+      {/* Task Monitor Modal */}
+      <TaskMonitor
+        tasks={tasks}
+        isOpen={isTasksModalOpen}
+        onClose={() => setIsTasksModalOpen(false)}
+        onRetry={retryTask}
+        onCancel={cancelTask}
+        onRefresh={loadTasks}
+      />
+    </div>
+  );
+};
