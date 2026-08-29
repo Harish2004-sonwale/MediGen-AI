@@ -215,6 +215,22 @@ MediGen-AI/
 | `POST` | `/api/v1/care-tasks/{care_task_id}/complete` | Clinical Roles | Mark care task complete with outcome notes | `200 OK` |
 | `GET` | `/api/v1/fhir/CarePlan/{care_plan_id}` | Authenticated | Export care plan as FHIR R4 CarePlan | `200 OK` |
 | `GET` | `/api/v1/fhir/Task/{task_id}` | Authenticated | Export care task as FHIR R4 Task | `200 OK` |
+| `POST` | `/api/v1/cohorts` | Clinical Roles | Create disease registry or patient cohort | `201 Created` |
+| `GET` | `/api/v1/cohorts` | Clinical Roles | List disease registries and patient cohorts | `200 OK` |
+| `GET` | `/api/v1/cohorts/{cohort_id}` | Clinical Roles | Retrieve specific cohort details & criteria | `200 OK` |
+| `PATCH` | `/api/v1/cohorts/{cohort_id}` | Clinical Roles | Update cohort metadata and criteria | `200 OK` |
+| `DELETE` | `/api/v1/cohorts/{cohort_id}` | Clinical Roles | Delete cohort and cascade memberships | `200 OK` |
+| `GET` | `/api/v1/cohorts/{cohort_id}/members` | Clinical Roles | List enrolled patient members with risk scores | `200 OK` |
+| `POST` | `/api/v1/cohorts/{cohort_id}/members` | Clinical Roles | Manually enroll patient in cohort | `201 Created` |
+| `DELETE` | `/api/v1/cohorts/{cohort_id}/members/{patient_id}` | Clinical Roles | Remove patient from cohort | `200 OK` |
+| `GET` | `/api/v1/cohorts/{cohort_id}/analytics` | Clinical Roles | Aggregate population health & risk metrics | `200 OK` |
+| `POST` | `/api/v1/patients/{patient_id}/risk-assessments` | Clinical Roles | Run multi-factorial clinical risk assessment | `201 Created` |
+| `GET` | `/api/v1/patients/{patient_id}/risk-assessments` | Authenticated | List longitudinal risk assessments for patient | `200 OK` |
+| `GET` | `/api/v1/risk-assessments/{assessment_id}` | Authenticated | Retrieve specific risk assessment breakdown | `200 OK` |
+| `POST` | `/api/v1/tasks/cohorts/{cohort_id}/evaluate` | Clinical Roles | Enqueue background dynamic cohort sync | `202 Accepted` |
+| `POST` | `/api/v1/tasks/patients/{patient_id}/stratify-risk` | Clinical Roles | Enqueue background risk assessment calculation | `202 Accepted` |
+| `GET` | `/api/v1/fhir/Group/{cohort_id}` | Authenticated | Export patient cohort as FHIR R4 Group | `200 OK` |
+| `GET` | `/api/v1/fhir/RiskAssessment/{assessment_id}` | Authenticated | Export risk score as FHIR R4 RiskAssessment | `200 OK` |
 
 | `POST` | `/api/v1/rag/query` | Authenticated | Execute grounded clinical RAG query | `200 OK` |
 | `POST` | `/api/v1/chat/sessions` | Authenticated | Create a new clinical chat session | `201 Created` |
@@ -267,3 +283,5 @@ MediGen-AI/
    - **Phase 9.0.7 — Advanced Multi-Modal Medical Diagnostics & Imaging Support**: Completed & Verified ✅
    - **Phase 9.0.8 — Automated Clinical Documentation, AI Scribe Synthesis & Structured Note Generation**: Completed & Verified ✅
    - **Phase 9.0.9 — Clinical Decision Support Alerting & Real-Time Vital Telemetry Ingestion**: Completed & Verified ✅
+   - **Phase 9.0.10 — Advanced Clinical Workflow Orchestration, Care Plans & Follow-Up Management**: Completed & Verified ✅
+   - **Phase 9.0.11 — Clinical Cohort Analytics, Patient Registry Management & Longitudinal Risk Stratification**: Completed & Verified ✅

@@ -137,7 +137,29 @@ from app.schemas.task import (
     TaskListResponse,
     TimelineTaskRequest,
 )
+from app.schemas.cohort import (
+    CohortAnalyticsResponse,
+    CohortCreate,
+    CohortCriteria,
+    CohortListResponse,
+    CohortMembershipCreate,
+    CohortMembershipResponse,
+    CohortResponse,
+    CohortType,
+    CohortUpdate,
+)
+from app.schemas.risk_assessment import (
+    RiskAssessmentCreate,
+    RiskAssessmentListResponse,
+    RiskAssessmentResponse,
+    RiskFactor,
+    RiskMitigationAction,
+    RiskStratifyRequest,
+    RiskTier,
+    RiskType,
+)
 from app.schemas.timeline import (
+
     ClinicalTimelineEvent,
     TimelineEventType,
     TimelineListResponse,
@@ -231,4 +253,21 @@ __all__ = [
     "ClinicianReviewRequest",
     "DiagnosticMediaResponse",
     "DiagnosticMediaListResponse",
+    "CohortType",
+    "CohortCriteria",
+    "CohortCreate",
+    "CohortUpdate",
+    "CohortResponse",
+    "CohortListResponse",
+    "CohortMembershipCreate",
+    "CohortMembershipResponse",
+    "CohortAnalyticsResponse",
+    "RiskType",
+    "RiskTier",
+    "RiskFactor",
+    "RiskMitigationAction",
+    "RiskStratifyRequest",
+    "RiskAssessmentCreate",
+    "RiskAssessmentResponse",
+    "RiskAssessmentListResponse",
 ]

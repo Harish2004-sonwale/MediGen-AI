@@ -4,8 +4,10 @@ from typing import Any, Optional
 
 from app.models.care_plan import CarePlan
 from app.models.care_task import CareTask
+from app.models.cohort import CohortMembership, PatientCohort
 from app.models.encounter import Encounter
 from app.models.patient import Patient
+from app.models.risk_assessment import ClinicalRiskAssessment
 from app.schemas.encounter import EncounterCreate, EncounterStatus, EncounterType
 from app.schemas.fhir import (
     FHIRAddress,
@@ -20,6 +22,8 @@ from app.schemas.fhir import (
     FHIREncounter,
     FHIREncounterDiagnosis,
     FHIRGoal,
+    FHIRGroup,
+    FHIRGroupMember,
     FHIRHumanName,
     FHIRIdentifier,
     FHIRMedicationStatement,
@@ -30,8 +34,11 @@ from app.schemas.fhir import (
     FHIRQuantity,
     FHIRReference,
     FHIRCondition,
+    FHIRRiskAssessment,
+    FHIRRiskAssessmentPrediction,
     FHIRTask,
 )
+
 from app.schemas.patient import Gender, PatientCreate, PatientStatus
 
 
@@ -711,4 +718,100 @@ class FHIRCarePlanMapper(BaseFHIRMapper):
             ),
             goal=goals_refs,
             activity=activities,
+        )
+
+
+class FHIRGroupMapper(BaseFHIRMapper):
+    """Mapper converting PatientCohort and active memberships to FHIR R4 Group resource."""
+
+    @staticmethod
+    def to_fhir(cohort: PatientCohort, members: list[CohortMembership]) -> FHIRGroup:
+        member_entries: list[FHIRGroupMember] = []
+        for m in members:
+            pat_id = m.patient.patient_id if m.patient else f"PAT-{m.patient_id}"
+            member_entries.append(
+                FHIRGroupMember(
+                    entity=FHIRReference(
+                        reference=f"Patient/{pat_id}",
+                        display=f"{m.patient.first_name} {m.patient.last_name}" if m.patient else None,
+                    ),
+                    inactive=(m.status != "active"),
+                )
+            )
+
+        return FHIRGroup(
+            id=cohort.cohort_id,
+            identifier=[
+                FHIRIdentifier(
+                    system="http://medigen.ai/fhir/cohorts",
+                    value=cohort.cohort_id,
+                )
+            ],
+            active=True,
+            type="person",
+            actual=True,
+            name=cohort.name,
+            quantity=len(member_entries),
+            member=member_entries,
+        )
+
+
+class FHIRRiskAssessmentMapper(BaseFHIRMapper):
+    """Mapper converting ClinicalRiskAssessment to standard FHIR R4 RiskAssessment resource."""
+
+    @staticmethod
+    def to_fhir(assessment: ClinicalRiskAssessment, patient_id_str: str) -> FHIRRiskAssessment:
+        risk_type_str = assessment.risk_type or "clinical_risk"
+        outcome_concept = FHIRCodeableConcept(
+            text=assessment.predicted_outcome or risk_type_str.replace("_", " ").title(),
+            coding=[
+                FHIRCoding(
+                    system="http://medigen.ai/fhir/risk-types",
+                    code=risk_type_str,
+                    display=risk_type_str.replace("_", " ").title(),
+                )
+            ],
+        )
+
+        tier_concept = FHIRCodeableConcept(
+            text=assessment.risk_tier or "MODERATE",
+            coding=[
+                FHIRCoding(
+                    system="http://terminology.hl7.org/CodeSystem/risk-probability",
+                    code=(assessment.risk_tier or "MODERATE").lower(),
+                    display=assessment.risk_tier or "MODERATE",
+                )
+            ],
+        )
+
+        # Serialize mitigation recommendation notes
+        mitigation_text = None
+        if assessment.mitigation_recommendations_json:
+            mitigation_text = "; ".join(
+                f"[{m.get('priority', 'ROUTINE')}] {m.get('action_title', '')}"
+                for m in assessment.mitigation_recommendations_json
+                if isinstance(m, dict) and m.get("action_title")
+            )
+
+        return FHIRRiskAssessment(
+            id=assessment.assessment_id,
+            identifier=[
+                FHIRIdentifier(
+                    system="http://medigen.ai/fhir/risk-assessments",
+                    value=assessment.assessment_id,
+                )
+            ],
+            status="final",
+            subject=FHIRReference(reference=f"Patient/{patient_id_str}"),
+            encounter=FHIRReference(reference=f"Encounter/{assessment.encounter_id}") if assessment.encounter_id else None,
+            occurrenceDateTime=assessment.assessed_at.isoformat() if assessment.assessed_at else None,
+            prediction=[
+                FHIRRiskAssessmentPrediction(
+                    outcome=outcome_concept,
+                    probabilityDecimal=assessment.risk_score,
+                    qualitativeRisk=tier_concept,
+                    rationale=f"Quantitative risk score: {assessment.risk_score}/100 ({assessment.risk_tier})",
+                )
+            ],
+            mitigation=mitigation_text,
         )

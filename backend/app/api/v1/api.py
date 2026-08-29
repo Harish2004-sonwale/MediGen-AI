@@ -5,6 +5,7 @@ from app.api.v1.endpoints import (
     auth,
     care_plans,
     chat,
+    cohorts,
     doctors,
     documents,
     encounters,
@@ -31,6 +32,7 @@ api_router.include_router(media.router)
 api_router.include_router(notes.router)
 api_router.include_router(vitals.router)
 api_router.include_router(care_plans.router)
+api_router.include_router(cohorts.router)
 api_router.include_router(rag.router)
 api_router.include_router(chat.router)
 api_router.include_router(timeline.router)

@@ -6,18 +6,22 @@ from sqlalchemy.orm import Session
 
 from app.models.care_plan import CarePlan
 from app.models.care_task import CareTask
+from app.models.cohort import CohortMembership, PatientCohort
 from app.models.encounter import Encounter
 from app.models.patient import Patient
-from app.models.user import User
+from app.models.risk_assessment import ClinicalRiskAssessment
+from app.models.user import User, UserRole
 from app.schemas.fhir import (
     FHIRBundle,
     FHIRBundleEntry,
     FHIRCarePlan,
     FHIRCondition,
     FHIREncounter,
+    FHIRGroup,
     FHIRMedicationStatement,
     FHIRObservation,
     FHIRPatient,
+    FHIRRiskAssessment,
     FHIRTask,
 )
 from app.services.appointment_service import resolve_patient
@@ -26,11 +30,14 @@ from app.services.fhir_mapper_service import (
     FHIRCarePlanMapper,
     FHIRConditionMapper,
     FHIREncounterMapper,
+    FHIRGroupMapper,
     FHIRMedicationStatementMapper,
     FHIRObservationMapper,
     FHIRPatientMapper,
+    FHIRRiskAssessmentMapper,
     FHIRTaskMapper,
 )
+
 from app.services.rag_service import validate_patient_rag_access
 from app.services.timeline_service import get_patient_timeline
 
@@ -274,3 +281,45 @@ def export_care_task_as_fhir(db: Session, current_user: User, task_id_str: str) 
     validate_patient_rag_access(db, current_user, task.patient)
     logger.info("Exporting FHIR Task resource task=%s for patient=%s", task.task_id, task.patient.patient_id)
     return FHIRTaskMapper.to_fhir(task, task.patient.patient_id)
+
+
+def export_cohort_as_fhir_group(db: Session, current_user: User, cohort_id_str: str) -> FHIRGroup:
+    """Export internal patient cohort/registry as standard FHIR R4 Group resource."""
+    if current_user.role not in (UserRole.DOCTOR, UserRole.HEALTHCARE_STAFF, UserRole.ADMIN):
+        raise ValueError("Access denied: Insufficient privileges to export FHIR Group resource.")
+
+    stmt = select(PatientCohort).where(
+        (PatientCohort.cohort_id == cohort_id_str)
+        | (PatientCohort.id == (int(cohort_id_str) if cohort_id_str.isdigit() else -1))
+    )
+    cohort = db.execute(stmt).scalar_one_or_none()
+    if not cohort:
+        raise ValueError(f"Patient cohort with identifier '{cohort_id_str}' was not found.")
+
+    members = (
+        db.execute(
+            select(CohortMembership)
+            .where(CohortMembership.cohort_id == cohort.id)
+        )
+        .scalars()
+        .all()
+    )
+
+    logger.info("Exporting FHIR Group resource cohort=%s with %d members", cohort.cohort_id, len(members))
+    return FHIRGroupMapper.to_fhir(cohort, members)
+
+
+def export_risk_assessment_as_fhir(db: Session, current_user: User, assessment_id_str: str) -> FHIRRiskAssessment:
+    """Export internal clinical risk assessment as standard FHIR R4 RiskAssessment resource."""
+    stmt = select(ClinicalRiskAssessment).where(ClinicalRiskAssessment.assessment_id == assessment_id_str)
+    assessment = db.execute(stmt).scalar_one_or_none()
+    if not assessment:
+        raise ValueError(f"Clinical risk assessment with identifier '{assessment_id_str}' was not found.")
+
+    validate_patient_rag_access(db, current_user, assessment.patient)
+    logger.info(
+        "Exporting FHIR RiskAssessment resource id=%s for patient=%s",
+        assessment.assessment_id,
+        assessment.patient.patient_id,
+    )
+    return FHIRRiskAssessmentMapper.to_fhir(assessment, assessment.patient.patient_id)

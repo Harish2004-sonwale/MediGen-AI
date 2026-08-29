@@ -20,15 +20,26 @@ import {
   ClinicalAlertListResponse,
   ClinicalNote,
   ClinicalNoteListResponse,
+  ClinicalRiskAssessment,
   ClinicalSafetyReport,
+  CohortAnalytics,
+  CohortCriteria,
+  CohortListResponse,
+  CohortMembership,
+  CohortType,
   DiagnosticMedia,
+
   DiagnosticMediaListResponse,
   MediaBodySite,
   MediaModality,
   MedicalDocument,
   NoteType,
   Patient,
+  PatientCohort,
+  RiskAssessmentListResponse,
+  RiskType,
   TaskListResponse,
+
   TaskPriority,
   TimelineCitation,
   TimelineEvent,
@@ -833,6 +844,100 @@ export const carePlansApi = {
         method: 'POST',
         body: JSON.stringify({ completion_notes: completionNotes }),
       }
+    );
+  },
+};
+
+export const cohortsApi = {
+  list: async (cohortType?: CohortType): Promise<CohortListResponse> => {
+    const q = cohortType ? `?cohort_type=${encodeURIComponent(cohortType)}` : '';
+    return apiRequest<CohortListResponse>(`/cohorts${q}`, { method: 'GET' });
+  },
+
+  get: async (cohortId: string): Promise<PatientCohort> => {
+    return apiRequest<PatientCohort>(`/cohorts/${encodeURIComponent(cohortId)}`, { method: 'GET' });
+  },
+
+  create: async (data: {
+    name: string;
+    description: string;
+    cohort_type?: CohortType;
+    criteria?: CohortCriteria;
+    is_dynamic?: boolean;
+  }): Promise<PatientCohort> => {
+    return apiRequest<PatientCohort>('/cohorts', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  update: async (cohortId: string, data: Partial<PatientCohort>): Promise<PatientCohort> => {
+    return apiRequest<PatientCohort>(`/cohorts/${encodeURIComponent(cohortId)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  },
+
+  delete: async (cohortId: string): Promise<{ message: string; deleted: boolean }> => {
+    return apiRequest<{ message: string; deleted: boolean }>(`/cohorts/${encodeURIComponent(cohortId)}`, {
+      method: 'DELETE',
+    });
+  },
+
+  listMembers: async (cohortId: string): Promise<CohortMembership[]> => {
+    return apiRequest<CohortMembership[]>(`/cohorts/${encodeURIComponent(cohortId)}/members`, {
+      method: 'GET',
+    });
+  },
+
+  addMember: async (cohortId: string, patientId: string, notes?: string): Promise<CohortMembership> => {
+    return apiRequest<CohortMembership>(`/cohorts/${encodeURIComponent(cohortId)}/members`, {
+      method: 'POST',
+      body: JSON.stringify({ patient_id: patientId, notes }),
+    });
+  },
+
+  removeMember: async (cohortId: string, patientId: string): Promise<{ message: string }> => {
+    return apiRequest<{ message: string }>(
+      `/cohorts/${encodeURIComponent(cohortId)}/members/${encodeURIComponent(patientId)}`,
+      { method: 'DELETE' }
+    );
+  },
+
+  getAnalytics: async (cohortId: string): Promise<CohortAnalytics> => {
+    return apiRequest<CohortAnalytics>(`/cohorts/${encodeURIComponent(cohortId)}/analytics`, {
+      method: 'GET',
+    });
+  },
+
+  calculateRisk: async (
+    patientId: string,
+    data: { risk_type: RiskType; encounter_id?: number; custom_context?: string }
+  ): Promise<ClinicalRiskAssessment> => {
+    return apiRequest<ClinicalRiskAssessment>(
+      `/patients/${encodeURIComponent(patientId)}/risk-assessments`,
+      {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }
+    );
+  },
+
+  listRiskAssessments: async (
+    patientId: string,
+    riskType?: RiskType
+  ): Promise<RiskAssessmentListResponse> => {
+    const q = riskType ? `?risk_type=${encodeURIComponent(riskType)}` : '';
+    return apiRequest<RiskAssessmentListResponse>(
+      `/patients/${encodeURIComponent(patientId)}/risk-assessments${q}`,
+      { method: 'GET' }
+    );
+  },
+
+  getRiskAssessment: async (assessmentId: string): Promise<ClinicalRiskAssessment> => {
+    return apiRequest<ClinicalRiskAssessment>(
+      `/risk-assessments/${encodeURIComponent(assessmentId)}`,
+      { method: 'GET' }
     );
   },
 };

@@ -11,22 +11,27 @@ from app.schemas.fhir import (
     FHIRCarePlan,
     FHIRCondition,
     FHIREncounter,
+    FHIRGroup,
     FHIRImportResult,
     FHIRMedicationStatement,
     FHIRObservation,
     FHIRPatient,
+    FHIRRiskAssessment,
     FHIRTask,
 )
 from app.services.fhir_export_service import (
     export_care_plan_as_fhir,
     export_care_task_as_fhir,
+    export_cohort_as_fhir_group,
     export_condition_as_fhir,
     export_encounter_as_fhir,
     export_medication_statement_as_fhir,
     export_observation_as_fhir,
     export_patient_as_fhir,
     export_patient_bundle_as_fhir,
+    export_risk_assessment_as_fhir,
 )
+
 from app.services.fhir_import_service import (
     import_fhir_bundle,
     import_fhir_resource,
@@ -199,9 +204,50 @@ def get_fhir_task(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
 
 
+@router.get(
+    "/Group/{cohort_id}",
+    response_model=FHIRGroup,
+    status_code=status.HTTP_200_OK,
+    summary="Export patient cohort / disease registry as a FHIR R4 Group resource",
+)
+def get_fhir_group(
+    cohort_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+) -> FHIRGroup:
+    """Retrieve and export a cohort registry as a standard FHIR R4 Group resource."""
+    try:
+        return export_cohort_as_fhir_group(db, current_user, cohort_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+
+
+@router.get(
+    "/RiskAssessment/{assessment_id}",
+    response_model=FHIRRiskAssessment,
+    status_code=status.HTTP_200_OK,
+    summary="Export clinical risk assessment as a FHIR R4 RiskAssessment resource",
+)
+def get_fhir_risk_assessment(
+    assessment_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+) -> FHIRRiskAssessment:
+    """Retrieve and export a risk assessment as a standard FHIR R4 RiskAssessment resource."""
+    try:
+        return export_risk_assessment_as_fhir(db, current_user, assessment_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+
+
 # ============================================================================
 # FHIR IMPORT ENDPOINTS
 # ============================================================================
+
 
 @router.post(
     "/import",

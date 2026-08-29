@@ -36,13 +36,12 @@ class BackgroundTaskType(str, Enum):
     NOTE_SYNTHESIS = "note_synthesis"
     TELEMETRY_EVALUATION = "telemetry_evaluation"
     CARE_PLAN_GENERATION = "care_plan_generation"
-
-
-
-
+    COHORT_ANALYSIS = "cohort_analysis"
+    RISK_STRATIFICATION = "risk_stratification"
 
 
 class BackgroundTask(BaseModel):
+
     """Core domain model representing an asynchronous background task."""
 
     task_id: str = Field(..., description="Unique public task identifier (e.g. TASK-20260829-A1B2C3D4)")

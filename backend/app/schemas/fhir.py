@@ -13,7 +13,10 @@ class FHIRResourceType(str, Enum):
     CARE_PLAN = "CarePlan"
     GOAL = "Goal"
     TASK = "Task"
+    GROUP = "Group"
+    RISK_ASSESSMENT = "RiskAssessment"
     BUNDLE = "Bundle"
+
 
 
 
@@ -242,6 +245,47 @@ class FHIRCarePlan(BaseModel):
     period: Optional[FHIRPeriod] = Field(default=None, description="Time period plan covers")
     goal: list[FHIRReference] = Field(default_factory=list, description="Desired outcome of plan")
     activity: list[FHIRCarePlanActivity] = Field(default_factory=list, description="Action to occur as part of plan")
+
+
+class FHIRGroupMember(BaseModel):
+    entity: FHIRReference = Field(..., description="Reference to patient member")
+    inactive: Optional[bool] = Field(default=False, description="Whether member is no longer in group")
+
+
+class FHIRGroup(BaseModel):
+    model_config = ConfigDict(extra="allow", populate_by_name=True)
+
+    resourceType: str = Field(default="Group", description="FHIR resource type")
+    id: Optional[str] = Field(default=None, description="Logical id of this artifact")
+    identifier: list[FHIRIdentifier] = Field(default_factory=list, description="Unique id")
+    active: bool = Field(default=True, description="Whether this group's record is in active use")
+    type: str = Field(default="person", description="person | animal | practitioner | device | medication | substance")
+    actual: bool = Field(default=True, description="Descriptive or actual")
+    name: Optional[str] = Field(default=None, description="Label for Group")
+    quantity: Optional[int] = Field(default=None, description="Number of members")
+    member: list[FHIRGroupMember] = Field(default_factory=list, description="Who or what is in group")
+
+
+class FHIRRiskAssessmentPrediction(BaseModel):
+    outcome: Optional[FHIRCodeableConcept] = Field(default=None, description="Possible outcome for the subject")
+    probabilityDecimal: Optional[float] = Field(default=None, description="Likelihood of specified outcome (0-100 or 0-1)")
+    qualitativeRisk: Optional[FHIRCodeableConcept] = Field(default=None, description="Likelihood of specified outcome as a concept (LOW, MODERATE, HIGH, CRITICAL)")
+    rationale: Optional[str] = Field(default=None, description="Explanation of prediction")
+
+
+class FHIRRiskAssessment(BaseModel):
+    model_config = ConfigDict(extra="allow", populate_by_name=True)
+
+    resourceType: str = Field(default="RiskAssessment", description="FHIR resource type")
+    id: Optional[str] = Field(default=None, description="Logical id of this artifact")
+    identifier: list[FHIRIdentifier] = Field(default_factory=list, description="Unique id")
+    status: str = Field(default="final", description="registered | preliminary | final | amended +")
+    subject: Optional[FHIRReference] = Field(default=None, description="Who/what does assessment apply to?")
+    encounter: Optional[FHIRReference] = Field(default=None, description="Where was assessment performed?")
+    occurrenceDateTime: Optional[str] = Field(default=None, description="When was assessment made?")
+    prediction: list[FHIRRiskAssessmentPrediction] = Field(default_factory=list, description="Outcome predicted")
+    mitigation: Optional[str] = Field(default=None, description="How to reduce risk")
+
 
 
 # FHIR Bundle Models

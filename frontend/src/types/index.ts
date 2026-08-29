@@ -445,3 +445,117 @@ export interface CareTaskListResponse {
   items: CareTask[];
   total: number;
 }
+
+export type CohortType =
+  | 'disease_registry'
+  | 'risk_watch_list'
+  | 'post_op_monitoring'
+  | 'quality_measure'
+  | 'custom_cohort';
+
+export interface CohortCriteria {
+  min_age?: number;
+  max_age?: number;
+  gender?: string;
+  conditions?: string[];
+  medications?: string[];
+  min_systolic_bp?: number;
+  max_systolic_bp?: number;
+  min_spo2?: number;
+  min_risk_score?: number;
+  risk_tier?: string;
+  active_alerts_only?: boolean;
+}
+
+export interface PatientCohort {
+  id: number;
+  cohort_id: string;
+  name: string;
+  description: string;
+  cohort_type: CohortType;
+  criteria_json?: CohortCriteria;
+  is_dynamic: boolean;
+  created_by_user_id?: number;
+  created_at: string;
+  updated_at: string;
+  member_count: number;
+}
+
+export interface CohortListResponse {
+  items: PatientCohort[];
+  total: number;
+}
+
+export interface CohortMembership {
+  id: number;
+  cohort_id: number;
+  patient_id: number;
+  patient_identifier?: string;
+  patient_name?: string;
+  enrolled_at: string;
+  status: string;
+  notes?: string;
+  latest_risk_score?: number;
+  latest_risk_tier?: string;
+}
+
+export interface CohortAnalytics {
+  cohort_id: string;
+  name: string;
+  cohort_type: string;
+  total_members: number;
+  risk_tier_distribution: Record<string, number>;
+  mean_risk_score: number;
+  high_risk_patient_count: number;
+  active_alerts_count: number;
+  active_care_plans_count: number;
+  overdue_tasks_count: number;
+  generated_at: string;
+}
+
+export type RiskType =
+  | 'readmission_30d'
+  | 'cardiovascular_decompensation'
+  | 'clinical_deterioration'
+  | 'medication_adherence'
+  | 'general_mortality';
+
+export type RiskTier = 'LOW' | 'MODERATE' | 'HIGH' | 'CRITICAL';
+
+export interface RiskFactor {
+  factor_name: string;
+  category: string;
+  severity: string;
+  observed_value?: string;
+  clinical_rationale: string;
+}
+
+export interface RiskMitigationAction {
+  action_title: string;
+  priority: string;
+  suggested_task_type?: string;
+  target_timeline_days: number;
+  rational: string;
+}
+
+export interface ClinicalRiskAssessment {
+  id: number;
+  assessment_id: string;
+  patient_id: number;
+  encounter_id?: number;
+  risk_type: RiskType;
+  risk_score: number;
+  risk_tier: RiskTier;
+  predicted_outcome: string;
+  contributing_factors_json?: RiskFactor[];
+  mitigation_recommendations_json?: RiskMitigationAction[];
+  assessed_by_user_id?: number;
+  is_ai_generated: boolean;
+  assessed_at: string;
+  created_at: string;
+}
+
+export interface RiskAssessmentListResponse {
+  items: ClinicalRiskAssessment[];
+  total: number;
+}
