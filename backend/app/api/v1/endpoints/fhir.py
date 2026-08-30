@@ -12,30 +12,60 @@ from app.schemas.fhir import (
     FHIRCommunication,
     FHIRComposition,
     FHIRCondition,
+    FHIRDevice,
+    FHIRDiagnosticReport,
     FHIREncounter,
     FHIRGroup,
+    FHIRImagingStudy,
     FHIRImportResult,
+    FHIRMeasure,
+    FHIRMeasureReport,
     FHIRMedicationStatement,
     FHIRObservation,
     FHIRPatient,
+    FHIRProvenance,
+    FHIRQuestionnaire,
+    FHIRQuestionnaireResponse,
+    FHIRResearchStudy,
     FHIRRiskAssessment,
+    FHIRServiceRequest,
     FHIRTask,
 )
 from app.services.fhir_export_service import (
+    export_agent_provenance_as_fhir,
+    export_agent_recommendation_task_as_fhir,
+    export_biomarker_observation_as_fhir,
     export_care_plan_as_fhir,
     export_care_task_as_fhir,
     export_cohort_as_fhir_group,
     export_condition_as_fhir,
+    export_device_as_fhir,
     export_discharge_as_fhir_composition,
-
     export_encounter_as_fhir,
+    export_genomic_profile_as_fhir,
     export_handoff_as_fhir_communication,
+    export_imaging_observation_as_fhir,
+    export_imaging_study_as_fhir,
     export_medication_statement_as_fhir,
     export_observation_as_fhir,
+    export_order_as_fhir_service_request,
     export_patient_as_fhir,
     export_patient_bundle_as_fhir,
+    export_quality_measure_as_fhir,
+    export_quality_report_as_fhir,
+    export_questionnaire_as_fhir,
+    export_questionnaire_response_as_fhir,
+    export_radiology_report_as_fhir,
+    export_research_study_as_fhir,
+    export_result_as_fhir_diagnostic_report,
     export_risk_assessment_as_fhir,
 )
+
+
+
+
+
+
 
 
 from app.services.fhir_import_service import (
@@ -290,10 +320,308 @@ def get_fhir_communication(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
 
 
+@router.get(
+    "/ServiceRequest/{order_id}",
+    response_model=FHIRServiceRequest,
+    status_code=status.HTTP_200_OK,
+    summary="Export clinical order as a FHIR R4 ServiceRequest resource",
+)
+def get_fhir_service_request(
+    order_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+) -> FHIRServiceRequest:
+    """Retrieve and export a clinical diagnostic/laboratory order as a standard FHIR R4 ServiceRequest resource."""
+    try:
+        return export_order_as_fhir_service_request(db, current_user, order_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+
+
+@router.get(
+    "/DiagnosticReport/{result_id}",
+    response_model=FHIRDiagnosticReport,
+    status_code=status.HTTP_200_OK,
+    summary="Export diagnostic result as a FHIR R4 DiagnosticReport resource",
+)
+def get_fhir_diagnostic_report(
+    result_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+) -> FHIRDiagnosticReport:
+    """Retrieve and export a diagnostic result report as a standard FHIR R4 DiagnosticReport resource."""
+    try:
+        return export_result_as_fhir_diagnostic_report(db, current_user, result_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+
+
+@router.get(
+    "/Measure/{measure_id}",
+    response_model=FHIRMeasure,
+    status_code=status.HTTP_200_OK,
+    summary="Export a Clinical Quality Measure as a standard FHIR R4 Measure",
+)
+def get_fhir_measure(
+    measure_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+) -> FHIRMeasure:
+    """Retrieve and export a clinical quality measure definition as FHIR R4 Measure."""
+    try:
+        return export_quality_measure_as_fhir(db, current_user, measure_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+
+
+@router.get(
+    "/MeasureReport/{report_id}",
+    response_model=FHIRMeasureReport,
+    status_code=status.HTTP_200_OK,
+    summary="Export a population compliance audit report as a standard FHIR R4 MeasureReport",
+)
+def get_fhir_measure_report(
+    report_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+) -> FHIRMeasureReport:
+    """Retrieve and export a population compliance report as FHIR R4 MeasureReport."""
+    try:
+        return export_quality_report_as_fhir(db, current_user, report_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+
+
+@router.get(
+    "/Device/{device_id}",
+
+    response_model=FHIRDevice,
+    status_code=status.HTTP_200_OK,
+    summary="Export a registered RPM device as a standard FHIR R4 Device resource",
+)
+def get_fhir_device(
+    device_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+) -> FHIRDevice:
+    """Retrieve and export a registered RPM device as FHIR R4 Device."""
+    try:
+        return export_device_as_fhir(db, current_user, device_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+
+
+@router.get(
+    "/Questionnaire/{prom_id}",
+    response_model=FHIRQuestionnaire,
+    status_code=status.HTTP_200_OK,
+    summary="Export a standardized PROM survey as a standard FHIR R4 Questionnaire",
+)
+def get_fhir_questionnaire(
+    prom_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+) -> FHIRQuestionnaire:
+    """Retrieve and export a PROM definition as FHIR R4 Questionnaire."""
+    try:
+        return export_questionnaire_as_fhir(db, current_user, prom_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+
+
+@router.get(
+    "/QuestionnaireResponse/{response_id}",
+    response_model=FHIRQuestionnaireResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Export a patient PROM submission as a standard FHIR R4 QuestionnaireResponse",
+)
+def get_fhir_questionnaire_response(
+    response_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+) -> FHIRQuestionnaireResponse:
+    """Retrieve and export a PROM submission as FHIR R4 QuestionnaireResponse."""
+    try:
+        return export_questionnaire_response_as_fhir(db, current_user, response_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+
+
+@router.get(
+    "/ResearchStudy/{trial_id}",
+    response_model=FHIRResearchStudy,
+    status_code=status.HTTP_200_OK,
+    summary="Export a clinical trial as a standard FHIR R4 ResearchStudy",
+)
+def get_fhir_research_study(
+    trial_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+) -> FHIRResearchStudy:
+    """Retrieve and export a clinical trial as FHIR R4 ResearchStudy."""
+    try:
+        return export_research_study_as_fhir(db, current_user, trial_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+
+
+@router.get(
+    "/Biomarker/{observation_id}",
+    response_model=FHIRObservation,
+    status_code=status.HTTP_200_OK,
+    summary="Export a genomic biomarker observation as a standard FHIR R4 Observation",
+)
+def get_fhir_biomarker_observation(
+    observation_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+) -> FHIRObservation:
+    """Retrieve and export a genomic biomarker observation as FHIR R4 Observation."""
+    try:
+        return export_biomarker_observation_as_fhir(db, current_user, observation_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+
+
+@router.get(
+    "/GenomicProfile/{profile_id}",
+    response_model=FHIRDiagnosticReport,
+    status_code=status.HTTP_200_OK,
+    summary="Export a patient genomic profile panel as a standard FHIR R4 DiagnosticReport",
+)
+def get_fhir_genomic_profile(
+    profile_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+) -> FHIRDiagnosticReport:
+    """Retrieve and export a patient genomic profile panel as FHIR R4 DiagnosticReport."""
+    try:
+        return export_genomic_profile_as_fhir(db, current_user, profile_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+
+
+@router.get(
+    "/Provenance/{run_id}",
+    response_model=FHIRProvenance,
+    status_code=status.HTTP_200_OK,
+    summary="Export Clinical AI Agent Run as FHIR R4 Provenance",
+)
+def get_fhir_agent_provenance(
+    run_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+) -> FHIRProvenance:
+    """Retrieve and export a clinical AI agent run as standard FHIR R4 Provenance with cryptographic SHA-256 signatures."""
+    try:
+        return export_agent_provenance_as_fhir(db, current_user, run_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+
+
+@router.get(
+    "/AgentTask/{recommendation_id}",
+    response_model=FHIRTask,
+    status_code=status.HTTP_200_OK,
+    summary="Export Clinical AI Agent Recommendation as FHIR R4 Task",
+)
+def get_fhir_agent_recommendation_task(
+    recommendation_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+) -> FHIRTask:
+    """Retrieve and export a clinical agent care recommendation as standard FHIR R4 Task proposal."""
+    try:
+        return export_agent_recommendation_task_as_fhir(db, current_user, recommendation_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+
+
+@router.get(
+    "/ImagingStudy/{study_id}",
+    response_model=FHIRImagingStudy,
+    status_code=status.HTTP_200_OK,
+    summary="Export Medical Imaging Study as FHIR R4 ImagingStudy",
+)
+def get_fhir_imaging_study(
+    study_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+) -> FHIRImagingStudy:
+    """Retrieve and export a medical imaging study as standard FHIR R4 ImagingStudy resource."""
+    try:
+        return export_imaging_study_as_fhir(db, current_user, study_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+
+
+@router.get(
+    "/ImagingReport/{report_id}",
+    response_model=FHIRDiagnosticReport,
+    status_code=status.HTTP_200_OK,
+    summary="Export Radiology Diagnostic Report as FHIR R4 DiagnosticReport",
+)
+def get_fhir_radiology_report(
+    report_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+) -> FHIRDiagnosticReport:
+    """Retrieve and export a radiology report as standard FHIR R4 DiagnosticReport resource."""
+    try:
+        return export_radiology_report_as_fhir(db, current_user, report_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+
+
+@router.get(
+    "/ImagingObservation/{finding_id}",
+    response_model=FHIRObservation,
+    status_code=status.HTTP_200_OK,
+    summary="Export Structured Imaging Finding as FHIR R4 Observation",
+)
+def get_fhir_imaging_observation(
+    finding_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+) -> FHIRObservation:
+    """Retrieve and export a structured imaging finding as standard FHIR R4 Observation resource."""
+    try:
+        return export_imaging_observation_as_fhir(db, current_user, finding_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+
+
 
 # ============================================================================
 # FHIR IMPORT ENDPOINTS
 # ============================================================================
+
+
+
 
 
 @router.post(

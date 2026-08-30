@@ -6,8 +6,8 @@
 /// <reference types="vite/client" />
 
 import {
+  AbnormalFlag,
   BackgroundTask,
-
   CarePlan,
   CarePlanCategory,
   CarePlanListResponse,
@@ -21,6 +21,8 @@ import {
   ClinicalHandoff,
   ClinicalNote,
   ClinicalNoteListResponse,
+  ClinicalOrder,
+  ClinicalOrderListResponse,
   ClinicalRiskAssessment,
   ClinicalSafetyReport,
   CohortAnalytics,
@@ -30,6 +32,9 @@ import {
   CohortType,
   DiagnosticMedia,
   DiagnosticMediaListResponse,
+  DiagnosticResult,
+  DiagnosticResultListResponse,
+  DiagnosticResultStatus,
   DischargeDisposition,
   DischargeProtocol,
   DischargeProtocolListResponse,
@@ -43,13 +48,47 @@ import {
   MediaModality,
   MedicalDocument,
   NoteType,
+  OrderBundleItem,
+  OrderBundleSuggestResponse,
+  OrderCategory,
+  OrderPriority,
+  OrderStatus,
   Patient,
   PatientCohort,
+  QualityDomain,
+  QualityMeasure,
+  QualityMeasureGap,
+  QualityMeasureGapListResponse,
+  QualityMeasureListResponse,
+  QualityMeasureReport,
+  QualityMeasureReportListResponse,
+  QualityMeasureResult,
+  QualityMeasureResultListResponse,
+  ReportScope,
   RiskAssessmentListResponse,
   RiskType,
+  GapSeverity,
+  GapStatus,
+
+  PROMDefinition,
+  PROMDefinitionListResponse,
+  PROMResponseDetail,
+  PROMResponseListResponse,
+  RPMDevice,
+  RPMDeviceListResponse,
+  RPMEscalationAlert,
+  RPMEscalationAlertListResponse,
+  RPMObservation,
+  RPMObservationListResponse,
+  RPMObservationType,
+  RPMProgram,
+  RPMProgramListResponse,
+  RPMSourceType,
+  RPMTelemetrySummary,
+  TelehealthSession,
+  TelehealthSessionListResponse,
+  TelehealthStatus,
   TaskListResponse,
-
-
   TaskPriority,
   TimelineCitation,
   TimelineEvent,
@@ -60,7 +99,51 @@ import {
   VitalSimulationProfile,
   VitalTelemetry,
   VitalTelemetryListResponse,
+  BatchMatchResponse,
+  BiomarkerObservation,
+  ClinicalTrial,
+  ClinicalTrialDetail,
+  ClinicalTrialListResponse,
+  ClinicianReviewStatus,
+  GenomicProfile,
+  GenomicProfileDetail,
+  GenomicProfileListResponse,
+  MatchStatus,
+  PrecisionEligibilityStatus,
+  PrecisionTreatmentEligibility,
+  PrecisionTreatmentEligibilityListResponse,
+  TrialEligibilityCriterion,
+  TrialMatch,
+  TrialMatchListResponse,
+  TrialPhase,
+  TrialStatus,
+  AgentRunStatus,
+  AgentType,
+  ApprovalStatus,
+  CareCoordinationSynthesisResponse,
+  ClinicalAgentDefinition,
+  ClinicalAgentDefinitionListResponse,
+  ClinicalAgentRecommendation,
+  ClinicalAgentRun,
+  ClinicalAgentRunDetail,
+  ClinicalAgentRunListResponse,
+  RecommendationActionClass,
+
+  RecommendationPriority,
+  FindingReviewStatus,
+  ImagingAnalysisResponse,
+  ImagingAsset,
+  ImagingFinding,
+  ImagingStudy,
+  ImagingTimelineItem,
+  ImagingTimelineResponse,
+  RadiologyReport,
+  ReportStatus,
 } from '../types';
+
+
+
+
 
 const API_BASE_URL = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_URL) || '/api/v1';
 
@@ -1088,5 +1171,891 @@ export const transitionsApi = {
         body: JSON.stringify({ signoff_role: signoffRole, clinical_notes: clinicalNotes }),
       }
     );
+  },
+};
+
+// =============================================================================
+// PHASE 9.0.13: CPOE ORDERS & DIAGNOSTIC RESULTS API
+// =============================================================================
+
+export const ordersApi = {
+  placeOrder: async (
+    patientId: string,
+    data: {
+      encounter_id?: number;
+      order_category: OrderCategory;
+      order_type: string;
+      priority: OrderPriority;
+      clinical_indication: string;
+      specimen_source?: string;
+      order_details?: Record<string, any>;
+    }
+  ): Promise<ClinicalOrder> => {
+    return apiRequest<ClinicalOrder>(
+      `/patients/${encodeURIComponent(patientId)}/orders`,
+      {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }
+    );
+  },
+
+  suggestBundle: async (
+    patientId: string,
+    data: {
+      encounter_id?: number;
+      clinical_protocol?: string;
+      custom_indication?: string;
+    }
+  ): Promise<OrderBundleSuggestResponse> => {
+    return apiRequest<OrderBundleSuggestResponse>(
+      `/patients/${encodeURIComponent(patientId)}/orders/suggest-bundle`,
+      {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }
+    );
+  },
+
+  listOrders: async (
+    patientId: string,
+    params?: {
+      status?: OrderStatus;
+      category?: OrderCategory;
+    }
+  ): Promise<ClinicalOrderListResponse> => {
+    const query = new URLSearchParams();
+    if (params?.status) query.set('status', params.status);
+    if (params?.category) query.set('category', params.category);
+    const qs = query.toString() ? `?${query.toString()}` : '';
+    return apiRequest<ClinicalOrderListResponse>(
+      `/patients/${encodeURIComponent(patientId)}/orders${qs}`,
+      { method: 'GET' }
+    );
+  },
+
+  getOrder: async (orderId: string): Promise<ClinicalOrder> => {
+    return apiRequest<ClinicalOrder>(`/orders/${encodeURIComponent(orderId)}`, {
+      method: 'GET',
+    });
+  },
+
+  updateOrder: async (
+    orderId: string,
+    data: {
+      priority?: OrderPriority;
+      status?: OrderStatus;
+      clinical_indication?: string;
+      specimen_source?: string;
+      order_details?: Record<string, any>;
+    }
+  ): Promise<ClinicalOrder> => {
+    return apiRequest<ClinicalOrder>(`/orders/${encodeURIComponent(orderId)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  },
+
+  recordResult: async (
+    orderId: string,
+    data: {
+      encounter_id?: number;
+      test_name: string;
+      test_code_loinc?: string;
+      status?: DiagnosticResultStatus;
+      abnormal_flag?: AbnormalFlag;
+      findings_summary: string;
+      numeric_value?: number;
+      unit_of_measure?: string;
+      reference_range_low?: number;
+      reference_range_high?: number;
+      critical_threshold_low?: number;
+      critical_threshold_high?: number;
+      structured_components?: Array<Record<string, any>>;
+    }
+  ): Promise<DiagnosticResult> => {
+    return apiRequest<DiagnosticResult>(
+      `/orders/${encodeURIComponent(orderId)}/results`,
+      {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }
+    );
+  },
+
+  listResults: async (
+    patientId: string,
+    params?: {
+      abnormal_flag?: AbnormalFlag;
+    }
+  ): Promise<DiagnosticResultListResponse> => {
+    const query = new URLSearchParams();
+    if (params?.abnormal_flag) query.set('abnormal_flag', params.abnormal_flag);
+    const qs = query.toString() ? `?${query.toString()}` : '';
+    return apiRequest<DiagnosticResultListResponse>(
+      `/patients/${encodeURIComponent(patientId)}/diagnostic-results${qs}`,
+      { method: 'GET' }
+    );
+  },
+
+  getResult: async (resultId: string): Promise<DiagnosticResult> => {
+    return apiRequest<DiagnosticResult>(`/diagnostic-results/${encodeURIComponent(resultId)}`, {
+      method: 'GET',
+    });
+  },
+
+  reviewResult: async (
+    resultId: string,
+    data: {
+      review_notes?: string;
+    }
+  ): Promise<DiagnosticResult> => {
+    return apiRequest<DiagnosticResult>(
+      `/diagnostic-results/${encodeURIComponent(resultId)}/review`,
+      {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }
+    );
+  },
+};
+
+// 14. Clinical Quality Measures (CQMs), HEDIS/MIPS Compliance & Audit Reporting APIs
+export const qualityApi = {
+  listMeasures: async (params?: { domain?: QualityDomain }): Promise<QualityMeasureListResponse> => {
+    const query = new URLSearchParams();
+    if (params?.domain) query.set('domain', params.domain);
+    const qs = query.toString() ? `?${query.toString()}` : '';
+    return apiRequest<QualityMeasureListResponse>(`/quality/measures${qs}`, { method: 'GET' });
+  },
+
+  getMeasure: async (measureId: string): Promise<QualityMeasure> => {
+    return apiRequest<QualityMeasure>(`/quality/measures/${encodeURIComponent(measureId)}`, {
+      method: 'GET',
+    });
+  },
+
+  evaluatePatient: async (patientId: string): Promise<QualityMeasureResultListResponse> => {
+    return apiRequest<QualityMeasureResultListResponse>(
+      `/quality/patients/${encodeURIComponent(patientId)}/evaluate`,
+      { method: 'POST' }
+    );
+  },
+
+  getPatientResults: async (patientId: string): Promise<QualityMeasureResultListResponse> => {
+    return apiRequest<QualityMeasureResultListResponse>(
+      `/quality/patients/${encodeURIComponent(patientId)}/results`,
+      { method: 'GET' }
+    );
+  },
+
+  listGaps: async (params?: {
+    patient_id?: string;
+    measure_id?: string;
+    status?: GapStatus;
+    severity?: GapSeverity;
+  }): Promise<QualityMeasureGapListResponse> => {
+    const query = new URLSearchParams();
+    if (params?.patient_id) query.set('patient_id', params.patient_id);
+    if (params?.measure_id) query.set('measure_id', params.measure_id);
+    if (params?.status) query.set('status', params.status);
+    if (params?.severity) query.set('severity', params.severity);
+    const qs = query.toString() ? `?${query.toString()}` : '';
+    return apiRequest<QualityMeasureGapListResponse>(`/quality/gaps${qs}`, { method: 'GET' });
+  },
+
+  updateGap: async (
+    gapId: string,
+    data: { status?: GapStatus; recommended_action?: string; due_date?: string }
+  ): Promise<QualityMeasureGap> => {
+    return apiRequest<QualityMeasureGap>(`/quality/gaps/${encodeURIComponent(gapId)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  },
+
+  createCareTaskForGap: async (gapId: string): Promise<QualityMeasureGap> => {
+    return apiRequest<QualityMeasureGap>(
+      `/quality/gaps/${encodeURIComponent(gapId)}/create-care-task`,
+      { method: 'POST' }
+    );
+  },
+
+  generateReport: async (data: {
+    title?: string;
+    report_scope?: ReportScope;
+    scope_identifier?: string;
+    measurement_period_start?: string;
+    measurement_period_end?: string;
+  }): Promise<QualityMeasureReport> => {
+    return apiRequest<QualityMeasureReport>('/quality/reports/generate', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  listReports: async (params?: { report_scope?: ReportScope }): Promise<QualityMeasureReportListResponse> => {
+    const query = new URLSearchParams();
+    if (params?.report_scope) query.set('report_scope', params.report_scope);
+    const qs = query.toString() ? `?${query.toString()}` : '';
+    return apiRequest<QualityMeasureReportListResponse>(`/quality/reports${qs}`, { method: 'GET' });
+  },
+
+  getReport: async (reportId: string): Promise<QualityMeasureReport> => {
+    return apiRequest<QualityMeasureReport>(`/quality/reports/${encodeURIComponent(reportId)}`, {
+      method: 'GET',
+    });
+  },
+
+  enqueueCalculationTask: async (patientId?: string): Promise<BackgroundTask> => {
+    const qs = patientId ? `?patient_id=${encodeURIComponent(patientId)}` : '';
+    return apiRequest<BackgroundTask>(`/quality/tasks/calculate${qs}`, { method: 'POST' });
+  },
+};
+
+// Remote Patient Monitoring (RPM), PROMs & Telehealth API
+export const rpmApi = {
+  enrollProgram: async (data: {
+    patient_id: string;
+    condition_name: string;
+    program_name?: string;
+    target_cadence_days?: number;
+    clinical_goals?: string[];
+  }): Promise<RPMProgram> => {
+    return apiRequest<RPMProgram>('/rpm/programs/enroll', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  listPrograms: async (params?: { patient_id?: string; status?: string }): Promise<RPMProgramListResponse> => {
+    const query = new URLSearchParams();
+    if (params?.patient_id) query.set('patient_id', params.patient_id);
+    if (params?.status) query.set('status', params.status);
+    const qs = query.toString() ? `?${query.toString()}` : '';
+    return apiRequest<RPMProgramListResponse>(`/rpm/programs${qs}`, { method: 'GET' });
+  },
+
+  registerDevice: async (data: {
+    patient_id: string;
+    device_type: string;
+    manufacturer: string;
+    model_number?: string;
+    serial_number: string;
+    supported_measurements?: string[];
+  }): Promise<RPMDevice> => {
+    return apiRequest<RPMDevice>('/rpm/devices', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  listDevices: async (params?: { patient_id?: string; device_type?: string }): Promise<RPMDeviceListResponse> => {
+    const query = new URLSearchParams();
+    if (params?.patient_id) query.set('patient_id', params.patient_id);
+    if (params?.device_type) query.set('device_type', params.device_type);
+    const qs = query.toString() ? `?${query.toString()}` : '';
+    return apiRequest<RPMDeviceListResponse>(`/rpm/devices${qs}`, { method: 'GET' });
+  },
+
+  ingestObservation: async (data: {
+    patient_id: string;
+    device_id?: string;
+    observation_type: RPMObservationType;
+    numeric_value: number;
+    secondary_value?: number;
+    unit_of_measure: string;
+    source_type?: RPMSourceType;
+    raw_payload_json?: Record<string, any>;
+  }): Promise<RPMObservation> => {
+    return apiRequest<RPMObservation>('/rpm/observations', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  listObservations: async (params?: {
+    patient_id?: string;
+    observation_type?: string;
+    classification?: string;
+  }): Promise<RPMObservationListResponse> => {
+    const query = new URLSearchParams();
+    if (params?.patient_id) query.set('patient_id', params.patient_id);
+    if (params?.observation_type) query.set('observation_type', params.observation_type);
+    if (params?.classification) query.set('classification', params.classification);
+    const qs = query.toString() ? `?${query.toString()}` : '';
+    return apiRequest<RPMObservationListResponse>(`/rpm/observations${qs}`, { method: 'GET' });
+  },
+
+  getPatientSummary: async (patientId: string): Promise<RPMTelemetrySummary> => {
+    return apiRequest<RPMTelemetrySummary>(`/rpm/patients/${encodeURIComponent(patientId)}/summary`, {
+      method: 'GET',
+    });
+  },
+
+  listAlerts: async (params?: { patient_id?: string; status?: string }): Promise<RPMEscalationAlertListResponse> => {
+    const query = new URLSearchParams();
+    if (params?.patient_id) query.set('patient_id', params.patient_id);
+    if (params?.status) query.set('status', params.status);
+    const qs = query.toString() ? `?${query.toString()}` : '';
+    return apiRequest<RPMEscalationAlertListResponse>(`/rpm/alerts${qs}`, { method: 'GET' });
+  },
+
+  acknowledgeAlert: async (alertId: string, notes?: string): Promise<RPMEscalationAlert> => {
+    return apiRequest<RPMEscalationAlert>(`/rpm/alerts/${encodeURIComponent(alertId)}/acknowledge`, {
+      method: 'POST',
+      body: JSON.stringify({ notes }),
+    });
+  },
+
+  resolveAlert: async (
+    alertId: string,
+    data: { clinical_action_taken: string; create_care_task?: boolean }
+  ): Promise<RPMEscalationAlert> => {
+    return apiRequest<RPMEscalationAlert>(`/rpm/alerts/${encodeURIComponent(alertId)}/resolve`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  listPromDefinitions: async (domain?: string): Promise<PROMDefinitionListResponse> => {
+    const qs = domain ? `?domain=${encodeURIComponent(domain)}` : '';
+    return apiRequest<PROMDefinitionListResponse>(`/rpm/proms/definitions${qs}`, { method: 'GET' });
+  },
+
+  submitPromResponse: async (data: {
+    prom_id: string;
+    patient_id: string;
+    answers: Record<string, any>;
+    clinical_notes?: string;
+  }): Promise<PROMResponseDetail> => {
+    return apiRequest<PROMResponseDetail>('/rpm/proms/responses', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  listPromResponses: async (params?: { patient_id?: string; prom_id?: string }): Promise<PROMResponseListResponse> => {
+    const query = new URLSearchParams();
+    if (params?.patient_id) query.set('patient_id', params.patient_id);
+    if (params?.prom_id) query.set('prom_id', params.prom_id);
+    const qs = query.toString() ? `?${query.toString()}` : '';
+    return apiRequest<PROMResponseListResponse>(`/rpm/proms/responses${qs}`, { method: 'GET' });
+  },
+
+  scheduleTelehealthSession: async (data: {
+    patient_id: string;
+    scheduled_start: string;
+    visit_reason: string;
+    appointment_id?: number;
+    encounter_id?: number;
+  }): Promise<TelehealthSession> => {
+    return apiRequest<TelehealthSession>('/rpm/telehealth/sessions', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  listTelehealthSessions: async (params?: {
+    patient_id?: string;
+    status?: string;
+  }): Promise<TelehealthSessionListResponse> => {
+    const query = new URLSearchParams();
+    if (params?.patient_id) query.set('patient_id', params.patient_id);
+    if (params?.status) query.set('status', params.status);
+    const qs = query.toString() ? `?${query.toString()}` : '';
+    return apiRequest<TelehealthSessionListResponse>(`/rpm/telehealth/sessions${qs}`, { method: 'GET' });
+  },
+
+  getTelehealthSession: async (sessionId: string): Promise<TelehealthSession> => {
+    return apiRequest<TelehealthSession>(`/rpm/telehealth/sessions/${encodeURIComponent(sessionId)}`, {
+      method: 'GET',
+    });
+  },
+
+  updateTelehealthSession: async (
+    sessionId: string,
+    data: {
+      status?: TelehealthStatus;
+      session_notes?: string;
+      followup_instructions?: string;
+      create_followup_task?: boolean;
+    }
+  ): Promise<TelehealthSession> => {
+    return apiRequest<TelehealthSession>(`/rpm/telehealth/sessions/${encodeURIComponent(sessionId)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  },
+
+  enqueueObservationProcessing: async (patientId?: string): Promise<BackgroundTask> => {
+    const qs = patientId ? `?patient_id=${encodeURIComponent(patientId)}` : '';
+    return apiRequest<BackgroundTask>(`/rpm/tasks/observations/process${qs}`, { method: 'POST' });
+  },
+};
+
+// ==============================================================================
+// PHASE 9.0.16: CLINICAL TRIALS & PRECISION ONCOLOGY API CLIENT
+// ==============================================================================
+
+export const trialsApi = {
+  listTrials: async (params?: {
+    phase?: TrialPhase;
+    status?: TrialStatus;
+    condition?: string;
+    search?: string;
+    is_active?: boolean;
+    skip?: number;
+    limit?: number;
+  }): Promise<ClinicalTrialListResponse> => {
+    const query = new URLSearchParams();
+    if (params?.phase) query.set('phase', params.phase);
+    if (params?.status) query.set('status', params.status);
+    if (params?.condition) query.set('condition', params.condition);
+    if (params?.search) query.set('search', params.search);
+    if (params?.is_active !== undefined) query.set('is_active', String(params.is_active));
+    if (params?.skip !== undefined) query.set('skip', String(params.skip));
+    if (params?.limit !== undefined) query.set('limit', String(params.limit));
+    const qs = query.toString() ? `?${query.toString()}` : '';
+    return apiRequest<ClinicalTrialListResponse>(`/trials${qs}`, { method: 'GET' });
+  },
+
+  getTrial: async (trialId: string): Promise<ClinicalTrialDetail> => {
+    return apiRequest<ClinicalTrialDetail>(`/trials/${encodeURIComponent(trialId)}`, { method: 'GET' });
+  },
+
+  createTrial: async (data: Partial<ClinicalTrial>): Promise<ClinicalTrial> => {
+    return apiRequest<ClinicalTrial>('/trials', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  updateTrial: async (trialId: string, data: Partial<ClinicalTrial>): Promise<ClinicalTrial> => {
+    return apiRequest<ClinicalTrial>(`/trials/${encodeURIComponent(trialId)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  },
+
+  addTrialCriterion: async (trialId: string, data: Partial<TrialEligibilityCriterion>): Promise<TrialEligibilityCriterion> => {
+    return apiRequest<TrialEligibilityCriterion>(`/trials/${encodeURIComponent(trialId)}/criteria`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  listTrialCriteria: async (trialId: string): Promise<TrialEligibilityCriterion[]> => {
+    return apiRequest<TrialEligibilityCriterion[]>(`/trials/${encodeURIComponent(trialId)}/criteria`, { method: 'GET' });
+  },
+
+  listPatientGenomicProfiles: async (patientId: string): Promise<GenomicProfileListResponse> => {
+    return apiRequest<GenomicProfileListResponse>(`/patients/${encodeURIComponent(patientId)}/genomic-profiles`, {
+      method: 'GET',
+    });
+  },
+
+  getGenomicProfile: async (profileId: string): Promise<GenomicProfileDetail> => {
+    return apiRequest<GenomicProfileDetail>(`/genomic-profiles/${encodeURIComponent(profileId)}`, { method: 'GET' });
+  },
+
+  createGenomicProfile: async (patientId: string, data: any): Promise<GenomicProfile> => {
+    return apiRequest<GenomicProfile>(`/patients/${encodeURIComponent(patientId)}/genomic-profiles`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  addBiomarkerObservation: async (profileId: string, data: Partial<BiomarkerObservation>): Promise<BiomarkerObservation> => {
+    return apiRequest<BiomarkerObservation>(`/genomic-profiles/${encodeURIComponent(profileId)}/biomarkers`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  listBiomarkers: async (profileId: string): Promise<BiomarkerObservation[]> => {
+    return apiRequest<BiomarkerObservation[]>(`/genomic-profiles/${encodeURIComponent(profileId)}/biomarkers`, {
+      method: 'GET',
+    });
+  },
+
+  matchPatientToTrial: async (trialId: string, patientId: string): Promise<TrialMatch> => {
+    return apiRequest<TrialMatch>(`/trials/${encodeURIComponent(trialId)}/match/${encodeURIComponent(patientId)}`, {
+      method: 'POST',
+    });
+  },
+
+  batchMatchPatient: async (patientId: string, trialIds?: string[]): Promise<BatchMatchResponse> => {
+    return apiRequest<BatchMatchResponse>(`/patients/${encodeURIComponent(patientId)}/trial-matches`, {
+      method: 'POST',
+      body: JSON.stringify(trialIds ? { trial_ids: trialIds } : {}),
+    });
+  },
+
+  listPatientTrialMatches: async (
+    patientId: string,
+    params?: { match_status?: MatchStatus; review_status?: ClinicianReviewStatus }
+  ): Promise<TrialMatchListResponse> => {
+    const query = new URLSearchParams();
+    if (params?.match_status) query.set('match_status', params.match_status);
+    if (params?.review_status) query.set('review_status', params.review_status);
+    const qs = query.toString() ? `?${query.toString()}` : '';
+    return apiRequest<TrialMatchListResponse>(`/patients/${encodeURIComponent(patientId)}/trial-matches${qs}`, {
+      method: 'GET',
+    });
+  },
+
+  reviewTrialMatch: async (
+    matchId: string,
+    data: { clinician_review_status: ClinicianReviewStatus; review_notes?: string }
+  ): Promise<TrialMatch> => {
+    return apiRequest<TrialMatch>(`/trial-matches/${encodeURIComponent(matchId)}/review`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  evaluatePrecisionEligibility: async (patientId: string): Promise<PrecisionTreatmentEligibilityListResponse> => {
+    return apiRequest<PrecisionTreatmentEligibilityListResponse>(
+      `/patients/${encodeURIComponent(patientId)}/precision-eligibility/evaluate`,
+      { method: 'POST' }
+    );
+  },
+
+  listPatientPrecisionEligibility: async (patientId: string): Promise<PrecisionTreatmentEligibilityListResponse> => {
+    return apiRequest<PrecisionTreatmentEligibilityListResponse>(
+      `/patients/${encodeURIComponent(patientId)}/precision-eligibility`,
+      { method: 'GET' }
+    );
+  },
+
+  reviewPrecisionEligibility: async (
+    eligibilityId: string,
+    data: { clinician_review_status: ClinicianReviewStatus; review_notes?: string }
+  ): Promise<PrecisionTreatmentEligibility> => {
+    return apiRequest<PrecisionTreatmentEligibility>(
+      `/precision-eligibility/${encodeURIComponent(eligibilityId)}/review`,
+      {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }
+    );
+  },
+
+  enqueueTrialMatchingTask: async (patientId: string): Promise<BackgroundTask> => {
+    return apiRequest<BackgroundTask>(`/tasks/patients/${encodeURIComponent(patientId)}/trial-matching`, {
+      method: 'POST',
+    });
+  },
+};
+
+export const agentsApi = {
+  listDefinitions: async (): Promise<ClinicalAgentDefinitionListResponse> => {
+    return apiRequest<ClinicalAgentDefinitionListResponse>('/agents/definitions', {
+      method: 'GET',
+    });
+  },
+
+  listRuns: async (params?: {
+    patient_id?: string;
+    status?: AgentRunStatus;
+    agent_type?: AgentType;
+    skip?: number;
+    limit?: number;
+  }): Promise<ClinicalAgentRunListResponse> => {
+    const query = new URLSearchParams();
+    if (params?.patient_id) query.append('patient_id', params.patient_id);
+    if (params?.status) query.append('status', params.status);
+    if (params?.agent_type) query.append('agent_type', params.agent_type);
+    if (params?.skip !== undefined) query.append('skip', params.skip.toString());
+    if (params?.limit !== undefined) query.append('limit', params.limit.toString());
+    const qs = query.toString() ? `?${query.toString()}` : '';
+    return apiRequest<ClinicalAgentRunListResponse>(`/agents/runs${qs}`, {
+      method: 'GET',
+    });
+  },
+
+  getRun: async (runId: string): Promise<ClinicalAgentRunDetail> => {
+    return apiRequest<ClinicalAgentRunDetail>(`/agents/runs/${encodeURIComponent(runId)}`, {
+      method: 'GET',
+    });
+  },
+
+  triggerRun: async (data: {
+    patient_id: string;
+    agent_type: AgentType;
+    include_subagents?: AgentType[];
+  }): Promise<ClinicalAgentRunDetail> => {
+    return apiRequest<ClinicalAgentRunDetail>('/agents/runs', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  executeRun: async (runId: string): Promise<ClinicalAgentRunDetail> => {
+    return apiRequest<ClinicalAgentRunDetail>(`/agents/runs/${encodeURIComponent(runId)}/execute`, {
+      method: 'POST',
+    });
+  },
+
+  approveRecommendation: async (
+    recommendationId: string,
+    data?: { review_notes?: string }
+  ): Promise<ClinicalAgentRecommendation> => {
+    return apiRequest<ClinicalAgentRecommendation>(
+      `/agents/recommendations/${encodeURIComponent(recommendationId)}/approve`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ approval_status: 'approved', review_notes: data?.review_notes }),
+      }
+    );
+  },
+
+  rejectRecommendation: async (
+    recommendationId: string,
+    data?: { review_notes?: string }
+  ): Promise<ClinicalAgentRecommendation> => {
+    return apiRequest<ClinicalAgentRecommendation>(
+      `/agents/recommendations/${encodeURIComponent(recommendationId)}/reject`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ approval_status: 'rejected', review_notes: data?.review_notes }),
+      }
+    );
+  },
+
+  getPatientCareCoordination: async (patientId: string): Promise<CareCoordinationSynthesisResponse> => {
+    return apiRequest<CareCoordinationSynthesisResponse>(
+      `/agents/patients/${encodeURIComponent(patientId)}/care-coordination`,
+      { method: 'GET' }
+    );
+  },
+
+  synthesizePatientCareCoordination: async (patientId: string): Promise<CareCoordinationSynthesisResponse> => {
+    return apiRequest<CareCoordinationSynthesisResponse>(
+      `/agents/patients/${encodeURIComponent(patientId)}/care-coordination/synthesize`,
+      { method: 'POST' }
+    );
+  },
+
+  enqueueCareCoordinationTask: async (patientId: string): Promise<BackgroundTask> => {
+    return apiRequest<BackgroundTask>(
+      `/agents/tasks/patients/${encodeURIComponent(patientId)}/care-coordination`,
+      { method: 'POST' }
+    );
+  },
+};
+
+// 19. Medical Imaging AI & Radiology Workflow APIs
+export const imagingApi = {
+  listStudies: async (
+    patientId?: string,
+    modality?: string,
+    status?: string,
+    skip: number = 0,
+    limit: number = 100
+  ): Promise<{ items: ImagingStudy[]; total: number }> => {
+    const params = new URLSearchParams();
+    if (patientId) params.append('patient_id', patientId);
+    if (modality) params.append('modality', modality);
+    if (status) params.append('status', status);
+    params.append('skip', String(skip));
+    params.append('limit', String(limit));
+
+    const endpoint = patientId
+      ? `/patients/${encodeURIComponent(patientId)}/imaging/studies?${params.toString()}`
+      : `/imaging/studies?${params.toString()}`;
+
+    return apiRequest<{ items: ImagingStudy[]; total: number }>(endpoint, { method: 'GET' });
+  },
+
+  getStudy: async (studyId: string): Promise<ImagingStudy> => {
+    return apiRequest<ImagingStudy>(`/imaging/studies/${encodeURIComponent(studyId)}`, { method: 'GET' });
+  },
+
+  createStudy: async (
+    patientId: string,
+    data: {
+      modality: string;
+      body_site: string;
+      study_description: string;
+      accession_number?: string;
+      performing_department?: string;
+      referring_provider?: string;
+      status?: string;
+      source?: string;
+    }
+  ): Promise<ImagingStudy> => {
+    return apiRequest<ImagingStudy>(
+      `/patients/${encodeURIComponent(patientId)}/imaging/studies`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ patient_id: patientId, ...data }),
+      }
+    );
+  },
+
+  addAsset: async (
+    studyId: string,
+    data: {
+      series_instance_uid?: string;
+      sop_instance_uid?: string;
+      series_number?: number;
+      instance_number?: number;
+      series_description?: string;
+      modality?: string;
+      body_site?: string;
+      mime_type?: string;
+      file_size_bytes?: number;
+      storage_path: string;
+      thumbnail_storage_path?: string;
+    }
+  ): Promise<ImagingAsset> => {
+    return apiRequest<ImagingAsset>(
+      `/imaging/studies/${encodeURIComponent(studyId)}/assets`,
+      {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }
+    );
+  },
+
+  listAssets: async (studyId: string): Promise<{ items: ImagingAsset[]; total: number }> => {
+    return apiRequest<{ items: ImagingAsset[]; total: number }>(
+      `/imaging/studies/${encodeURIComponent(studyId)}/assets`,
+      { method: 'GET' }
+    );
+  },
+
+  analyzeStudy: async (studyId: string): Promise<ImagingAnalysisResponse> => {
+    return apiRequest<ImagingAnalysisResponse>(
+      `/imaging/studies/${encodeURIComponent(studyId)}/analyze`,
+      { method: 'POST' }
+    );
+  },
+
+  listFindings: async (studyId: string): Promise<{ items: ImagingFinding[]; total: number }> => {
+    return apiRequest<{ items: ImagingFinding[]; total: number }>(
+      `/imaging/studies/${encodeURIComponent(studyId)}/findings`,
+      { method: 'GET' }
+    );
+  },
+
+  reviewFinding: async (
+    findingId: string,
+    reviewStatus: string,
+    reviewNotes?: string
+  ): Promise<ImagingFinding> => {
+    return apiRequest<ImagingFinding>(
+      `/imaging/findings/${encodeURIComponent(findingId)}/review`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ review_status: reviewStatus, review_notes: reviewNotes }),
+      }
+    );
+  },
+
+  getReport: async (reportId: string): Promise<RadiologyReport> => {
+    return apiRequest<RadiologyReport>(`/imaging/reports/${encodeURIComponent(reportId)}`, { method: 'GET' });
+  },
+
+  updateReport: async (
+    reportId: string,
+    data: {
+      clinical_indication?: string;
+      technique?: string;
+      comparison_studies?: string;
+      findings?: string;
+      impression?: string;
+      recommendations?: string;
+      critical_findings_summary?: string;
+      is_critical?: boolean;
+    }
+  ): Promise<RadiologyReport> => {
+    return apiRequest<RadiologyReport>(
+      `/imaging/reports/${encodeURIComponent(reportId)}`,
+      {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }
+    );
+  },
+
+  submitReportReview: async (reportId: string): Promise<RadiologyReport> => {
+    return apiRequest<RadiologyReport>(
+      `/imaging/reports/${encodeURIComponent(reportId)}/submit-review`,
+      { method: 'POST' }
+    );
+  },
+
+  finalizeReport: async (
+    reportId: string,
+    signatureNotes?: string
+  ): Promise<RadiologyReport> => {
+    return apiRequest<RadiologyReport>(
+      `/imaging/reports/${encodeURIComponent(reportId)}/finalize`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ signature_notes: signatureNotes, confirm_accuracy: true }),
+      }
+    );
+  },
+
+  amendReport: async (
+    reportId: string,
+    amendmentReason: string,
+    amendedImpression?: string,
+    amendedFindings?: string,
+    amendedRecommendations?: string
+  ): Promise<RadiologyReport> => {
+    return apiRequest<RadiologyReport>(
+      `/imaging/reports/${encodeURIComponent(reportId)}/amend`,
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          amendment_reason: amendmentReason,
+          amended_impression: amendedImpression,
+          amended_findings: amendedFindings,
+          amended_recommendations: amendedRecommendations,
+        }),
+      }
+    );
+  },
+
+  getTimeline: async (patientId: string): Promise<ImagingTimelineResponse> => {
+    return apiRequest<ImagingTimelineResponse>(
+      `/patients/${encodeURIComponent(patientId)}/imaging/timeline`,
+      { method: 'GET' }
+    );
+  },
+
+  enqueueAnalysisTask: async (studyId: string): Promise<BackgroundTask> => {
+    return apiRequest<BackgroundTask>(
+      `/imaging/tasks/studies/${encodeURIComponent(studyId)}/analyze`,
+      { method: 'POST' }
+    );
+  },
+};
+
+// FHIR R4 Interoperability Export API
+export const fhirApi = {
+  exportAgentTask: async (recommendationId: string): Promise<any> => {
+    return apiRequest<any>(`/fhir/AgentTask/${encodeURIComponent(recommendationId)}`, { method: 'GET' });
+  },
+
+  exportAgentProvenance: async (runId: string): Promise<any> => {
+    return apiRequest<any>(`/fhir/Provenance/${encodeURIComponent(runId)}`, { method: 'GET' });
+  },
+
+  exportImagingStudy: async (studyId: string): Promise<any> => {
+    return apiRequest<any>(`/fhir/ImagingStudy/${encodeURIComponent(studyId)}`, { method: 'GET' });
+  },
+
+  exportRadiologyReport: async (reportId: string): Promise<any> => {
+    return apiRequest<any>(`/fhir/ImagingReport/${encodeURIComponent(reportId)}`, { method: 'GET' });
+  },
+
+  exportImagingObservation: async (findingId: string): Promise<any> => {
+    return apiRequest<any>(`/fhir/ImagingObservation/${encodeURIComponent(findingId)}`, { method: 'GET' });
   },
 };

@@ -117,9 +117,28 @@ def run_timeline_summary_job(patient_id_str: str, focus: Optional[str] = None) -
         db.close()
 
 
+def run_imaging_analysis_job(study_id_str: str, user_id: int) -> dict[str, Any]:
+    """Worker job function: executes multimodal imaging AI interpretation in background."""
+    db: Session = SessionLocal()
+    try:
+        from app.services.imaging_service import imaging_service
+        user = db.get(User, user_id) or User(id=user_id, email="system@medigen.internal", role=UserRole.ADMIN)
+        result = imaging_service.run_ai_analysis(db=db, study_id=study_id_str, current_user=user)
+        return {
+            "study_id": result["study_id"],
+            "status": result["status"],
+            "findings_count": result["findings_count"],
+            "critical_findings_count": result["critical_findings_count"],
+            "evaluated_at": datetime.now(timezone.utc).isoformat(),
+        }
+    finally:
+        db.close()
+
+
 # ---------------------------------------------------------------------------
 # Task Service Business Logic & RBAC Enforcement
 # ---------------------------------------------------------------------------
+
 
 
 def build_task_response(task: BackgroundTask) -> BackgroundTaskResponse:
@@ -258,7 +277,38 @@ def enqueue_timeline_summary_task(
     return task
 
 
+def enqueue_imaging_analysis_task(
+    db: Session,
+    study_id_str: str,
+    current_user: User,
+    provider: Optional[BaseBackgroundTaskProvider] = None,
+) -> BackgroundTask:
+    """Enqueue asynchronous medical imaging AI analysis with clinician access checks."""
+    from app.services.imaging_service import imaging_service
+    study = imaging_service.get_study(db, study_id_str)
+    if not study:
+        raise KeyError(f"Imaging study '{study_id_str}' was not found.")
+
+    if current_user.role == UserRole.PATIENT and study.patient and study.patient.email != current_user.email:
+        raise PermissionError("Patients cannot trigger imaging analysis for other patients.")
+
+    task_provider = provider or get_background_task_provider()
+    patient_pub_id = study.patient.patient_id if study.patient else str(study.patient_id)
+
+    task = task_provider.submit_task(
+        task_type=BackgroundTaskType.IMAGING_ANALYSIS,
+        fn=run_imaging_analysis_job,
+        fn_args=(study.study_id, current_user.id),
+        patient_id=patient_pub_id,
+        created_by_user_id=current_user.id,
+        payload={"study_id": study.study_id, "patient_id": patient_pub_id},
+    )
+
+    return task
+
+
 def get_task_status(
+
     db: Session,
     task_id: str,
     current_user: User,

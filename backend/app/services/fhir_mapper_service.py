@@ -8,8 +8,14 @@ from app.models.cohort import CohortMembership, PatientCohort
 from app.models.discharge import DischargeProtocol
 from app.models.encounter import Encounter
 from app.models.handoff import ClinicalHandoff
+from app.models.imaging import ImagingAsset, ImagingFinding, ImagingStudy, RadiologyReport
+from app.models.order import ClinicalOrder, DiagnosticResult
+
 from app.models.patient import Patient
+from app.models.quality import QualityMeasure, QualityMeasureReport
 from app.models.risk_assessment import ClinicalRiskAssessment
+from app.models.rpm import PROMDefinition, PROMResponse, RPMDevice, RPMObservation
+from app.models.trials import BiomarkerObservation, ClinicalTrial, GenomicProfile
 from app.schemas.encounter import EncounterCreate, EncounterStatus, EncounterType
 from app.schemas.fhir import (
     FHIRAddress,
@@ -23,6 +29,8 @@ from app.schemas.fhir import (
     FHIRComposition,
     FHIRCompositionSection,
     FHIRContactPoint,
+    FHIRDevice,
+    FHIRDiagnosticReport,
     FHIRDosage,
     FHIREncounter,
     FHIREncounterDiagnosis,
@@ -31,18 +39,42 @@ from app.schemas.fhir import (
     FHIRGroupMember,
     FHIRHumanName,
     FHIRIdentifier,
+    FHIRImagingStudy,
+    FHIRImagingStudyInstance,
+    FHIRImagingStudySeries,
+    FHIRMeasure,
+
+    FHIRMeasureReport,
+    FHIRMeasureReportGroup,
+    FHIRMeasureReportGroupPopulation,
     FHIRMedicationStatement,
     FHIRObservation,
     FHIRPatient,
     FHIRPatientContact,
     FHIRPeriod,
     FHIRQuantity,
+    FHIRQuestionnaire,
+    FHIRQuestionnaireItem,
+    FHIRQuestionnaireItemOption,
+    FHIRQuestionnaireResponse,
+    FHIRQuestionnaireResponseItem,
+    FHIRQuestionnaireResponseItemAnswer,
     FHIRReference,
+    FHIRResearchStudy,
     FHIRCondition,
     FHIRRiskAssessment,
     FHIRRiskAssessmentPrediction,
+    FHIRServiceRequest,
+    FHIRProvenance,
+    FHIRProvenanceAgent,
+    FHIRProvenanceEntity,
     FHIRTask,
+
 )
+
+
+
+
 
 
 from app.schemas.patient import Gender, PatientCreate, PatientStatus
@@ -968,4 +1000,913 @@ class FHIRCommunicationMapper(BaseFHIRMapper):
             sender=FHIRReference(reference=f"Practitioner/{handoff.sender_user_id}") if handoff.sender_user_id else None,
             recipient=recipients,
             payload=payload_items,
+        )
+
+
+class FHIRServiceRequestMapper(BaseFHIRMapper):
+    """Maps internal ClinicalOrder to standard FHIR R4 ServiceRequest resource."""
+
+    @staticmethod
+    def to_fhir(order: ClinicalOrder, patient_id_str: str) -> FHIRServiceRequest:
+        status_map = {
+            "draft": "draft",
+            "placed": "active",
+            "in_progress": "active",
+            "completed": "completed",
+            "cancelled": "revoked",
+        }
+
+        return FHIRServiceRequest(
+            id=order.order_id,
+            identifier=[
+                FHIRIdentifier(
+                    system="http://medigen.ai/fhir/clinical-orders",
+                    value=order.order_id,
+                )
+            ],
+            status=status_map.get(order.status, "active"),
+            intent="order",
+            category=[
+                FHIRCodeableConcept(
+                    coding=[
+                        FHIRCoding(
+                            system="http://snomed.info/sct",
+                            code="108252007",
+                            display=f"Laboratory/Diagnostic Order ({order.order_category})",
+                        )
+                    ]
+                )
+            ],
+            priority=order.priority,
+            code=FHIRCodeableConcept(
+                coding=[
+                    FHIRCoding(
+                        system="http://medigen.ai/fhir/order-types",
+                        code=order.order_type,
+                        display=order.order_type.replace("_", " ").title(),
+                    )
+                ],
+                text=order.order_type.replace("_", " ").title(),
+            ),
+            subject=FHIRReference(reference=f"Patient/{patient_id_str}"),
+            encounter=FHIRReference(reference=f"Encounter/{order.encounter_id}") if order.encounter_id else None,
+            authoredOn=order.created_at.isoformat() if order.created_at else None,
+            requester=FHIRReference(reference=f"Practitioner/{order.ordering_user_id}") if order.ordering_user_id else None,
+            reasonCode=[FHIRCodeableConcept(text=order.clinical_indication)],
+        )
+
+
+class FHIRDiagnosticReportMapper(BaseFHIRMapper):
+    """Maps internal DiagnosticResult to standard FHIR R4 DiagnosticReport resource."""
+
+    @staticmethod
+    def to_fhir(result: DiagnosticResult, patient_id_str: str) -> FHIRDiagnosticReport:
+        status_map = {
+            "preliminary": "preliminary",
+            "final": "final",
+            "amended": "amended",
+            "corrected": "corrected",
+        }
+
+        order_identifier = result.order.order_id if result.order else str(result.order_id)
+
+        return FHIRDiagnosticReport(
+            id=result.result_id,
+            identifier=[
+                FHIRIdentifier(
+                    system="http://medigen.ai/fhir/diagnostic-results",
+                    value=result.result_id,
+                )
+            ],
+            basedOn=[FHIRReference(reference=f"ServiceRequest/{order_identifier}")],
+            status=status_map.get(result.status, "final"),
+            category=[
+                FHIRCodeableConcept(
+                    coding=[
+                        FHIRCoding(
+                            system="http://terminology.hl7.org/CodeSystem/v2-0074",
+                            code="LAB",
+                            display="Laboratory",
+                        )
+                    ]
+                )
+            ],
+            code=FHIRCodeableConcept(
+                coding=[
+                    FHIRCoding(
+                        system="http://loinc.org",
+                        code=result.test_code_loinc or "CUSTOM-LAB",
+                        display=result.test_name,
+                    )
+                ],
+                text=result.test_name,
+            ),
+            subject=FHIRReference(reference=f"Patient/{patient_id_str}"),
+            encounter=FHIRReference(reference=f"Encounter/{result.encounter_id}") if result.encounter_id else None,
+            effectiveDateTime=result.resulted_at.isoformat() if result.resulted_at else None,
+            issued=result.resulted_at.isoformat() if result.resulted_at else None,
+            performer=[FHIRReference(reference=f"Practitioner/{result.reviewed_by_user_id}")] if result.reviewed_by_user_id else [],
+            conclusion=f"[{result.abnormal_flag.upper()}] {result.findings_summary}",
+        )
+
+
+class FHIRMeasureMapper(BaseFHIRMapper):
+    """Maps internal QualityMeasure definition to standard FHIR R4 Measure resource."""
+
+    @staticmethod
+    def to_fhir(measure: QualityMeasure) -> FHIRMeasure:
+        return FHIRMeasure(
+            id=measure.measure_id,
+            url=f"http://medigen.ai/fhir/Measure/{measure.measure_id}",
+            identifier=[
+                FHIRIdentifier(
+                    system="http://medigen.ai/fhir/measures",
+                    value=measure.measure_id,
+                )
+            ],
+            version=measure.version,
+            name=measure.measure_id.replace("-", "_"),
+            title=measure.title,
+            status="active" if measure.is_active else "retired",
+            description=measure.description,
+            topic=[FHIRCodeableConcept(text=measure.domain)],
+        )
+
+
+class FHIRMeasureReportMapper(BaseFHIRMapper):
+    """Maps internal QualityMeasureReport compliance audit report to FHIR R4 MeasureReport."""
+
+    @staticmethod
+    def to_fhir(report: QualityMeasureReport) -> FHIRMeasureReport:
+        groups: list[FHIRMeasureReportGroup] = []
+        for s in (report.measure_summaries_json or []):
+            groups.append(
+                FHIRMeasureReportGroup(
+                    code=FHIRCodeableConcept(text=s.get("measure_code")),
+                    population=[
+                        FHIRMeasureReportGroupPopulation(
+                            code=FHIRCodeableConcept(text="initial-population"),
+                            count=s.get("eligible_count", 0),
+                        ),
+                        FHIRMeasureReportGroupPopulation(
+                            code=FHIRCodeableConcept(text="numerator"),
+                            count=s.get("numerator_count", 0),
+                        ),
+                    ],
+                    measureScore=FHIRQuantity(value=float(s.get("compliance_rate", 0.0)), unit="%"),
+                )
+            )
+
+        return FHIRMeasureReport(
+            id=report.report_id,
+            identifier=[
+                FHIRIdentifier(
+                    system="http://medigen.ai/fhir/measure-reports",
+                    value=report.report_id,
+                )
+            ],
+            status="complete",
+            type="summary",
+            measure="http://medigen.ai/fhir/Measure/population-quality-composite",
+            date=report.generated_at.isoformat() if report.generated_at else None,
+            period=FHIRPeriod(
+                start=report.reporting_period_start.isoformat() if report.reporting_period_start else None,
+                end=report.reporting_period_end.isoformat() if report.reporting_period_end else None,
+            ),
+            group=groups,
+        )
+
+
+class FHIRDeviceMapper:
+    """Bi-directional mapper for RPM registered connected medical devices."""
+
+    @staticmethod
+    def to_fhir(device: RPMDevice) -> FHIRDevice:
+        patient_ref = None
+        if device.patient:
+            patient_ref = FHIRReference(
+                reference=f"Patient/{device.patient.patient_id}",
+                display=f"{device.patient.first_name} {device.patient.last_name}",
+            )
+
+        return FHIRDevice(
+            id=device.device_id,
+            identifier=[
+                FHIRIdentifier(
+                    system="http://medigen.ai/fhir/devices",
+                    value=device.device_id,
+                )
+            ],
+            status="active" if device.status == "active" else "inactive",
+            manufacturer=device.manufacturer,
+            modelNumber=device.model_number,
+            serialNumber=device.serial_number,
+            type=FHIRCodeableConcept(
+                text=device.device_type,
+                coding=[
+                    FHIRCoding(
+                        system="http://snomed.info/sct",
+                        code=device.device_type,
+                        display=device.device_type.replace("_", " ").title(),
+                    )
+                ],
+            ),
+            patient=patient_ref,
+        )
+
+
+class FHIRQuestionnaireMapper:
+    """Mapper for standardized PROM survey definitions to FHIR Questionnaire."""
+
+    @staticmethod
+    def to_fhir(prom: PROMDefinition) -> FHIRQuestionnaire:
+        items = []
+        for q in prom.questions_json or []:
+            options = []
+            for opt in q.get("options", []):
+                options.append(
+                    FHIRQuestionnaireItemOption(
+                        valueString=opt.get("label"),
+                        valueInteger=int(opt.get("score", 0)),
+                    )
+                )
+
+            items.append(
+                FHIRQuestionnaireItem(
+                    linkId=str(q.get("id")),
+                    text=q.get("prompt"),
+                    type="choice",
+                    required=True,
+                    answerOption=options,
+                )
+            )
+
+        return FHIRQuestionnaire(
+            id=prom.prom_id,
+            identifier=[
+                FHIRIdentifier(
+                    system="http://medigen.ai/fhir/questionnaires",
+                    value=prom.prom_id,
+                )
+            ],
+            url=f"http://medigen.ai/fhir/Questionnaire/{prom.prom_id}",
+            version=prom.version,
+            title=prom.title,
+            status="active" if prom.is_active else "retired",
+            date=prom.created_at.isoformat() if prom.created_at else None,
+            publisher="MediGen-AI Clinical Quality & PROMs Division",
+            description=f"Standardized {prom.domain} assessment questionnaire.",
+            item=items,
+        )
+
+
+class FHIRQuestionnaireResponseMapper:
+    """Mapper for patient PROM responses to FHIR QuestionnaireResponse."""
+
+    @staticmethod
+    def to_fhir(response: PROMResponse) -> FHIRQuestionnaireResponse:
+        patient_ref = None
+        if response.patient:
+            patient_ref = FHIRReference(
+                reference=f"Patient/{response.patient.patient_id}",
+                display=f"{response.patient.first_name} {response.patient.last_name}",
+            )
+
+        items = []
+        for q_id, ans_val in (response.answers_json or {}).items():
+            items.append(
+                FHIRQuestionnaireResponseItem(
+                    linkId=str(q_id),
+                    answer=[
+                        FHIRQuestionnaireResponseItemAnswer(
+                            valueDecimal=float(ans_val) if isinstance(ans_val, (int, float)) else None,
+                            valueString=str(ans_val) if not isinstance(ans_val, (int, float)) else None,
+                        )
+                    ],
+                )
+            )
+
+        return FHIRQuestionnaireResponse(
+            id=response.response_id,
+            identifier=FHIRIdentifier(
+                system="http://medigen.ai/fhir/questionnaire-responses",
+                value=response.response_id,
+            ),
+            questionnaire=f"http://medigen.ai/fhir/Questionnaire/{response.prom.prom_id if response.prom else 'unknown'}",
+            status="completed",
+            subject=patient_ref,
+            authored=response.completed_at.isoformat() if response.completed_at else None,
+            item=items,
+        )
+
+
+class FHIRResearchStudyMapper:
+    """Mapper for ClinicalTrial to FHIR R4 ResearchStudy resource."""
+
+    @staticmethod
+    def to_fhir(trial: ClinicalTrial) -> FHIRResearchStudy:
+        identifiers = [
+            FHIRIdentifier(
+                system="http://medigen.ai/fhir/clinical-trials",
+                value=trial.trial_id,
+            )
+        ]
+        if trial.nct_number:
+            identifiers.append(
+                FHIRIdentifier(
+                    system="https://clinicaltrials.gov",
+                    value=trial.nct_number,
+                )
+            )
+
+        phase_concept = FHIRCodeableConcept(
+            coding=[
+                FHIRCoding(
+                    system="http://terminology.hl7.org/CodeSystem/research-study-phase",
+                    code=trial.phase,
+                    display=trial.phase.replace("_", " ").title(),
+                )
+            ],
+            text=trial.phase.replace("_", " ").title(),
+        )
+
+        condition_concepts = [
+            FHIRCodeableConcept(
+                coding=[
+                    FHIRCoding(
+                        system="http://snomed.info/sct",
+                        display=trial.disease_condition,
+                    )
+                ],
+                text=trial.disease_condition,
+            )
+        ]
+
+        sponsor_ref = FHIRReference(
+            display=trial.sponsor,
+        )
+
+        category_concepts = [
+            FHIRCodeableConcept(
+                coding=[
+                    FHIRCoding(
+                        system="http://medigen.ai/fhir/intervention-types",
+                        code=trial.intervention_type,
+                        display=trial.intervention_type.replace("_", " ").title(),
+                    )
+                ],
+                text=trial.intervention_type.replace("_", " ").title(),
+            )
+        ]
+
+        return FHIRResearchStudy(
+            id=trial.trial_id,
+            identifier=identifiers,
+            title=trial.title,
+            status=trial.status,
+            phase=phase_concept,
+            category=category_concepts,
+            condition=condition_concepts,
+            sponsor=sponsor_ref,
+            description=trial.summary or trial.official_title,
+        )
+
+
+class FHIRBiomarkerObservationMapper:
+    """Mapper for BiomarkerObservation to standard FHIR R4 Observation resource."""
+
+    @staticmethod
+    def to_fhir(biomarker: BiomarkerObservation) -> FHIRObservation:
+        patient_ref = None
+        if biomarker.patient:
+            patient_ref = FHIRReference(
+                reference=f"Patient/{biomarker.patient.patient_id}",
+                display=f"{biomarker.patient.first_name} {biomarker.patient.last_name}",
+            )
+
+        code = FHIRCodeableConcept(
+            coding=[
+                FHIRCoding(
+                    system="http://loinc.org",
+                    code="69548-6",
+                    display=f"Genetic variant assessment: {biomarker.gene_symbol} {biomarker.variant_name}",
+                ),
+                FHIRCoding(
+                    system="http://medigen.ai/fhir/biomarkers",
+                    code=biomarker.gene_symbol,
+                    display=f"{biomarker.gene_symbol} {biomarker.variant_name}",
+                ),
+            ],
+            text=f"{biomarker.gene_symbol} {biomarker.variant_name}",
+        )
+
+        category = [
+            FHIRCodeableConcept(
+                coding=[
+                    FHIRCoding(
+                        system="http://terminology.hl7.org/CodeSystem/observation-category",
+                        code="laboratory",
+                        display="Laboratory",
+                    )
+                ]
+            )
+        ]
+
+        # Value or Interpretation
+        value_concept = FHIRCodeableConcept(
+            coding=[
+                FHIRCoding(
+                    system="http://medigen.ai/fhir/pathogenicity",
+                    code=biomarker.pathogenicity,
+                    display=biomarker.pathogenicity.replace("_", " ").title(),
+                )
+            ],
+            text=f"{biomarker.alteration_type}: {biomarker.variant_name} ({biomarker.evidence_level})",
+        )
+
+        value_quantity = None
+        if biomarker.numeric_expression_value is not None:
+            value_quantity = FHIRQuantity(
+                value=biomarker.numeric_expression_value,
+                unit=biomarker.expression_unit or "%",
+            )
+
+        interpretation = [
+            FHIRCodeableConcept(
+                coding=[
+                    FHIRCoding(
+                        system="http://medigen.ai/fhir/evidence-level",
+                        code=biomarker.evidence_level,
+                        display=biomarker.evidence_level,
+                    )
+                ],
+                text=biomarker.clinical_significance or f"Pathogenicity: {biomarker.pathogenicity}",
+            )
+        ]
+
+        return FHIRObservation(
+            id=biomarker.observation_id,
+            identifier=[
+                FHIRIdentifier(
+                    system="http://medigen.ai/fhir/biomarker-observations",
+                    value=biomarker.observation_id,
+                )
+            ],
+            status="final",
+            category=category,
+            code=code,
+            subject=patient_ref,
+            effectiveDateTime=biomarker.detected_at.isoformat() if biomarker.detected_at else None,
+            valueCodeableConcept=value_concept if value_quantity is None else None,
+            valueQuantity=value_quantity,
+            interpretation=interpretation,
+        )
+
+
+class FHIRGenomicProfileMapper:
+    """Mapper for GenomicProfile to FHIR R4 DiagnosticReport resource."""
+
+    @staticmethod
+    def to_fhir(profile: GenomicProfile) -> FHIRDiagnosticReport:
+        patient_ref = None
+        if profile.patient:
+            patient_ref = FHIRReference(
+                reference=f"Patient/{profile.patient.patient_id}",
+                display=f"{profile.patient.first_name} {profile.patient.last_name}",
+            )
+
+        code = FHIRCodeableConcept(
+            coding=[
+                FHIRCoding(
+                    system="http://loinc.org",
+                    code="81247-9",
+                    display=profile.test_name,
+                )
+            ],
+            text=profile.test_name,
+        )
+
+        category = [
+            FHIRCodeableConcept(
+                coding=[
+                    FHIRCoding(
+                        system="http://terminology.hl7.org/CodeSystem/v2-0074",
+                        code="GE",
+                        display="Genetics",
+                    )
+                ]
+            )
+        ]
+
+        result_refs = [
+            FHIRReference(
+                reference=f"Observation/{bm.observation_id}",
+                display=f"{bm.gene_symbol} {bm.variant_name}",
+            )
+            for bm in (profile.biomarkers or [])
+        ]
+
+        return FHIRDiagnosticReport(
+            id=profile.profile_id,
+            identifier=[
+                FHIRIdentifier(
+                    system="http://medigen.ai/fhir/genomic-profiles",
+                    value=profile.profile_id,
+                )
+            ],
+            status=profile.status,
+            category=category,
+            code=code,
+            subject=patient_ref,
+            effectiveDateTime=profile.specimen_collected_at.isoformat() if profile.specimen_collected_at else None,
+            issued=profile.created_at.isoformat() if profile.created_at else None,
+            result=result_refs,
+            conclusion=profile.overall_interpretation,
+        )
+
+
+class FHIRAgentRecommendationTaskMapper(BaseFHIRMapper):
+    """Mapper from ClinicalAgentRecommendation ORM to FHIR R4 Task resource."""
+
+    @staticmethod
+    def to_fhir(rec: Any, patient_id: str) -> FHIRTask:
+        status_map = {
+            "pending_review": "requested",
+            "approved": "accepted",
+            "rejected": "rejected",
+            "executed": "completed",
+            "expired": "cancelled",
+        }
+        fhir_status = status_map.get(rec.approval_status, "requested")
+
+        return FHIRTask(
+            id=rec.recommendation_id,
+            identifier=[
+                FHIRIdentifier(
+                    system="http://medigen.ai/fhir/agent-recommendations",
+                    value=rec.recommendation_id,
+                )
+            ],
+            status=fhir_status,
+            intent="proposal",
+            priority=rec.priority,
+            description=rec.description,
+            code=FHIRCodeableConcept(
+                text=rec.title,
+                coding=[
+                    FHIRCoding(
+                        system="http://medigen.ai/fhir/agent-categories",
+                        code=rec.category,
+                        display=rec.category.replace("_", " ").title(),
+                    )
+                ],
+            ),
+            for_=FHIRReference(
+                reference=f"Patient/{patient_id}",
+            ),
+            authoredOn=rec.created_at.isoformat() if rec.created_at else None,
+            lastModified=rec.updated_at.isoformat() if rec.updated_at else None,
+        )
+
+
+class FHIRAgentProvenanceMapper(BaseFHIRMapper):
+    """Mapper from ClinicalAgentRun ORM to standard FHIR R4 Provenance resource."""
+
+    @staticmethod
+    def to_fhir(run: Any, patient_id: str) -> FHIRProvenance:
+        target_refs = [
+            FHIRReference(
+                reference=f"Task/{rec.recommendation_id}",
+                display=rec.title,
+            )
+            for rec in (run.recommendations or [])
+        ]
+        if not target_refs:
+            target_refs = [FHIRReference(reference=f"Patient/{patient_id}")]
+
+        return FHIRProvenance(
+            id=f"PROV-{run.run_id}",
+            target=target_refs,
+            recorded=run.start_time.isoformat() if run.start_time else datetime.now(timezone.utc).isoformat(),
+            policy=["http://medigen.ai/policies/clinician-in-the-loop-supervision"],
+            activity=FHIRCodeableConcept(
+                text="Multi-Agent Clinical Care Coordination Synthesis",
+                coding=[
+                    FHIRCoding(
+                        system="http://terminology.hl7.org/CodeSystem/v3-DataOperation",
+                        code="COMPUTE",
+                        display="Clinical AI Agent Synthesis",
+                    )
+                ],
+            ),
+            agent=[
+                FHIRProvenanceAgent(
+                    who=FHIRReference(
+                        reference=f"Device/{run.agent_type}",
+                        display=f"MediGen AI Agent [{run.agent_type}]",
+                    ),
+                    role=[
+                        FHIRCodeableConcept(
+                            coding=[
+                                FHIRCoding(
+                                    system="http://terminology.hl7.org/CodeSystem/provenance-participant-role",
+                                    code="assembler",
+                                    display="Care Coordination Assembler",
+                                )
+                            ]
+                        )
+                    ],
+                )
+            ],
+            entity=[
+                FHIRProvenanceEntity(
+                    role="derivation",
+                    what=FHIRReference(
+                        reference=f"Patient/{patient_id}",
+                        display=f"Patient Baseline Context (Hash: {run.context_hash[:12]}...)",
+                    ),
+                )
+            ],
+            signature=[
+                {
+                    "type": [{"system": "urn:iso-astm:E1762-95:2013", "code": "1.2.840.10065.1.12.1.1"}],
+                    "when": run.end_time.isoformat() if run.end_time else datetime.now(timezone.utc).isoformat(),
+                    "data": run.provenance_hash,
+                }
+            ],
+        )
+
+class FHIRImagingStudyMapper(BaseFHIRMapper):
+    """Bidirectional mapper between ImagingStudy ORM model and FHIR R4 ImagingStudy resource."""
+
+    @staticmethod
+    def to_fhir(study: ImagingStudy) -> FHIRImagingStudy:
+        """Map ImagingStudy model to FHIR R4 ImagingStudy resource."""
+        patient_id = study.patient.patient_id if study.patient else f"PAT-{study.patient_id}"
+
+        series_list: list[FHIRImagingStudySeries] = []
+        if study.assets:
+            for ast in study.assets:
+                series_list.append(
+                    FHIRImagingStudySeries(
+                        uid=ast.series_instance_uid or f"1.2.840.10008.5.1.4.1.1.{ast.id}",
+                        number=ast.series_number or 1,
+                        modality=FHIRCoding(
+                            system="http://dicom.nema.org/resources/ontology/DCM",
+                            code=ast.modality,
+                            display=ast.modality,
+                        ),
+                        description=ast.series_description or study.study_description,
+                        numberOfInstances=1,
+                        bodySite=FHIRCoding(
+                            system="http://snomed.info/sct",
+                            code=ast.body_site or study.body_site,
+                            display=ast.body_site or study.body_site,
+                        ),
+                        instance=[
+                            FHIRImagingStudyInstance(
+                                uid=ast.sop_instance_uid or f"1.2.840.10008.5.1.4.1.1.1.{ast.id}",
+                                number=ast.instance_number or 1,
+                                title=ast.series_description or ast.asset_id,
+                            )
+                        ],
+                    )
+                )
+        else:
+            series_list.append(
+                FHIRImagingStudySeries(
+                    uid=f"1.2.840.10008.5.1.4.1.1.{study.id}",
+                    number=1,
+                    modality=FHIRCoding(
+                        system="http://dicom.nema.org/resources/ontology/DCM",
+                        code=study.modality,
+                        display=study.modality,
+                    ),
+                    description=study.study_description,
+                    numberOfInstances=1,
+                    bodySite=FHIRCoding(
+                        system="http://snomed.info/sct",
+                        code=study.body_site,
+                        display=study.body_site,
+                    ),
+                    instance=[],
+                )
+            )
+
+        status_map = {
+            "ORDERED": "registered",
+            "SCHEDULED": "registered",
+            "IN_PROGRESS": "registered",
+            "COMPLETED": "available",
+            "PRELIMINARY": "available",
+            "FINAL": "available",
+            "CANCELLED": "cancelled",
+        }
+
+        return FHIRImagingStudy(
+            id=f"STU-{study.study_id}",
+            identifier=[
+                FHIRIdentifier(
+                    use="official",
+                    system="http://medigen.ai/imaging/accession",
+                    value=study.accession_number,
+                ),
+                FHIRIdentifier(
+                    use="secondary",
+                    system="http://medigen.ai/imaging/study-id",
+                    value=study.study_id,
+                ),
+            ],
+            status=status_map.get(study.status, "available"),
+            modality=[
+                FHIRCoding(
+                    system="http://dicom.nema.org/resources/ontology/DCM",
+                    code=study.modality,
+                    display=study.modality,
+                )
+            ],
+            subject=FHIRReference(
+                reference=f"Patient/{patient_id}",
+                display=f"{study.patient.first_name} {study.patient.last_name}" if study.patient else f"Patient {patient_id}",
+            ),
+            encounter=FHIRReference(
+                reference=f"Encounter/{study.encounter.encounter_id}" if study.encounter else f"Encounter/{study.encounter_id}",
+            ) if study.encounter_id else None,
+            started=study.study_datetime.isoformat() if study.study_datetime else None,
+            description=study.study_description,
+            numberOfSeries=len(series_list),
+            numberOfInstances=len(study.assets) if study.assets else 1,
+            series=series_list,
+        )
+
+
+class FHIRRadiologyReportMapper(BaseFHIRMapper):
+    """Bidirectional mapper between RadiologyReport ORM model and FHIR R4 DiagnosticReport resource."""
+
+    @staticmethod
+    def to_fhir(report: RadiologyReport) -> FHIRDiagnosticReport:
+        """Map RadiologyReport model to FHIR R4 DiagnosticReport resource."""
+        patient_id = report.patient.patient_id if report.patient else f"PAT-{report.patient_id}"
+
+        status_map = {
+            "DRAFT": "partial",
+            "AI_ASSISTED": "preliminary",
+            "RADIOLOGIST_REVIEW": "preliminary",
+            "FINALIZED": "final",
+            "AMENDED": "amended",
+        }
+
+        result_refs: list[FHIRReference] = []
+        if report.study and report.study.findings:
+            for f in report.study.findings:
+                result_refs.append(
+                    FHIRReference(
+                        reference=f"Observation/FND-{f.finding_id}",
+                        display=f"{f.finding_type} ({f.anatomical_location})",
+                    )
+                )
+
+        conclusion_text = f"IMPRESSION:\n{report.impression}\n\nRECOMMENDATIONS:\n{report.recommendations}"
+        if report.critical_findings_summary:
+            conclusion_text = f"CRITICAL FINDINGS: {report.critical_findings_summary}\n\n{conclusion_text}"
+
+        return FHIRDiagnosticReport(
+            id=f"RAD-{report.report_id}",
+            identifier=[
+                FHIRIdentifier(
+                    use="official",
+                    system="http://medigen.ai/radiology/report-id",
+                    value=report.report_id,
+                )
+            ],
+            basedOn=[
+                FHIRReference(
+                    reference=f"ServiceRequest/{report.order.order_id}" if report.order else f"ServiceRequest/{report.order_id}",
+                )
+            ] if report.order_id else [],
+            status=status_map.get(report.status, "final"),
+            category=[
+                FHIRCodeableConcept(
+                    coding=[
+                        FHIRCoding(
+                            system="http://terminology.hl7.org/CodeSystem/v2-0074",
+                            code="RAD",
+                            display="Radiology",
+                        )
+                    ]
+                )
+            ],
+            code=FHIRCodeableConcept(
+                text=report.clinical_indication or "Diagnostic Radiology Report",
+                coding=[
+                    FHIRCoding(
+                        system="http://loinc.org",
+                        code="18748-4",
+                        display="Diagnostic Imaging Report",
+                    )
+                ],
+            ),
+            subject=FHIRReference(
+                reference=f"Patient/{patient_id}",
+                display=f"{report.patient.first_name} {report.patient.last_name}" if report.patient else f"Patient {patient_id}",
+            ),
+            encounter=FHIRReference(
+                reference=f"Encounter/{report.encounter.encounter_id}" if report.encounter else f"Encounter/{report.encounter_id}",
+            ) if report.encounter_id else None,
+            effectiveDateTime=report.created_at.isoformat() if report.created_at else None,
+            issued=report.signed_at.isoformat() if report.signed_at else report.created_at.isoformat(),
+            performer=[
+                FHIRReference(
+                    reference=f"Practitioner/{report.signed_by_user.id}" if report.signed_by_user else "Practitioner/radiologist",
+                    display=report.signed_by_user.name if report.signed_by_user else "Authorized Clinician",
+                )
+            ] if report.signed_by_user_id else [],
+            resultsInterpreter=[
+                FHIRReference(
+                    reference=f"Practitioner/{report.author_user.id}" if report.author_user else "Practitioner/author",
+                    display=report.author_user.name if report.author_user else "Interpreting Radiologist",
+                )
+            ] if report.author_user_id else [],
+            result=result_refs,
+            imagingStudy=[
+                FHIRReference(
+                    reference=f"ImagingStudy/STU-{report.study.study_id}" if report.study else f"ImagingStudy/{report.study_id}",
+                    display=report.study.study_description if report.study else "Associated Imaging Study",
+                )
+            ] if report.study_id else [],
+            conclusion=conclusion_text,
+        )
+
+
+class FHIRImagingObservationMapper(BaseFHIRMapper):
+    """Bidirectional mapper between ImagingFinding ORM model and FHIR R4 Observation resource."""
+
+    @staticmethod
+    def to_fhir(finding: ImagingFinding) -> FHIRObservation:
+        """Map ImagingFinding model to FHIR R4 Observation resource."""
+        patient_id = finding.patient.patient_id if finding.patient else f"PAT-{finding.patient_id}"
+
+        return FHIRObservation(
+            id=f"FND-{finding.finding_id}",
+            identifier=[
+                FHIRIdentifier(
+                    use="official",
+                    system="http://medigen.ai/imaging/finding-id",
+                    value=finding.finding_id,
+                )
+            ],
+            status="final" if finding.clinician_review_status == "confirmed" else "preliminary",
+            category=[
+                FHIRCodeableConcept(
+                    coding=[
+                        FHIRCoding(
+                            system="http://terminology.hl7.org/CodeSystem/observation-category",
+                            code="imaging",
+                            display="Imaging",
+                        )
+                    ]
+                )
+            ],
+            code=FHIRCodeableConcept(
+                text=finding.finding_type.replace("_", " ").title(),
+                coding=[
+                    FHIRCoding(
+                        system="http://snomed.info/sct",
+                        code=finding.finding_type,
+                        display=finding.finding_type,
+                    )
+                ],
+            ),
+            subject=FHIRReference(
+                reference=f"Patient/{patient_id}",
+                display=f"{finding.patient.first_name} {finding.patient.last_name}" if finding.patient else f"Patient {patient_id}",
+            ),
+            effectiveDateTime=finding.created_at.isoformat() if finding.created_at else None,
+            bodySite=FHIRCodeableConcept(
+                text=finding.anatomical_location,
+                coding=[
+                    FHIRCoding(
+                        system="http://snomed.info/sct",
+                        code=finding.laterality,
+                        display=f"{finding.anatomical_location} ({finding.laterality})",
+                    )
+                ],
+            ),
+            valueString=finding.description,
+            interpretation=[
+                FHIRCodeableConcept(
+                    coding=[
+                        FHIRCoding(
+                            system="http://terminology.hl7.org/CodeSystem/v3-ObservationInterpretation",
+                            code="CRIT" if finding.is_critical else "A",
+                            display=finding.severity,
+                        )
+                    ]
+                )
+            ],
+            note=[
+                FHIRAnnotation(
+                    text=f"Recommendation: {finding.recommendation} | Nature: {finding.finding_nature} | Review Status: {finding.clinician_review_status}",
+                )
+            ],
         )

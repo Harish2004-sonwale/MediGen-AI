@@ -692,3 +692,1000 @@ export interface DischargeProtocolListResponse {
   items: DischargeProtocol[];
   total: number;
 }
+
+// =============================================================================
+// PHASE 9.0.13: CPOE ORDERS & DIAGNOSTIC RESULTS
+// =============================================================================
+
+export type OrderCategory = 'laboratory' | 'imaging' | 'medication' | 'nursing' | 'consultation';
+export type OrderPriority = 'routine' | 'urgent' | 'stat';
+export type OrderStatus = 'draft' | 'placed' | 'in_progress' | 'completed' | 'cancelled';
+export type DiagnosticResultStatus = 'preliminary' | 'final' | 'amended' | 'corrected';
+export type AbnormalFlag = 'normal' | 'abnormal_low' | 'abnormal_high' | 'panic_critical';
+
+export interface ClinicalOrder {
+  id: number;
+  order_id: string;
+  patient_id: number;
+  patient_identifier?: string;
+  patient_name?: string;
+  encounter_id?: number;
+  ordering_user_id?: number;
+  ordering_user_name?: string;
+  order_category: OrderCategory;
+  order_type: string;
+  priority: OrderPriority;
+  status: OrderStatus;
+  clinical_indication: string;
+  specimen_source?: string;
+  order_details_json?: Record<string, any>;
+  ai_safety_flags_json?: Array<{ severity: string; code: string; message: string }>;
+  is_ai_suggested: boolean;
+  placed_at?: string;
+  completed_at?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ClinicalOrderListResponse {
+  items: ClinicalOrder[];
+  total: number;
+}
+
+export interface DiagnosticResult {
+  id: number;
+  result_id: string;
+  order_id: number;
+  order_identifier?: string;
+  patient_id: number;
+  patient_identifier?: string;
+  patient_name?: string;
+  encounter_id?: number;
+  test_name: string;
+  test_code_loinc?: string;
+  status: DiagnosticResultStatus;
+  abnormal_flag: AbnormalFlag;
+  findings_summary: string;
+  numeric_value?: number;
+  unit_of_measure?: string;
+  reference_range_low?: number;
+  reference_range_high?: number;
+  critical_threshold_low?: number;
+  critical_threshold_high?: number;
+  structured_components_json?: Array<Record<string, any>>;
+  reviewed_by_user_id?: number;
+  reviewed_by_user_name?: string;
+  reviewed_at?: string;
+  resulted_at: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DiagnosticResultListResponse {
+  items: DiagnosticResult[];
+  total: number;
+}
+
+export interface OrderBundleItem {
+  order_category: OrderCategory;
+  order_type: string;
+  priority: OrderPriority;
+  clinical_indication: string;
+  specimen_source?: string;
+  order_details?: Record<string, any>;
+}
+
+export interface OrderBundleSuggestResponse {
+  protocol_name: string;
+  clinical_rationale: string;
+  suggested_orders: OrderBundleItem[];
+  pre_order_safety_warnings: string[];
+}
+
+// =============================================================================
+// PHASE 9.0.14: CLINICAL QUALITY MEASURES (CQMS) & HEDIS/MIPS COMPLIANCE
+// =============================================================================
+
+export type QualityDomain =
+  | 'chronic_disease_management'
+  | 'patient_safety'
+  | 'care_coordination'
+  | 'preventive_care'
+  | 'clinical_process';
+
+export type ComplianceStatus =
+  | 'compliant'
+  | 'non_compliant'
+  | 'excluded'
+  | 'not_applicable';
+
+export type GapSeverity = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+export type GapStatus = 'open' | 'in_remediation' | 'resolved' | 'dismissed';
+export type ReportScope = 'patient' | 'provider' | 'department' | 'organization';
+
+export interface QualityMeasure {
+  id: number;
+  measure_id: string;
+  title: string;
+  description: string;
+  domain: QualityDomain;
+  standard_framework: string;
+  steward: string;
+  version: string;
+  target_rate: number;
+  initial_population_criteria: string;
+  denominator_criteria: string;
+  numerator_criteria: string;
+  exclusion_criteria?: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface QualityMeasureListResponse {
+  items: QualityMeasure[];
+  total: number;
+}
+
+export interface QualityMeasureResult {
+  id: number;
+  result_id: string;
+  measure_id: number;
+  measure_code?: string;
+  measure_title?: string;
+  measure_domain?: QualityDomain;
+  target_rate?: number;
+  patient_id: number;
+  patient_identifier?: string;
+  patient_name?: string;
+  is_eligible: boolean;
+  is_denominator_eligible: boolean;
+  is_numerator_compliant: boolean;
+  is_excluded: boolean;
+  compliance_status: ComplianceStatus;
+  calculated_value?: number;
+  evidence_json?: Record<string, any>;
+  gap_reason?: string;
+  calculated_by_user_id?: number;
+  calculated_at: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface QualityMeasureResultListResponse {
+  items: QualityMeasureResult[];
+  total: number;
+}
+
+export interface QualityMeasureGap {
+  id: number;
+  gap_id: string;
+  measure_id: number;
+  measure_code?: string;
+  measure_title?: string;
+  measure_domain?: QualityDomain;
+  patient_id: number;
+  patient_identifier?: string;
+  patient_name?: string;
+  severity: GapSeverity;
+  status: GapStatus;
+  missing_data_summary: string;
+  recommended_action: string;
+  linked_care_task_id?: number;
+  identified_at: string;
+  due_date?: string;
+  resolved_at?: string;
+  resolution_notes?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface QualityMeasureGapListResponse {
+  items: QualityMeasureGap[];
+  total: number;
+}
+
+export interface QualityMeasureScoreSummary {
+  measure_id: string;
+  title: string;
+  domain: string;
+  standard_framework: string;
+  target_rate: number;
+  performance_rate: number;
+  eligible_population: number;
+  compliant_population: number;
+  gap_count: number;
+}
+
+export interface QualityMeasureReport {
+  id: number;
+  report_id: string;
+  title: string;
+  report_scope: ReportScope;
+  scope_identifier?: string;
+  measurement_period_start: string;
+  measurement_period_end: string;
+  overall_performance_rate: number;
+  total_eligible_population: number;
+  total_compliant_population: number;
+  measure_summaries_json: QualityMeasureScoreSummary[];
+  audit_metadata_json: Record<string, any>;
+  generated_by_user_id?: number;
+  generated_by_name?: string;
+  is_published: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface QualityMeasureReportListResponse {
+  items: QualityMeasureReport[];
+  total: number;
+}
+
+// ============================================================================
+// Phase 9.0.15: Remote Patient Monitoring (RPM), PROMs & Telehealth
+// ============================================================================
+
+export type RPMProgramStatus = 'active' | 'graduated' | 'suspended' | 'cancelled';
+export type RPMDeviceStatus = 'active' | 'inactive' | 'pending_verification' | 'decommissioned';
+export type RPMObservationType =
+  | 'systolic_bp'
+  | 'diastolic_bp'
+  | 'heart_rate'
+  | 'spo2'
+  | 'blood_glucose'
+  | 'weight'
+  | 'temperature'
+  | 'respiratory_rate';
+export type RPMSourceType = 'manual_entry' | 'bluetooth_sync' | 'cellular_gateway' | 'api_integration';
+export type ObservationClassification = 'normal' | 'abnormal' | 'critical';
+export type RPMEscalationStatus = 'open' | 'acknowledged' | 'in_progress' | 'resolved' | 'dismissed';
+export type TelehealthStatus = 'scheduled' | 'waiting_room' | 'in_progress' | 'completed' | 'cancelled' | 'no_show';
+
+export interface RPMProgram {
+  id: number;
+  program_id: string;
+  patient_id: number;
+  patient_identifier?: string;
+  patient_name?: string;
+  condition_name: string;
+  program_name: string;
+  target_cadence_days: number;
+  clinical_goals: string[];
+  status: RPMProgramStatus;
+  enrolled_at: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface RPMProgramListResponse {
+  items: RPMProgram[];
+  total: number;
+}
+
+export interface RPMDevice {
+  id: number;
+  device_id: string;
+  patient_id: number;
+  patient_identifier?: string;
+  patient_name?: string;
+  device_type: string;
+  manufacturer: string;
+  model_number: string;
+  serial_number: string;
+  status: RPMDeviceStatus;
+  supported_measurements: string[];
+  last_sync_at?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface RPMDeviceListResponse {
+  items: RPMDevice[];
+  total: number;
+}
+
+export interface RPMObservation {
+  id: number;
+  observation_id: string;
+  patient_id: number;
+  patient_identifier?: string;
+  patient_name?: string;
+  device_id?: number;
+  device_identifier?: string;
+  observation_type: RPMObservationType;
+  numeric_value: number;
+  secondary_value?: number;
+  unit_of_measure: string;
+  source_type: RPMSourceType;
+  classification: ObservationClassification;
+  recorded_at: string;
+  created_at: string;
+}
+
+export interface RPMObservationListResponse {
+  items: RPMObservation[];
+  total: number;
+}
+
+export interface RPMTelemetrySummary {
+  patient_id: string;
+  total_observations_count: number;
+  critical_observations_count: number;
+  abnormal_observations_count: number;
+  normal_observations_count: number;
+  average_systolic_bp?: number;
+  average_diastolic_bp?: number;
+  average_heart_rate?: number;
+  average_spo2?: number;
+  average_blood_glucose?: number;
+  average_weight?: number;
+  latest_observation_time?: string;
+  adherence_rate: number;
+  active_alerts_count: number;
+}
+
+export interface RPMEscalationAlert {
+  id: number;
+  alert_id: string;
+  patient_id: number;
+  patient_identifier?: string;
+  patient_name?: string;
+  observation_id?: number;
+  observation_summary?: string;
+  severity: string;
+  status: RPMEscalationStatus;
+  escalation_reason: string;
+  linked_care_task_id?: number;
+  acknowledged_by_user_id?: number;
+  acknowledged_by_name?: string;
+  acknowledged_at?: string;
+  clinical_action_taken?: string;
+  resolved_at?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface RPMEscalationAlertListResponse {
+  items: RPMEscalationAlert[];
+  total: number;
+}
+
+export interface PROMQuestionOption {
+  value: number | string;
+  label: string;
+  score: number;
+}
+
+export interface PROMQuestion {
+  id: string;
+  prompt: string;
+  options: PROMQuestionOption[];
+}
+
+export interface PROMDefinition {
+  id: number;
+  prom_id: string;
+  title: string;
+  domain: string;
+  version: string;
+  scoring_method: string;
+  questions_json: PROMQuestion[];
+  interpretation_ranges_json: Record<string, any>;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PROMDefinitionListResponse {
+  items: PROMDefinition[];
+  total: number;
+}
+
+export interface PROMResponseDetail {
+  id: number;
+  response_id: string;
+  prom_id: number;
+  prom_identifier?: string;
+  prom_title?: string;
+  patient_id: number;
+  patient_identifier?: string;
+  patient_name?: string;
+  answers_json: Record<string, any>;
+  calculated_score: number;
+  severity_interpretation: string;
+  safety_flags_json: string[];
+  clinical_notes?: string;
+  completed_at: string;
+  created_at: string;
+}
+
+export interface PROMResponseListResponse {
+  items: PROMResponseDetail[];
+  total: number;
+}
+
+export interface TelehealthSession {
+  id: number;
+  session_id: string;
+  patient_id: number;
+  patient_identifier?: string;
+  patient_name?: string;
+  clinician_user_id: number;
+  clinician_name?: string;
+  appointment_id?: number;
+  encounter_id?: number;
+  status: TelehealthStatus;
+  scheduled_start: string;
+  actual_start?: string;
+  actual_end?: string;
+  visit_reason: string;
+  pre_visit_rpm_summary_json?: Record<string, any>;
+  pre_visit_prom_summary_json?: Record<string, any>;
+  session_notes?: string;
+  followup_instructions?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TelehealthSessionListResponse {
+  items: TelehealthSession[];
+  total: number;
+}
+
+// ============================================================================
+// PHASE 9.0.16: CLINICAL TRIALS, GENOMICS & PRECISION ONCOLOGY TYPES
+// ============================================================================
+
+export type TrialPhase =
+  | 'early_phase_1'
+  | 'phase_1'
+  | 'phase_1_2'
+  | 'phase_2'
+  | 'phase_2_3'
+  | 'phase_3'
+  | 'phase_4';
+
+export type TrialStatus =
+  | 'recruiting'
+  | 'active_not_recruiting'
+  | 'enrolling_by_invitation'
+  | 'completed'
+  | 'suspended'
+  | 'terminated';
+
+export type CriterionType = 'inclusion' | 'exclusion';
+
+export type CriterionCategory =
+  | 'biomarker'
+  | 'diagnosis'
+  | 'disease_stage'
+  | 'age'
+  | 'performance_status'
+  | 'prior_therapy'
+  | 'laboratory_value'
+  | 'organ_function'
+  | 'contraindication';
+
+export type MatchStatus =
+  | 'MATCHED'
+  | 'POTENTIAL_MATCH'
+  | 'INELIGIBLE'
+  | 'INSUFFICIENT_DATA'
+  | 'MANUAL_REVIEW';
+
+export type PrecisionEligibilityStatus =
+  | 'ELIGIBLE'
+  | 'NOT_ELIGIBLE'
+  | 'INSUFFICIENT_DATA'
+  | 'MANUAL_REVIEW';
+
+export type ClinicianReviewStatus =
+  | 'pending_review'
+  | 'confirmed_eligible'
+  | 'declined_by_clinician'
+  | 'enrolled_in_trial'
+  | 'patient_declined'
+  | 'approved_for_protocol'
+  | 'rejected_by_clinician';
+
+export interface TrialEligibilityCriterion {
+  id: number;
+  criterion_id: string;
+  trial_id: number;
+  category: CriterionCategory;
+  criterion_type: CriterionType;
+  field_name: string;
+  operator: string;
+  expected_value_str?: string;
+  expected_value_num?: number;
+  expected_value_json?: any;
+  unit_of_measure?: string;
+  is_required: boolean;
+  description: string;
+  created_at: string;
+}
+
+export interface ClinicalTrial {
+  id: number;
+  trial_id: string;
+  nct_number?: string;
+  title: string;
+  official_title?: string;
+  sponsor: string;
+  phase: TrialPhase;
+  status: TrialStatus;
+  disease_condition: string;
+  intervention_name: string;
+  intervention_type: string;
+  location_sites_json?: Array<Record<string, any>>;
+  min_age_years?: number;
+  max_age_years?: number;
+  target_gender: string;
+  summary?: string;
+  inclusion_criteria_text?: string;
+  exclusion_criteria_text?: string;
+  contact_email?: string;
+  contact_phone?: string;
+  is_active: boolean;
+  version: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ClinicalTrialDetail extends ClinicalTrial {
+  criteria: TrialEligibilityCriterion[];
+}
+
+export interface ClinicalTrialListResponse {
+  items: ClinicalTrial[];
+  total: number;
+}
+
+export interface BiomarkerObservation {
+  id: number;
+  observation_id: string;
+  profile_id: number;
+  patient_id: number;
+  gene_symbol: string;
+  variant_name: string;
+  alteration_type: string;
+  hgvs_notation?: string;
+  chromosome?: string;
+  genomic_position?: string;
+  reference_allele?: string;
+  alternate_allele?: string;
+  zygosity?: string;
+  variant_allele_fraction?: number;
+  pathogenicity: string;
+  evidence_level: string;
+  clinical_significance?: string;
+  numeric_expression_value?: number;
+  expression_unit?: string;
+  detected_at: string;
+  created_at: string;
+}
+
+export interface GenomicProfile {
+  id: number;
+  profile_id: string;
+  patient_id: number;
+  patient_identifier?: string;
+  patient_name?: string;
+  specimen_type: string;
+  specimen_collected_at?: string;
+  test_name: string;
+  sequencing_platform: string;
+  performing_lab: string;
+  accession_number?: string;
+  tumor_mutation_burden?: number;
+  microsatellite_instability_status?: string;
+  overall_interpretation?: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface GenomicProfileDetail extends GenomicProfile {
+  biomarkers: BiomarkerObservation[];
+}
+
+export interface GenomicProfileListResponse {
+  items: GenomicProfileDetail[];
+  total: number;
+}
+
+export interface CriterionEvaluationResult {
+  criterion_id: string;
+  category: string;
+  criterion_type: string;
+  field_name: string;
+  description: string;
+  status: 'PASS' | 'FAIL' | 'UNKNOWN';
+  evidence: string;
+  reason: string;
+}
+
+export interface TrialMatch {
+  id: number;
+  match_id: string;
+  trial_id: number;
+  trial_identifier?: string;
+  trial_title?: string;
+  trial_phase?: string;
+  trial_sponsor?: string;
+  disease_condition?: string;
+  intervention_name?: string;
+  patient_id: number;
+  patient_identifier?: string;
+  patient_name?: string;
+  match_status: MatchStatus;
+  match_score: number;
+  matched_criteria_json: CriterionEvaluationResult[];
+  failed_criteria_json: CriterionEvaluationResult[];
+  unknown_criteria_json: CriterionEvaluationResult[];
+  overall_explanation: string;
+  provenance_hash: string;
+  algorithm_version: string;
+  clinician_review_status: ClinicianReviewStatus;
+  reviewed_by_user_id?: number;
+  reviewed_by_name?: string;
+  review_notes?: string;
+  reviewed_at?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TrialMatchListResponse {
+  items: TrialMatch[];
+  total: number;
+}
+
+export interface PrecisionTreatmentEligibility {
+  id: number;
+  eligibility_id: string;
+  patient_id: number;
+  patient_identifier?: string;
+  patient_name?: string;
+  gene_symbol: string;
+  variant_name: string;
+  recommended_intervention: string;
+  drug_class: string;
+  indication: string;
+  eligibility_status: PrecisionEligibilityStatus;
+  evidence_source: string;
+  supporting_observations_json: string[];
+  contraindicating_observations_json: string[];
+  unknown_factors_json: string[];
+  provenance_hash: string;
+  clinician_review_status: ClinicianReviewStatus;
+  reviewed_by_user_id?: number;
+  reviewed_by_name?: string;
+  review_notes?: string;
+  reviewed_at?: string;
+  created_at: string;
+}
+
+export interface PrecisionTreatmentEligibilityListResponse {
+  items: PrecisionTreatmentEligibility[];
+  total: number;
+}
+
+export interface BatchMatchResponse {
+  patient_id: string;
+  total_evaluated_trials: number;
+  matched_trials_count: number;
+  potential_trials_count: number;
+  ineligible_trials_count: number;
+  matches: TrialMatch[];
+}
+
+// =============================================================================
+// PHASE 9.0.17: ADVANCED CLINICAL AI AGENTS & AUTONOMOUS CARE COORDINATION
+// =============================================================================
+
+export type AgentType =
+  | 'clinical_context'
+  | 'risk_surveillance'
+  | 'care_coordination'
+  | 'diagnostic_followup'
+  | 'medication_safety'
+  | 'quality_gap'
+  | 'rpm_telehealth'
+  | 'transition_discharge'
+  | 'trial_genomics'
+  | 'master_orchestrator';
+
+export type AgentRunStatus =
+  | 'idle'
+  | 'running'
+  | 'completed'
+  | 'waiting_for_approval'
+  | 'failed'
+  | 'cancelled';
+
+export type RecommendationActionClass =
+  | 'READ_ONLY'
+  | 'RECOMMENDATION'
+  | 'CLINICIAN_APPROVAL_REQUIRED'
+  | 'HIGH_RISK';
+
+export type RecommendationPriority = 'urgent' | 'high' | 'medium' | 'low';
+
+export type ApprovalStatus =
+  | 'pending_review'
+  | 'approved'
+  | 'rejected'
+  | 'executed'
+  | 'expired';
+
+export interface AgentEvidenceReference {
+  id?: number;
+  evidence_id: string;
+  recommendation_id?: number;
+  entity_type: string;
+  entity_identifier: string;
+  title: string;
+  excerpt?: string;
+  confidence_score: number;
+  created_at?: string;
+}
+
+export interface ClinicalAgentRecommendation {
+  id: number;
+  recommendation_id: string;
+  run_id: number;
+  patient_id: number;
+  category: string;
+  title: string;
+  description: string;
+  rationale: string;
+  priority: RecommendationPriority;
+  action_class: RecommendationActionClass;
+  suggested_action_type?: string;
+  suggested_action_payload_json?: Record<string, any>;
+  approval_status: ApprovalStatus;
+  reviewed_by_user_id?: number;
+  reviewed_by_name?: string;
+  review_notes?: string;
+  reviewed_at?: string;
+  execution_status?: string;
+  executed_at?: string;
+  execution_result_json?: Record<string, any>;
+  provenance_hash: string;
+  evidence_references: AgentEvidenceReference[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ClinicalAgentDefinition {
+  id: number;
+  agent_id: string;
+  name: string;
+  agent_type: AgentType;
+  description: string;
+  version: string;
+  is_active: boolean;
+  default_action_class: RecommendationActionClass;
+  created_at: string;
+}
+
+export interface ClinicalAgentDefinitionListResponse {
+  items: ClinicalAgentDefinition[];
+  total: number;
+}
+
+export interface ClinicalAgentRun {
+  id: number;
+  run_id: string;
+  agent_type: AgentType;
+  patient_id: number;
+  patient_identifier?: string;
+  patient_name?: string;
+  initiated_by_user_id?: number;
+  initiated_by_name?: string;
+  status: AgentRunStatus;
+  start_time: string;
+  end_time?: string;
+  overall_summary?: string;
+  context_hash: string;
+  provenance_hash: string;
+  recommendations_count: number;
+  created_at: string;
+}
+
+export interface ClinicalAgentRunDetail extends ClinicalAgentRun {
+  input_context_snapshot_json?: Record<string, any>;
+  error_message?: string;
+  recommendations: ClinicalAgentRecommendation[];
+}
+
+export interface ClinicalAgentRunListResponse {
+  items: ClinicalAgentRun[];
+  total: number;
+}
+
+export interface CareCoordinationSynthesisResponse {
+  patient_id: string;
+  patient_name: string;
+  run_id: string;
+  status: AgentRunStatus;
+  overall_summary: string;
+  provenance_hash: string;
+  urgent_recommendations_count: number;
+  high_recommendations_count: number;
+  pending_approvals_count: number;
+  recommendations: ClinicalAgentRecommendation[];
+}
+
+// ==============================================================================
+// Phase 9.0.18: Medical Imaging AI, Multimodal Diagnostics & Radiology Types
+// ==============================================================================
+
+export type ImagingModality = 'XRAY' | 'CT' | 'MRI' | 'ULTRASOUND' | 'MAMMOGRAPHY' | 'PET_CT' | 'ECHOCARDIOGRAPHY' | 'OTHER';
+export type ImagingBodySite = 'CHEST' | 'ABDOMEN' | 'PELVIS' | 'HEAD_BRAIN' | 'SPINE' | 'EXTREMITY' | 'CARDIAC' | 'BREAST' | 'NECK' | 'OTHER';
+export type ImagingStudyStatus = 'ORDERED' | 'SCHEDULED' | 'IN_PROGRESS' | 'COMPLETED' | 'PRELIMINARY' | 'FINAL' | 'CANCELLED';
+export type ImagingFindingType = 'NORMAL_APPEARANCE' | 'POSSIBLE_NODULE' | 'POSSIBLE_FRACTURE' | 'POSSIBLE_PNEUMONIA' | 'POSSIBLE_EFFUSION' | 'POSSIBLE_HEMORRHAGE' | 'POSSIBLE_MASS' | 'OTHER_ABNORMALITY';
+export type FindingLaterality = 'LEFT' | 'RIGHT' | 'BILATERAL' | 'MIDLINE' | 'NOT_APPLICABLE';
+export type FindingSeverity = 'NORMAL' | 'MILD' | 'MODERATE' | 'SEVERE' | 'CRITICAL';
+export type FindingNature = 'OBSERVED_FACT' | 'AI_GENERATED_FINDING' | 'CLINICIAN_CONFIRMED_FINDING';
+export type FindingReviewStatus = 'pending_review' | 'confirmed' | 'rejected' | 'amended';
+export type ReportStatus = 'DRAFT' | 'AI_ASSISTED' | 'RADIOLOGIST_REVIEW' | 'FINALIZED' | 'AMENDED';
+
+export interface ImagingAsset {
+  id: number;
+  asset_id: string;
+  study_id: number;
+  series_instance_uid?: string;
+  sop_instance_uid?: string;
+  series_number?: number;
+  instance_number?: number;
+  series_description?: string;
+  modality: string;
+  body_site?: string;
+  mime_type: string;
+  file_size_bytes: number;
+  storage_path: string;
+  thumbnail_storage_path?: string;
+  image_dimensions?: Record<string, any>;
+  dicom_metadata_json?: Record<string, any>;
+  provenance_hash: string;
+  created_at: string;
+}
+
+export interface ImagingFinding {
+  id: number;
+  finding_id: string;
+  study_id: number;
+  asset_id?: number;
+  patient_id: number;
+  finding_type: ImagingFindingType | string;
+  anatomical_location: string;
+  laterality: FindingLaterality | string;
+  severity: FindingSeverity | string;
+  confidence_score: number;
+  is_critical: boolean;
+  finding_nature: FindingNature | string;
+  description: string;
+  recommendation: string;
+  bounding_box_json?: { x: number; y: number; width: number; height: number } | null;
+  clinician_review_status: FindingReviewStatus | string;
+  reviewed_by_user_id?: number;
+  reviewed_at?: string;
+  review_notes?: string;
+  provenance_hash: string;
+  created_at: string;
+}
+
+export interface RadiologyReport {
+  id: number;
+  report_id: string;
+  study_id: number;
+  study_identifier?: string;
+  study_description?: string;
+  modality?: string;
+  body_site?: string;
+  patient_id: number;
+  patient_identifier?: string;
+  patient_name?: string;
+  encounter_id?: number;
+  order_id?: number;
+  status: ReportStatus | string;
+  clinical_indication: string;
+  technique: string;
+  comparison_studies: string;
+  findings: string;
+  impression: string;
+  recommendations: string;
+  critical_findings_summary?: string;
+  is_critical: boolean;
+  ai_assistance_metadata_json?: Record<string, any>;
+  author_user_id?: number;
+  author_name?: string;
+  signed_by_user_id?: number;
+  signed_by_name?: string;
+  signed_at?: string;
+  amendment_reason?: string;
+  amended_from_report_id?: number;
+  provenance_hash: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ImagingStudy {
+  id: number;
+  study_id: string;
+  patient_id: number;
+  patient_identifier?: string;
+  patient_name?: string;
+  encounter_id?: number;
+  order_id?: number;
+  modality: ImagingModality | string;
+  body_site: ImagingBodySite | string;
+  study_description: string;
+  accession_number: string;
+  study_datetime: string;
+  performing_department: string;
+  referring_provider?: string;
+  status: ImagingStudyStatus | string;
+  source: string;
+  external_identifier?: string;
+  metadata_json?: Record<string, any>;
+  provenance_hash: string;
+  created_at: string;
+  updated_at: string;
+  assets_count?: number;
+  findings_count?: number;
+  reports_count?: number;
+  has_critical_findings?: boolean;
+}
+
+export interface MultimodalContextSnapshot {
+  patient_id: string;
+  patient_name: string;
+  age_years: number;
+  gender: string;
+  clinical_indication: string;
+  modality: string;
+  body_site: string;
+  active_diagnoses: string[];
+  active_medications: string[];
+  allergies: string[];
+  recent_vitals: Record<string, any>[];
+  active_alerts: Record<string, any>[];
+  relevant_lab_results: Record<string, any>[];
+  previous_studies: Record<string, any>[];
+}
+
+export interface ImagingAnalysisResponse {
+  study_id: string;
+  status: string;
+  findings_count: number;
+  critical_findings_count: number;
+  findings: ImagingFinding[];
+  draft_report?: RadiologyReport;
+  multimodal_context: MultimodalContextSnapshot;
+  provenance_hash: string;
+  evaluated_at: string;
+}
+
+export interface ImagingTimelineItem {
+  event_id: string;
+  study_id: string;
+  study_datetime: string;
+  modality: string;
+  body_site: string;
+  description: string;
+  status: string;
+  accession_number: string;
+  findings_count: number;
+  has_critical: boolean;
+  report_id?: string;
+  report_status?: string;
+}
+
+export interface ImagingTimelineResponse {
+  patient_id: string;
+  total_studies: number;
+  items: ImagingTimelineItem[];
+}

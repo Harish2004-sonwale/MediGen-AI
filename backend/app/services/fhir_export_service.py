@@ -2,7 +2,8 @@ from datetime import datetime, timezone
 import logging
 from typing import Any, Optional
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
+
 
 from app.models.care_plan import CarePlan
 from app.models.care_task import CareTask
@@ -10,8 +11,14 @@ from app.models.cohort import CohortMembership, PatientCohort
 from app.models.discharge import DischargeProtocol
 from app.models.encounter import Encounter
 from app.models.handoff import ClinicalHandoff
+from app.models.order import ClinicalOrder, DiagnosticResult
+from app.models.imaging import ImagingAsset, ImagingFinding, ImagingStudy, RadiologyReport
 from app.models.patient import Patient
+from app.models.quality import QualityMeasure, QualityMeasureReport
 from app.models.risk_assessment import ClinicalRiskAssessment
+from app.models.rpm import PROMDefinition, PROMResponse, RPMDevice, RPMObservation
+from app.models.trials import BiomarkerObservation, ClinicalTrial, GenomicProfile
+from app.models.agents import ClinicalAgentRecommendation, ClinicalAgentRun
 from app.models.user import User, UserRole
 from app.schemas.fhir import (
     FHIRBundle,
@@ -20,29 +27,63 @@ from app.schemas.fhir import (
     FHIRCommunication,
     FHIRComposition,
     FHIRCondition,
+    FHIRDevice,
+    FHIRDiagnosticReport,
     FHIREncounter,
     FHIRGroup,
+    FHIRImagingStudy,
+    FHIRMeasure,
+    FHIRMeasureReport,
     FHIRMedicationStatement,
     FHIRObservation,
     FHIRPatient,
+    FHIRProvenance,
+    FHIRQuestionnaire,
+    FHIRQuestionnaireResponse,
+    FHIRResearchStudy,
     FHIRRiskAssessment,
+    FHIRServiceRequest,
     FHIRTask,
 )
+
 from app.services.appointment_service import resolve_patient
+
 from app.services.encounter_service import get_encounter_by_encounter_id
 from app.services.fhir_mapper_service import (
+    FHIRAgentProvenanceMapper,
+    FHIRAgentRecommendationTaskMapper,
+    FHIRBiomarkerObservationMapper,
     FHIRCarePlanMapper,
     FHIRCommunicationMapper,
     FHIRCompositionMapper,
     FHIRConditionMapper,
+    FHIRDeviceMapper,
+    FHIRDiagnosticReportMapper,
     FHIREncounterMapper,
+    FHIRGenomicProfileMapper,
     FHIRGroupMapper,
+    FHIRImagingObservationMapper,
+    FHIRImagingStudyMapper,
+    FHIRMeasureMapper,
+    FHIRMeasureReportMapper,
     FHIRMedicationStatementMapper,
     FHIRObservationMapper,
+
+
     FHIRPatientMapper,
+    FHIRQuestionnaireMapper,
+    FHIRQuestionnaireResponseMapper,
+    FHIRRadiologyReportMapper,
+    FHIRResearchStudyMapper,
     FHIRRiskAssessmentMapper,
+    FHIRServiceRequestMapper,
     FHIRTaskMapper,
 )
+
+
+
+
+
 
 
 from app.services.rag_service import validate_patient_rag_access
@@ -362,3 +403,293 @@ def export_handoff_as_fhir_communication(db: Session, current_user: User, handof
         handoff.patient.patient_id,
     )
     return FHIRCommunicationMapper.to_fhir(handoff, handoff.patient.patient_id)
+
+
+def export_order_as_fhir_service_request(db: Session, current_user: User, order_id_str: str) -> FHIRServiceRequest:
+    """Export internal clinical order as standard FHIR R4 ServiceRequest resource."""
+    stmt = select(ClinicalOrder).where(ClinicalOrder.order_id == order_id_str)
+    order = db.execute(stmt).scalar_one_or_none()
+    if not order:
+        raise ValueError(f"Clinical order with identifier '{order_id_str}' was not found.")
+
+    validate_patient_rag_access(db, current_user, order.patient)
+    logger.info(
+        "Exporting FHIR ServiceRequest resource id=%s for patient=%s",
+        order.order_id,
+        order.patient.patient_id,
+    )
+    return FHIRServiceRequestMapper.to_fhir(order, order.patient.patient_id)
+
+
+def export_result_as_fhir_diagnostic_report(db: Session, current_user: User, result_id_str: str) -> FHIRDiagnosticReport:
+    """Export internal diagnostic result as standard FHIR R4 DiagnosticReport resource."""
+    stmt = select(DiagnosticResult).where(DiagnosticResult.result_id == result_id_str)
+    result = db.execute(stmt).scalar_one_or_none()
+    if not result:
+        raise ValueError(f"Diagnostic result with identifier '{result_id_str}' was not found.")
+
+    validate_patient_rag_access(db, current_user, result.patient)
+    logger.info(
+        "Exporting FHIR DiagnosticReport resource id=%s for patient=%s",
+        result.result_id,
+        result.patient.patient_id,
+    )
+    return FHIRDiagnosticReportMapper.to_fhir(result, result.patient.patient_id)
+
+
+def export_quality_measure_as_fhir(db: Session, current_user: User, measure_id_str: str) -> FHIRMeasure:
+    """Export internal quality measure definition as standard FHIR R4 Measure."""
+    from app.services.quality_service import seed_default_measures
+    seed_default_measures(db)
+
+    stmt = select(QualityMeasure).where(QualityMeasure.measure_id == measure_id_str)
+    measure = db.execute(stmt).scalar_one_or_none()
+    if not measure:
+        raise ValueError(f"Quality measure '{measure_id_str}' was not found.")
+
+    logger.info("Exporting FHIR Measure resource id=%s", measure.measure_id)
+    return FHIRMeasureMapper.to_fhir(measure)
+
+
+
+def export_quality_report_as_fhir(db: Session, current_user: User, report_id_str: str) -> FHIRMeasureReport:
+    """Export population compliance report as standard FHIR R4 MeasureReport."""
+    stmt = select(QualityMeasureReport).where(QualityMeasureReport.report_id == report_id_str)
+    report = db.execute(stmt).scalar_one_or_none()
+    if not report:
+        raise ValueError(f"Compliance report '{report_id_str}' was not found.")
+
+    logger.info("Exporting FHIR MeasureReport resource id=%s", report.report_id)
+    return FHIRMeasureReportMapper.to_fhir(report)
+
+
+def export_device_as_fhir(db: Session, current_user: User, device_id_str: str) -> FHIRDevice:
+    """Export registered RPM device as standard FHIR R4 Device."""
+    stmt = select(RPMDevice).where(RPMDevice.device_id == device_id_str)
+    device = db.execute(stmt).scalar_one_or_none()
+    if not device:
+        raise ValueError(f"Device '{device_id_str}' was not found.")
+
+    if current_user.role == UserRole.PATIENT and device.patient and device.patient.email != current_user.email:
+        raise PermissionError("Access denied to requested device.")
+
+    logger.info("Exporting FHIR Device resource id=%s", device.device_id)
+    return FHIRDeviceMapper.to_fhir(device)
+
+
+def export_questionnaire_as_fhir(db: Session, current_user: User, prom_id_str: str) -> FHIRQuestionnaire:
+    """Export standardized PROM survey as standard FHIR R4 Questionnaire."""
+    from app.services.rpm_service import seed_default_prom_definitions
+    seed_default_prom_definitions(db)
+
+    stmt = select(PROMDefinition).where(PROMDefinition.prom_id == prom_id_str)
+    prom = db.execute(stmt).scalar_one_or_none()
+    if not prom:
+        raise ValueError(f"PROM questionnaire '{prom_id_str}' was not found.")
+
+    logger.info("Exporting FHIR Questionnaire resource id=%s", prom.prom_id)
+    return FHIRQuestionnaireMapper.to_fhir(prom)
+
+
+def export_questionnaire_response_as_fhir(
+    db: Session, current_user: User, response_id_str: str
+) -> FHIRQuestionnaireResponse:
+    """Export patient PROM response as standard FHIR R4 QuestionnaireResponse."""
+    stmt = select(PROMResponse).where(PROMResponse.response_id == response_id_str)
+    resp = db.execute(stmt).scalar_one_or_none()
+    if not resp:
+        raise ValueError(f"PROM response '{response_id_str}' was not found.")
+
+    logger.info("Exporting FHIR QuestionnaireResponse resource id=%s", resp.response_id)
+    return FHIRQuestionnaireResponseMapper.to_fhir(resp)
+
+
+def export_research_study_as_fhir(
+    db: Session, current_user: User, trial_id_str: str
+) -> FHIRResearchStudy:
+    """Export clinical trial as standard FHIR R4 ResearchStudy resource."""
+    from app.services.trial_matching_service import TrialMatchingService
+    trial_svc = TrialMatchingService()
+    trial_svc.seed_standard_clinical_trials(db)
+
+    trial = trial_svc.get_trial(db, trial_id_str)
+    if not trial:
+        raise ValueError(f"Clinical trial '{trial_id_str}' was not found.")
+
+    logger.info("Exporting FHIR ResearchStudy resource id=%s", trial.trial_id)
+    return FHIRResearchStudyMapper.to_fhir(trial)
+
+
+def export_biomarker_observation_as_fhir(
+    db: Session, current_user: User, observation_id_str: str
+) -> FHIRObservation:
+    """Export biomarker observation as standard FHIR R4 Observation resource."""
+    stmt = (
+        select(BiomarkerObservation)
+        .options(selectinload(BiomarkerObservation.patient))
+        .where(BiomarkerObservation.observation_id == observation_id_str)
+    )
+    bm = db.execute(stmt).scalar_one_or_none()
+    if not bm:
+        raise ValueError(f"Biomarker observation '{observation_id_str}' was not found.")
+
+    if current_user.role == UserRole.PATIENT and bm.patient and bm.patient.email != current_user.email:
+        raise PermissionError("Access denied to requested biomarker observation.")
+
+    logger.info("Exporting FHIR Biomarker Observation resource id=%s", bm.observation_id)
+    return FHIRBiomarkerObservationMapper.to_fhir(bm)
+
+
+def export_genomic_profile_as_fhir(
+    db: Session, current_user: User, profile_id_str: str
+) -> FHIRDiagnosticReport:
+    """Export genomic profile as standard FHIR R4 DiagnosticReport resource."""
+    stmt = (
+        select(GenomicProfile)
+        .options(
+            selectinload(GenomicProfile.biomarkers),
+            selectinload(GenomicProfile.patient),
+        )
+        .where(GenomicProfile.profile_id == profile_id_str)
+    )
+    profile = db.execute(stmt).scalar_one_or_none()
+    if not profile:
+        raise ValueError(f"Genomic profile '{profile_id_str}' was not found.")
+
+    if current_user.role == UserRole.PATIENT and profile.patient and profile.patient.email != current_user.email:
+        raise PermissionError("Access denied to requested genomic profile.")
+
+    logger.info("Exporting FHIR Genomic Profile DiagnosticReport resource id=%s", profile.profile_id)
+    return FHIRGenomicProfileMapper.to_fhir(profile)
+
+
+def export_agent_recommendation_task_as_fhir(
+    db: Session, current_user: User, recommendation_id_str: str
+) -> FHIRTask:
+    """Export agent recommendation as standard FHIR R4 Task resource."""
+    stmt = (
+        select(ClinicalAgentRecommendation)
+        .options(selectinload(ClinicalAgentRecommendation.patient))
+        .where(ClinicalAgentRecommendation.recommendation_id == recommendation_id_str)
+    )
+    rec = db.execute(stmt).scalar_one_or_none()
+    if not rec:
+        raise ValueError(f"Agent recommendation '{recommendation_id_str}' was not found.")
+
+    if current_user.role == UserRole.PATIENT and rec.patient and rec.patient.email != current_user.email:
+        raise PermissionError("Access denied to requested agent recommendation.")
+
+    patient_id = rec.patient.patient_id if rec.patient else "UNKNOWN"
+    logger.info("Exporting FHIR Task resource for agent recommendation id=%s", rec.recommendation_id)
+    return FHIRAgentRecommendationTaskMapper.to_fhir(rec, patient_id)
+
+
+def export_agent_provenance_as_fhir(
+    db: Session, current_user: User, run_id_str: str
+) -> FHIRProvenance:
+    """Export agent execution run as standard FHIR R4 Provenance resource."""
+    stmt = (
+        select(ClinicalAgentRun)
+        .options(
+            selectinload(ClinicalAgentRun.patient),
+            selectinload(ClinicalAgentRun.recommendations),
+        )
+        .where(ClinicalAgentRun.run_id == run_id_str)
+    )
+    run = db.execute(stmt).scalar_one_or_none()
+    if not run:
+        raise ValueError(f"Agent run '{run_id_str}' was not found.")
+
+    if current_user.role == UserRole.PATIENT and run.patient and run.patient.email != current_user.email:
+        raise PermissionError("Access denied to requested agent run provenance.")
+
+    patient_id = run.patient.patient_id if run.patient else "UNKNOWN"
+    logger.info("Exporting FHIR Provenance resource for agent run id=%s", run.run_id)
+    return FHIRAgentProvenanceMapper.to_fhir(run, patient_id)
+
+
+def export_imaging_study_as_fhir(
+    db: Session, current_user: User, study_id_str: str
+) -> FHIRImagingStudy:
+    """Export ImagingStudy as standard FHIR R4 ImagingStudy resource."""
+    stmt = (
+        select(ImagingStudy)
+        .options(
+            selectinload(ImagingStudy.patient),
+            selectinload(ImagingStudy.encounter),
+            selectinload(ImagingStudy.assets),
+            selectinload(ImagingStudy.findings),
+            selectinload(ImagingStudy.reports),
+        )
+        .where((ImagingStudy.study_id == study_id_str) | (ImagingStudy.study_id == f"STU-{study_id_str}"))
+    )
+    study = db.execute(stmt).scalar_one_or_none()
+    if not study:
+        # Check if numeric
+        if study_id_str.isdigit():
+            study = db.get(ImagingStudy, int(study_id_str))
+    if not study:
+        raise ValueError(f"Imaging study '{study_id_str}' was not found.")
+
+    if current_user.role == UserRole.PATIENT and study.patient and study.patient.email != current_user.email:
+        raise PermissionError("Access denied to requested imaging study.")
+
+    logger.info("Exporting FHIR ImagingStudy resource id=%s", study.study_id)
+    return FHIRImagingStudyMapper.to_fhir(study)
+
+
+def export_radiology_report_as_fhir(
+    db: Session, current_user: User, report_id_str: str
+) -> FHIRDiagnosticReport:
+    """Export RadiologyReport as standard FHIR R4 DiagnosticReport resource."""
+    stmt = (
+        select(RadiologyReport)
+        .options(
+            selectinload(RadiologyReport.patient),
+            selectinload(RadiologyReport.study).selectinload(ImagingStudy.findings),
+            selectinload(RadiologyReport.encounter),
+            selectinload(RadiologyReport.order),
+            selectinload(RadiologyReport.author_user),
+            selectinload(RadiologyReport.signed_by_user),
+        )
+        .where((RadiologyReport.report_id == report_id_str) | (RadiologyReport.report_id == f"RAD-{report_id_str}"))
+    )
+    report = db.execute(stmt).scalar_one_or_none()
+    if not report:
+        if report_id_str.isdigit():
+            report = db.get(RadiologyReport, int(report_id_str))
+    if not report:
+        raise ValueError(f"Radiology report '{report_id_str}' was not found.")
+
+    if current_user.role == UserRole.PATIENT and report.patient and report.patient.email != current_user.email:
+        raise PermissionError("Access denied to requested radiology report.")
+
+    logger.info("Exporting FHIR DiagnosticReport resource for radiology report id=%s", report.report_id)
+    return FHIRRadiologyReportMapper.to_fhir(report)
+
+
+def export_imaging_observation_as_fhir(
+    db: Session, current_user: User, finding_id_str: str
+) -> FHIRObservation:
+    """Export ImagingFinding as standard FHIR R4 Observation resource."""
+    stmt = (
+        select(ImagingFinding)
+        .options(
+            selectinload(ImagingFinding.patient),
+            selectinload(ImagingFinding.study),
+            selectinload(ImagingFinding.asset),
+        )
+        .where((ImagingFinding.finding_id == finding_id_str) | (ImagingFinding.finding_id == f"FND-{finding_id_str}"))
+    )
+    finding = db.execute(stmt).scalar_one_or_none()
+    if not finding:
+        if finding_id_str.isdigit():
+            finding = db.get(ImagingFinding, int(finding_id_str))
+    if not finding:
+        raise ValueError(f"Imaging finding '{finding_id_str}' was not found.")
+
+    if current_user.role == UserRole.PATIENT and finding.patient and finding.patient.email != current_user.email:
+        raise PermissionError("Access denied to requested imaging finding.")
+
+    logger.info("Exporting FHIR Observation resource for imaging finding id=%s", finding.finding_id)
+    return FHIRImagingObservationMapper.to_fhir(finding)

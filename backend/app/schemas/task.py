@@ -40,6 +40,30 @@ class BackgroundTaskType(str, Enum):
     RISK_STRATIFICATION = "risk_stratification"
     HANDOFF_SYNTHESIS = "handoff_synthesis"
     DISCHARGE_SYNTHESIS = "discharge_synthesis"
+    ORDER_VERIFICATION = "order_verification"
+    RESULT_INGESTION = "result_ingestion"
+    QUALITY_MEASURE_CALCULATION = "quality_measure_calculation"
+    QUALITY_GAP_ANALYSIS = "quality_gap_analysis"
+    QUALITY_REPORT_GENERATION = "quality_report_generation"
+    RPM_OBSERVATION_PROCESSING = "rpm_observation_processing"
+    RPM_THRESHOLD_EVALUATION = "rpm_threshold_evaluation"
+    RPM_ESCALATION_PROCESSING = "rpm_escalation_processing"
+    PROM_SCORING = "prom_scoring"
+    TELEHEALTH_REMINDER = "telehealth_reminder"
+    TRIAL_MATCHING = "trial_matching"
+    GENOMIC_ANALYSIS = "genomic_analysis"
+    PRECISION_ELIGIBILITY = "precision_eligibility"
+    CLINICAL_AGENT_RUN = "clinical_agent_run"
+    CARE_COORDINATION_SYNTHESIS = "care_coordination_synthesis"
+    IMAGING_ANALYSIS = "imaging_analysis"
+    RADIOLOGY_REPORT_SYNTHESIS = "radiology_report_synthesis"
+    CRITICAL_FINDING_ESCALATION = "critical_finding_escalation"
+
+
+
+
+
+
 
 
 

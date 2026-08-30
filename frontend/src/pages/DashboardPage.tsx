@@ -19,6 +19,12 @@ import { VitalTelemetryWorkspace } from '../components/telemetry/VitalTelemetryW
 import { CarePlanWorkspace } from '../components/care/CarePlanWorkspace';
 import { CohortWorkspace } from '../components/cohorts/CohortWorkspace';
 import { TransitionsWorkspace } from '../components/transitions/TransitionsWorkspace';
+import { OrdersWorkspace } from '../components/orders/OrdersWorkspace';
+import { QualityMeasuresWorkspace } from '../components/quality/QualityMeasuresWorkspace';
+import { RPMWorkspace } from '../components/rpm/RPMWorkspace';
+import { TrialsPrecisionWorkspace } from '../components/trials/TrialsPrecisionWorkspace';
+import { ClinicalAgentsWorkspace } from '../components/agents/ClinicalAgentsWorkspace';
+import { ImagingRadiologyWorkspace } from '../components/imaging/ImagingRadiologyWorkspace';
 import { TaskMonitor } from '../components/tasks/TaskMonitor';
 import { carePlansApi, mediaApi, notesApi } from '../api/client';
 import { CarePlanCategory, NoteType } from '../types';
@@ -42,7 +48,19 @@ export const DashboardPage: React.FC = () => {
     | 'care_plans'
     | 'cohorts'
     | 'transitions'
+    | 'orders'
+    | 'quality'
+    | 'rpm'
+    | 'trials'
+    | 'agents'
+    | 'imaging'
   >('chat');
+
+
+
+
+
+
 
 
 
@@ -145,6 +163,45 @@ export const DashboardPage: React.FC = () => {
             >
               🔄 Transitions & Discharge
             </button>
+            <button
+              className={`btn btn-sm ${activeTab === 'orders' ? 'btn-primary' : 'btn-secondary'}`}
+              onClick={() => setActiveTab('orders')}
+            >
+              📦 Orders & Diagnostics
+            </button>
+            <button
+              className={`btn btn-sm ${activeTab === 'quality' ? 'btn-primary' : 'btn-secondary'}`}
+              onClick={() => setActiveTab('quality')}
+            >
+              📊 Clinical Quality & Compliance
+            </button>
+            <button
+              className={`btn btn-sm ${activeTab === 'rpm' ? 'btn-primary' : 'btn-secondary'}`}
+              onClick={() => setActiveTab('rpm')}
+            >
+              📡 Remote Monitoring & Telehealth
+            </button>
+            <button
+              data-testid="tab-btn-trials"
+              className={`btn btn-sm ${activeTab === 'trials' ? 'btn-primary' : 'btn-secondary'}`}
+              onClick={() => setActiveTab('trials')}
+            >
+              🧬 Precision Oncology & Trials
+            </button>
+            <button
+              data-testid="tab-btn-agents"
+              className={`btn btn-sm ${activeTab === 'agents' ? 'btn-primary' : 'btn-secondary'}`}
+              onClick={() => setActiveTab('agents')}
+            >
+              🤖 Clinical AI & Care Coordination
+            </button>
+            <button
+              data-testid="tab-btn-imaging"
+              className={`btn btn-sm ${activeTab === 'imaging' ? 'btn-primary' : 'btn-secondary'}`}
+              onClick={() => setActiveTab('imaging')}
+            >
+              🩻 Medical Imaging & Radiology
+            </button>
           </div>
 
           {/* Active Workspace View */}
@@ -193,7 +250,35 @@ export const DashboardPage: React.FC = () => {
                 currentUser={user}
               />
             )}
+            {activeTab === 'orders' && <OrdersWorkspace />}
+            {activeTab === 'quality' && <QualityMeasuresWorkspace />}
+            {activeTab === 'rpm' && (
+              <RPMWorkspace
+                currentUser={user}
+                activePatient={selectedPatient}
+              />
+            )}
+            {activeTab === 'trials' && (
+              <TrialsPrecisionWorkspace
+                initialPatientId={selectedPatient?.patient_id}
+              />
+            )}
+            {activeTab === 'agents' && (
+              <ClinicalAgentsWorkspace />
+            )}
+            {activeTab === 'imaging' && (
+              <ImagingRadiologyWorkspace
+                currentUser={user}
+                selectedPatientId={selectedPatient?.patient_id}
+              />
+            )}
           </div>
+
+
+
+
+
+
 
 
         </section>

@@ -13,10 +13,48 @@ from app.models.encounter import Encounter
 from app.models.handoff import ClinicalHandoff
 from app.models.media import DiagnosticMedia
 from app.models.note import ClinicalNote
+from app.models.order import ClinicalOrder, DiagnosticResult
 from app.models.patient import Patient
+from app.models.quality import (
+    QualityMeasure,
+    QualityMeasureGap,
+    QualityMeasureReport,
+    QualityMeasureResult,
+)
 from app.models.risk_assessment import ClinicalRiskAssessment
 from app.models.user import User
 from app.models.vital import VitalTelemetry
+
+from app.models.rpm import (
+    PROMDefinition,
+    PROMResponse,
+    RPMDevice,
+    RPMEscalationAlert,
+    RPMObservation,
+    RPMProgram,
+    RPMThresholdRule,
+    TelehealthSession,
+)
+from app.models.trials import (
+    BiomarkerObservation,
+    ClinicalTrial,
+    GenomicProfile,
+    PrecisionTreatmentEligibility,
+    TrialEligibilityCriterion,
+    TrialMatch,
+)
+from app.models.agents import (
+    AgentEvidenceReference,
+    ClinicalAgentDefinition,
+    ClinicalAgentRecommendation,
+    ClinicalAgentRun,
+)
+from app.models.imaging import (
+    ImagingAsset,
+    ImagingFinding,
+    ImagingStudy,
+    RadiologyReport,
+)
 
 __all__ = [
     "User",
@@ -39,4 +77,32 @@ __all__ = [
     "ClinicalRiskAssessment",
     "ClinicalHandoff",
     "DischargeProtocol",
+    "ClinicalOrder",
+    "DiagnosticResult",
+    "QualityMeasure",
+    "QualityMeasureResult",
+    "QualityMeasureGap",
+    "QualityMeasureReport",
+    "RPMProgram",
+    "RPMDevice",
+    "RPMObservation",
+    "RPMThresholdRule",
+    "RPMEscalationAlert",
+    "PROMDefinition",
+    "PROMResponse",
+    "TelehealthSession",
+    "ClinicalTrial",
+    "TrialEligibilityCriterion",
+    "GenomicProfile",
+    "BiomarkerObservation",
+    "TrialMatch",
+    "PrecisionTreatmentEligibility",
+    "ClinicalAgentDefinition",
+    "ClinicalAgentRun",
+    "ClinicalAgentRecommendation",
+    "AgentEvidenceReference",
+    "ImagingStudy",
+    "ImagingAsset",
+    "ImagingFinding",
+    "RadiologyReport",
 ]

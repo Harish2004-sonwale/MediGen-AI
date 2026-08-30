@@ -17,7 +17,23 @@ class FHIRResourceType(str, Enum):
     RISK_ASSESSMENT = "RiskAssessment"
     COMPOSITION = "Composition"
     COMMUNICATION = "Communication"
+    SERVICE_REQUEST = "ServiceRequest"
+    DIAGNOSTIC_REPORT = "DiagnosticReport"
+    MEASURE = "Measure"
+    MEASURE_REPORT = "MeasureReport"
+    DEVICE = "Device"
+    QUESTIONNAIRE = "Questionnaire"
+    QUESTIONNAIRE_RESPONSE = "QuestionnaireResponse"
+    RESEARCH_STUDY = "ResearchStudy"
+    PROVENANCE = "Provenance"
+    IMAGING_STUDY = "ImagingStudy"
     BUNDLE = "Bundle"
+
+
+
+
+
+
 
 
 
@@ -333,9 +349,246 @@ class FHIRCommunication(BaseModel):
     payload: list[dict[str, Any]] = Field(default_factory=list, description="Message payload content")
 
 
+class FHIRServiceRequest(BaseModel):
+    model_config = ConfigDict(extra="allow", populate_by_name=True)
+
+    resourceType: str = Field(default="ServiceRequest", description="FHIR resource type")
+    id: Optional[str] = Field(default=None, description="Logical id of this artifact")
+    identifier: list[FHIRIdentifier] = Field(default_factory=list, description="Identifiers assigned to this order")
+    status: str = Field(default="active", description="draft | active | on-hold | revoked | completed | entered-in-error | unknown")
+    intent: str = Field(default="order", description="proposal | plan | directive | order | original-order | reflex-order | filler-order | instance-order | option")
+    category: list[FHIRCodeableConcept] = Field(default_factory=list, description="Classification of service")
+    priority: Optional[str] = Field(default="routine", description="routine | urgent | asap | stat")
+    code: Optional[FHIRCodeableConcept] = Field(default=None, description="What is being requested/ordered")
+    subject: FHIRReference = Field(..., description="Individual the service is ordered for")
+    encounter: Optional[FHIRReference] = Field(default=None, description="Encounter in which the request was created")
+    occurrenceDateTime: Optional[str] = Field(default=None, description="When service should occur")
+    authoredOn: Optional[str] = Field(default=None, description="Date request signed")
+    requester: Optional[FHIRReference] = Field(default=None, description="Who/what is requesting service")
+    reasonCode: list[FHIRCodeableConcept] = Field(default_factory=list, description="Explanation/Justification for procedure or service")
+
+
+class FHIRDiagnosticReport(BaseModel):
+    model_config = ConfigDict(extra="allow", populate_by_name=True)
+
+    resourceType: str = Field(default="DiagnosticReport", description="FHIR resource type")
+    id: Optional[str] = Field(default=None, description="Logical id of this artifact")
+    identifier: list[FHIRIdentifier] = Field(default_factory=list, description="Business identifier for report")
+    basedOn: list[FHIRReference] = Field(default_factory=list, description="What was requested (ServiceRequest reference)")
+    status: str = Field(default="final", description="registered | partial | preliminary | final | amended | corrected | appended | cancelled | entered-in-error | unknown")
+    category: list[FHIRCodeableConcept] = Field(default_factory=list, description="Service category (e.g. LAB, RAD)")
+    code: FHIRCodeableConcept = Field(..., description="Name/Code for this diagnostic report (LOINC)")
+    subject: Optional[FHIRReference] = Field(default=None, description="The subject of the report")
+    encounter: Optional[FHIRReference] = Field(default=None, description="Health care event when test was ordered")
+    effectiveDateTime: Optional[str] = Field(default=None, description="Clinically relevant time/time-period for report")
+    issued: Optional[str] = Field(default=None, description="DateTime this version was made")
+    performer: list[FHIRReference] = Field(default_factory=list, description="Responsible Diagnostic Service")
+    result: list[FHIRReference] = Field(default_factory=list, description="Observations forming part of this report")
+    conclusion: Optional[str] = Field(default=None, description="Clinical conclusion (interpretation) of test results")
+
+
+class FHIRMeasure(BaseModel):
+    model_config = ConfigDict(extra="allow", populate_by_name=True)
+
+    resourceType: str = Field(default="Measure", description="FHIR resource type")
+    id: Optional[str] = Field(default=None, description="Logical id of this artifact")
+    url: Optional[str] = Field(default=None, description="Canonical identifier for this measure")
+    identifier: list[FHIRIdentifier] = Field(default_factory=list, description="Additional identifier for the measure")
+    version: Optional[str] = Field(default="1.0.0", description="Business version of the measure")
+    name: Optional[str] = Field(default=None, description="Name for this measure (computer friendly)")
+    title: Optional[str] = Field(default=None, description="Name for this measure (human friendly)")
+    status: str = Field(default="active", description="draft | active | retired | unknown")
+    description: Optional[str] = Field(default=None, description="Natural language description of the measure")
+    topic: list[FHIRCodeableConcept] = Field(default_factory=list, description="The category of the measure (e.g. chronic_disease_management)")
+
+
+class FHIRMeasureReportGroupStratifier(BaseModel):
+    code: list[FHIRCodeableConcept] = Field(default_factory=list)
+    stratum: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class FHIRMeasureReportGroupPopulation(BaseModel):
+    code: Optional[FHIRCodeableConcept] = Field(default=None, description="initial-population | numerator | denominator | denominator-exclusion | denominator-exception")
+    count: Optional[int] = Field(default=0, description="Size of the population")
+
+
+class FHIRMeasureReportGroup(BaseModel):
+    code: Optional[FHIRCodeableConcept] = Field(default=None, description="Meaning of the group")
+    population: list[FHIRMeasureReportGroupPopulation] = Field(default_factory=list, description="The populations in the group")
+    measureScore: Optional[FHIRQuantity] = Field(default=None, description="What score this group achieved")
+
+
+class FHIRMeasureReport(BaseModel):
+    model_config = ConfigDict(extra="allow", populate_by_name=True)
+
+    resourceType: str = Field(default="MeasureReport", description="FHIR resource type")
+    id: Optional[str] = Field(default=None, description="Logical id of this artifact")
+    identifier: list[FHIRIdentifier] = Field(default_factory=list, description="Additional identifier for the measure report")
+    status: str = Field(default="complete", description="complete | pending | error")
+    type: str = Field(default="summary", description="individual | subject-list | summary | data-exchange")
+    measure: str = Field(..., description="What measure was calculated (canonical URL or reference)")
+    subject: Optional[FHIRReference] = Field(default=None, description="What individual(s) the report is for")
+    date: Optional[str] = Field(default=None, description="When the report was generated")
+    reporter: Optional[FHIRReference] = Field(default=None, description="Who is reporting the data")
+    period: FHIRPeriod = Field(..., description="What period the report covers")
+    group: list[FHIRMeasureReportGroup] = Field(default_factory=list, description="Measure results for each group")
+    evaluatedResource: list[FHIRReference] = Field(default_factory=list, description="What data was used to calculate the measure score")
+
+
+
+
+
+
+class FHIRDevice(BaseModel):
+    model_config = ConfigDict(extra="allow", populate_by_name=True)
+
+    resourceType: str = Field(default="Device", description="FHIR resource type")
+    id: Optional[str] = Field(default=None, description="Logical id of this artifact")
+    identifier: list[FHIRIdentifier] = Field(default_factory=list, description="Instance identifier")
+    status: str = Field(default="active", description="active | inactive | entered-in-error | unknown")
+    manufacturer: Optional[str] = Field(default=None, description="Name of device manufacturer")
+    modelNumber: Optional[str] = Field(default=None, description="The manufacturer's model number for the device")
+    serialNumber: Optional[str] = Field(default=None, description="Serial number assigned by the manufacturer")
+    type: Optional[FHIRCodeableConcept] = Field(default=None, description="The kind or type of device")
+    patient: Optional[FHIRReference] = Field(default=None, description="Patient to whom Device is affiliated")
+
+
+class FHIRQuestionnaireItemOption(BaseModel):
+    valueCoding: Optional[FHIRCoding] = None
+    valueString: Optional[str] = None
+    valueInteger: Optional[int] = None
+
+
+class FHIRQuestionnaireItem(BaseModel):
+    linkId: str = Field(..., description="Unique id for item in questionnaire")
+    text: Optional[str] = Field(default=None, description="Primary text for the item")
+    type: str = Field(default="choice", description="group | display | boolean | decimal | integer | date | dateTime | time | string | text | url | choice | open-choice | attachment | reference | quantity")
+    required: Optional[bool] = Field(default=False, description="Whether the item must be included in response")
+    answerOption: list[FHIRQuestionnaireItemOption] = Field(default_factory=list, description="Permitted answer options")
+
+
+class FHIRQuestionnaire(BaseModel):
+    model_config = ConfigDict(extra="allow", populate_by_name=True)
+
+    resourceType: str = Field(default="Questionnaire", description="FHIR resource type")
+    id: Optional[str] = Field(default=None, description="Logical id of this artifact")
+    identifier: list[FHIRIdentifier] = Field(default_factory=list, description="External identifier for questionnaire")
+    url: Optional[str] = Field(default=None, description="Canonical identifier for this questionnaire")
+    version: Optional[str] = Field(default="1.0.0", description="Business version of the questionnaire")
+    title: Optional[str] = Field(default=None, description="Name for this questionnaire (human friendly)")
+    status: str = Field(default="active", description="draft | active | retired | unknown")
+    date: Optional[str] = Field(default=None, description="Date last changed")
+    publisher: Optional[str] = Field(default="MediGen-AI", description="Name of the publisher/steward")
+    description: Optional[str] = Field(default=None, description="Natural language description of the questionnaire")
+    item: list[FHIRQuestionnaireItem] = Field(default_factory=list, description="Questions and sections within the Questionnaire")
+
+
+class FHIRQuestionnaireResponseItemAnswer(BaseModel):
+    valueDecimal: Optional[float] = None
+    valueInteger: Optional[int] = None
+    valueString: Optional[str] = None
+    valueCoding: Optional[FHIRCoding] = None
+
+
+class FHIRQuestionnaireResponseItem(BaseModel):
+    linkId: str = Field(..., description="Pointer to specific item from Questionnaire")
+    text: Optional[str] = Field(default=None, description="Name for group or question text")
+    answer: list[FHIRQuestionnaireResponseItemAnswer] = Field(default_factory=list, description="The response(s) to the question")
+
+
+class FHIRQuestionnaireResponse(BaseModel):
+    model_config = ConfigDict(extra="allow", populate_by_name=True)
+
+    resourceType: str = Field(default="QuestionnaireResponse", description="FHIR resource type")
+    id: Optional[str] = Field(default=None, description="Logical id of this artifact")
+    identifier: Optional[FHIRIdentifier] = Field(default=None, description="Unique id for this set of answers")
+    questionnaire: Optional[str] = Field(default=None, description="Canonical URL or reference of questionnaire being answered")
+    status: str = Field(default="completed", description="in-progress | completed | amended | entered-in-error | stopped")
+    subject: Optional[FHIRReference] = Field(default=None, description="The subject of the questions (Patient)")
+    encounter: Optional[FHIRReference] = Field(default=None, description="Encounter created as part of this response")
+    authored: Optional[str] = Field(default=None, description="Date the answers were gathered")
+    author: Optional[FHIRReference] = Field(default=None, description="Person who received and recorded the answers")
+    item: list[FHIRQuestionnaireResponseItem] = Field(default_factory=list, description="Groups and questions")
+
+
+class FHIRResearchStudy(BaseModel):
+    model_config = ConfigDict(extra="allow", populate_by_name=True)
+
+    resourceType: str = Field(default="ResearchStudy", description="FHIR resource type")
+    id: Optional[str] = Field(default=None, description="Logical id of this artifact")
+    identifier: list[FHIRIdentifier] = Field(default_factory=list, description="Business Identifier for study")
+    title: Optional[str] = Field(default=None, description="Name for this study")
+    status: str = Field(default="active", description="active | administratively-completed | approved | closed-to-accrual | closed-to-accrual-and-intervention | completed | disapproved | in-review | temporarily-closed-to-accrual | temporarily-closed-to-accrual-and-intervention | withdrawn")
+    phase: Optional[FHIRCodeableConcept] = Field(default=None, description="n-a | early-phase-1 | phase-1 | phase-1-phase-2 | phase-2 | phase-2-phase-3 | phase-3 | phase-4")
+    category: list[FHIRCodeableConcept] = Field(default_factory=list, description="Classifications for the study")
+    condition: list[FHIRCodeableConcept] = Field(default_factory=list, description="Condition being studied")
+    sponsor: Optional[FHIRReference] = Field(default=None, description="Organization that estimates and takes responsibility for the study")
+    description: Optional[str] = Field(default=None, description="What this study is doing")
+
+
+class FHIRProvenanceAgent(BaseModel):
+    type: Optional[FHIRCodeableConcept] = Field(default=None, description="How the agent participated")
+    role: list[FHIRCodeableConcept] = Field(default_factory=list, description="What the agents role was")
+    who: FHIRReference = Field(..., description="Who participated (Practitioner, Device, Software)")
+
+
+class FHIRProvenanceEntity(BaseModel):
+    role: str = Field(default="derivation", description="derivation | revision | quotation | source | removal")
+    what: FHIRReference = Field(..., description="Identity of entity (Observation, Encounter, Document)")
+
+
+class FHIRProvenance(BaseModel):
+    model_config = ConfigDict(extra="allow", populate_by_name=True)
+
+    resourceType: str = Field(default="Provenance", description="FHIR resource type")
+    id: Optional[str] = Field(default=None, description="Logical id of this artifact")
+    target: list[FHIRReference] = Field(default_factory=list, description="Target Reference(s) (e.g. Task, CarePlan)")
+    recorded: str = Field(..., description="When the activity was recorded / evaluated")
+    policy: list[str] = Field(default_factory=list, description="Policy under which the activity was defined")
+    activity: Optional[FHIRCodeableConcept] = Field(default=None, description="Activity that occurred (e.g. multi-agent care coordination synthesis)")
+    agent: list[FHIRProvenanceAgent] = Field(default_factory=list, description="Actor involved")
+    entity: list[FHIRProvenanceEntity] = Field(default_factory=list, description="An entity used in this activity")
+class FHIRImagingStudyInstance(BaseModel):
+    uid: str = Field(..., description="DICOM SOP Instance UID")
+    sopClass: Optional[FHIRCoding] = Field(default=None, description="DICOM class type")
+    number: Optional[int] = Field(default=1, description="The number of this instance in the series")
+    title: Optional[str] = Field(default=None, description="Description of instance")
+
+
+class FHIRImagingStudySeries(BaseModel):
+    uid: str = Field(..., description="DICOM Series Instance UID")
+    number: Optional[int] = Field(default=1, description="Numeric identifier of this series")
+    modality: FHIRCoding = Field(..., description="The modality of the instances in the series")
+    description: Optional[str] = Field(default=None, description="A short description of the series")
+    numberOfInstances: Optional[int] = Field(default=1, description="Number of series instances")
+    bodySite: Optional[FHIRCoding] = Field(default=None, description="Body part examined")
+    instance: list[FHIRImagingStudyInstance] = Field(default_factory=list, description="A single SOP instance")
+
+
+class FHIRImagingStudy(BaseModel):
+    model_config = ConfigDict(extra="allow", populate_by_name=True)
+
+    resourceType: str = Field(default="ImagingStudy", description="FHIR resource type")
+    id: Optional[str] = Field(default=None, description="Logical id of this artifact")
+    identifier: list[FHIRIdentifier] = Field(default_factory=list, description="Accession number or study UID")
+    status: str = Field(default="available", description="registered | available | cancelled | entered-in-error | unknown")
+    modality: list[FHIRCoding] = Field(default_factory=list, description="All modalities in study")
+    subject: FHIRReference = Field(..., description="Who or what the study is about (Patient)")
+    encounter: Optional[FHIRReference] = Field(default=None, description="Encounter with which study is associated")
+    started: Optional[str] = Field(default=None, description="When the study was started")
+    basedOn: list[FHIRReference] = Field(default_factory=list, description="Order that generated study (ServiceRequest / ClinicalOrder)")
+    referrer: Optional[FHIRReference] = Field(default=None, description="Referring physician")
+    numberOfSeries: Optional[int] = Field(default=1, description="Number of Study Related Series")
+    numberOfInstances: Optional[int] = Field(default=1, description="Number of Study Related Instances")
+    description: Optional[str] = Field(default=None, description="Institution-generated description of the study")
+    series: list[FHIRImagingStudySeries] = Field(default_factory=list, description="Each study has one or more series of instances")
 
 
 # FHIR Bundle Models
+
+
+
+
 
 class FHIRBundleEntryRequest(BaseModel):
     method: str = Field(default="POST", description="GET | HEAD | POST | PUT | DELETE | PATCH")
