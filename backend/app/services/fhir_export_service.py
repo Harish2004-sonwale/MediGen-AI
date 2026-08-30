@@ -78,7 +78,12 @@ from app.services.fhir_mapper_service import (
     FHIRRiskAssessmentMapper,
     FHIRServiceRequestMapper,
     FHIRTaskMapper,
+    FHIRConsentMapper,
+    FHIRAuditEventMapper,
 )
+from app.models.security import AuditAction, AuditOutcome, ClinicalAuditEvent, PatientConsent
+from app.schemas.fhir import FHIRAuditEvent, FHIRConsent
+from app.services.audit_service import audit_service
 
 
 
@@ -693,3 +698,100 @@ def export_imaging_observation_as_fhir(
 
     logger.info("Exporting FHIR Observation resource for imaging finding id=%s", finding.finding_id)
     return FHIRImagingObservationMapper.to_fhir(finding)
+
+
+def export_consent_as_fhir(db: Session, current_user: User, consent_id_str: str) -> FHIRConsent:
+    """Export PatientConsent directive as standard FHIR R4 Consent resource."""
+    stmt = (
+        select(PatientConsent)
+        .options(selectinload(PatientConsent.patient))
+        .where(PatientConsent.consent_id == consent_id_str)
+    )
+    consent = db.execute(stmt).scalar_one_or_none()
+    if not consent:
+        raise ValueError(f"Patient consent directive '{consent_id_str}' was not found.")
+
+    if current_user.role == UserRole.PATIENT and consent.patient and consent.patient.email != current_user.email:
+        raise PermissionError("Access denied to requested patient consent directive.")
+
+    logger.info("Exporting FHIR Consent resource id=%s for patient=%s", consent.consent_id, consent.patient_id)
+    audit_service.emit_audit_event(
+        db=db,
+        action=AuditAction.EXPORT,
+        resource_type="Consent",
+        resource_id=consent.consent_id,
+        user_id=current_user.id,
+        user_role=current_user.role.value if hasattr(current_user.role, "value") else str(current_user.role),
+        patient_id=consent.patient_id,
+        purpose_of_use=consent.purpose_of_use,
+        outcome=AuditOutcome.SUCCESS,
+        metadata={"format": "FHIR_R4_Consent"},
+    )
+    return FHIRConsentMapper.map_consent(consent, consent.patient)
+
+
+def export_audit_event_as_fhir(db: Session, current_user: User, event_id_str: str) -> FHIRAuditEvent:
+    """Export ClinicalAuditEvent as standard FHIR R4 AuditEvent resource."""
+    if current_user.role == UserRole.PATIENT:
+        raise PermissionError("Patients are not authorized to view raw audit event stream.")
+
+    stmt = select(ClinicalAuditEvent).where(ClinicalAuditEvent.event_id == event_id_str)
+    event = db.execute(stmt).scalar_one_or_none()
+    if not event:
+        raise ValueError(f"Audit event '{event_id_str}' was not found.")
+
+    patient = None
+    if event.patient_id:
+        patient = db.execute(
+            select(Patient).where(Patient.patient_id == event.patient_id)
+        ).scalar_one_or_none()
+
+    logger.info("Exporting FHIR AuditEvent resource id=%s", event.event_id)
+    return FHIRAuditEventMapper.map_audit_event(event, patient)
+
+
+def export_patient_consents_bundle_as_fhir(
+    db: Session, current_user: User, patient_id_str: str
+) -> FHIRBundle:
+    """Export all consent directives for a patient as a standard FHIR R4 collection Bundle."""
+    patient = resolve_patient(db, patient_id_str)
+    validate_patient_rag_access(db, current_user, patient)
+
+    stmt = (
+        select(PatientConsent)
+        .options(selectinload(PatientConsent.patient))
+        .where(PatientConsent.patient_id == patient.patient_id)
+        .order_by(PatientConsent.id.desc())
+    )
+    consents = list(db.execute(stmt).scalars().all())
+
+    entries: list[FHIRBundleEntry] = []
+    for c in consents:
+        fhir_res = FHIRConsentMapper.map_consent(c, patient)
+        entries.append(
+            FHIRBundleEntry(
+                fullUrl=f"urn:uuid:{c.consent_id}",
+                resource=fhir_res.model_dump(exclude_none=True, by_alias=True),
+            )
+        )
+
+    audit_service.emit_audit_event(
+        db=db,
+        action=AuditAction.EXPORT,
+        resource_type="Bundle",
+        resource_id=f"consents-{patient.patient_id}",
+        user_id=current_user.id,
+        user_role=current_user.role.value if hasattr(current_user.role, "value") else str(current_user.role),
+        patient_id=patient.patient_id,
+        purpose_of_use="TREATMENT",
+        outcome=AuditOutcome.SUCCESS,
+        metadata={"bundle_type": "ConsentCollection", "total_entries": len(entries)},
+    )
+
+    return FHIRBundle(
+        id=f"bundle-consents-{patient.patient_id}",
+        type="collection",
+        timestamp=datetime.now(timezone.utc).isoformat(),
+        total=len(entries),
+        entry=entries,
+    )

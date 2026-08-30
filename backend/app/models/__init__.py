@@ -55,6 +55,13 @@ from app.models.imaging import (
     ImagingStudy,
     RadiologyReport,
 )
+from app.models.security import (
+    ClinicalAuditEvent,
+    DataRetentionPolicy,
+    LegalClinicalHold,
+    PatientConsent,
+    SecurityIncident,
+)
 
 __all__ = [
     "User",
@@ -105,4 +112,9 @@ __all__ = [
     "ImagingAsset",
     "ImagingFinding",
     "RadiologyReport",
+    "ClinicalAuditEvent",
+    "PatientConsent",
+    "SecurityIncident",
+    "DataRetentionPolicy",
+    "LegalClinicalHold",
 ]

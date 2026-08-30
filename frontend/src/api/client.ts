@@ -139,6 +139,24 @@ import {
   ImagingTimelineResponse,
   RadiologyReport,
   ReportStatus,
+  AuditEventListResponse,
+  AuditIntegrityVerificationResponse,
+  ClinicalAuditEvent,
+  ComplianceSummaryResponse,
+  ConsentVerificationRequest,
+  ConsentVerificationResponse,
+  DataRetentionPolicy,
+  DataRetentionPolicyCreateRequest,
+  LegalClinicalHold,
+  LegalClinicalHoldCreateRequest,
+  LegalClinicalHoldReleaseRequest,
+  PatientConsent,
+  PatientConsentCreateRequest,
+  PatientConsentRevokeRequest,
+  SecurityIncident,
+  SecurityIncidentCreateRequest,
+  SecurityIncidentUpdateRequest,
+  SecurityScanResult,
 } from '../types';
 
 
@@ -2057,5 +2075,212 @@ export const fhirApi = {
 
   exportImagingObservation: async (findingId: string): Promise<any> => {
     return apiRequest<any>(`/fhir/ImagingObservation/${encodeURIComponent(findingId)}`, { method: 'GET' });
+  },
+
+  exportConsent: async (consentId: string): Promise<any> => {
+    return apiRequest<any>(`/fhir/Consent/${encodeURIComponent(consentId)}`, { method: 'GET' });
+  },
+
+  exportAuditEvent: async (eventId: string): Promise<any> => {
+    return apiRequest<any>(`/fhir/AuditEvent/${encodeURIComponent(eventId)}`, { method: 'GET' });
+  },
+
+  exportPatientConsentsBundle: async (patientId: string): Promise<any> => {
+    return apiRequest<any>(`/fhir/patients/${encodeURIComponent(patientId)}/consents`, { method: 'GET' });
+  },
+};
+
+// 19. Clinical Security, Auditability, Consent & Compliance Governance API
+export const securityApi = {
+  getAuditEvents: async (params?: {
+    patient_id?: string;
+    user_id?: number;
+    action?: string;
+    resource_type?: string;
+    outcome?: string;
+    from_date?: string;
+    to_date?: string;
+    page?: number;
+    page_size?: number;
+  }): Promise<AuditEventListResponse> => {
+    const query = new URLSearchParams();
+    if (params?.patient_id) query.append('patient_id', params.patient_id);
+    if (params?.user_id) query.append('user_id', String(params.user_id));
+    if (params?.action) query.append('action', params.action);
+    if (params?.resource_type) query.append('resource_type', params.resource_type);
+    if (params?.outcome) query.append('outcome', params.outcome);
+    if (params?.from_date) query.append('from_date', params.from_date);
+    if (params?.to_date) query.append('to_date', params.to_date);
+    if (params?.page) query.append('page', String(params.page));
+    if (params?.page_size) query.append('page_size', String(params.page_size));
+
+    const queryString = query.toString();
+    return apiRequest<AuditEventListResponse>(`/audit/events${queryString ? `?${queryString}` : ''}`, {
+      method: 'GET',
+    });
+  },
+
+  getAuditEvent: async (eventId: string): Promise<ClinicalAuditEvent> => {
+    return apiRequest<ClinicalAuditEvent>(`/audit/events/${encodeURIComponent(eventId)}`, {
+      method: 'GET',
+    });
+  },
+
+  verifyAuditIntegrity: async (): Promise<AuditIntegrityVerificationResponse> => {
+    return apiRequest<AuditIntegrityVerificationResponse>('/audit/verify-integrity', {
+      method: 'POST',
+    });
+  },
+
+  getPatientConsents: async (patientId: string, status?: string): Promise<PatientConsent[]> => {
+    const query = status ? `?status=${encodeURIComponent(status)}` : '';
+    return apiRequest<PatientConsent[]>(`/patients/${encodeURIComponent(patientId)}/consents${query}`, {
+      method: 'GET',
+    });
+  },
+
+  getConsent: async (consentId: string): Promise<PatientConsent> => {
+    return apiRequest<PatientConsent>(`/consents/${encodeURIComponent(consentId)}`, {
+      method: 'GET',
+    });
+  },
+
+  grantConsent: async (
+    patientId: string,
+    payload: PatientConsentCreateRequest
+  ): Promise<PatientConsent> => {
+    return apiRequest<PatientConsent>(`/patients/${encodeURIComponent(patientId)}/consents`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  revokeConsent: async (
+    consentId: string,
+    payload: PatientConsentRevokeRequest
+  ): Promise<PatientConsent> => {
+    return apiRequest<PatientConsent>(`/consents/${encodeURIComponent(consentId)}/revoke`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  verifyConsent: async (payload: ConsentVerificationRequest): Promise<ConsentVerificationResponse> => {
+    return apiRequest<ConsentVerificationResponse>('/consents/verify', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  listIncidents: async (
+    status?: string,
+    severity?: string,
+    page = 1,
+    pageSize = 50
+  ): Promise<SecurityIncident[]> => {
+    const query = new URLSearchParams();
+    if (status) query.append('status', status);
+    if (severity) query.append('severity', severity);
+    query.append('page', String(page));
+    query.append('page_size', String(pageSize));
+    return apiRequest<SecurityIncident[]>(`/security/incidents?${query.toString()}`, {
+      method: 'GET',
+    });
+  },
+
+  getIncident: async (incidentId: string): Promise<SecurityIncident> => {
+    return apiRequest<SecurityIncident>(`/security/incidents/${encodeURIComponent(incidentId)}`, {
+      method: 'GET',
+    });
+  },
+
+  createIncident: async (payload: SecurityIncidentCreateRequest): Promise<SecurityIncident> => {
+    return apiRequest<SecurityIncident>('/security/incidents', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  updateIncident: async (
+    incidentId: string,
+    payload: SecurityIncidentUpdateRequest
+  ): Promise<SecurityIncident> => {
+    return apiRequest<SecurityIncident>(`/security/incidents/${encodeURIComponent(incidentId)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  runSecurityScan: async (lookbackMinutes = 60): Promise<SecurityScanResult> => {
+    return apiRequest<SecurityScanResult>(`/security/scan?lookback_minutes=${lookbackMinutes}`, {
+      method: 'POST',
+    });
+  },
+
+  getComplianceSummary: async (): Promise<ComplianceSummaryResponse> => {
+    return apiRequest<ComplianceSummaryResponse>('/security/compliance/summary', {
+      method: 'GET',
+    });
+  },
+
+  getRetentionPolicies: async (): Promise<DataRetentionPolicy[]> => {
+    return apiRequest<DataRetentionPolicy[]>('/security/retention/policies', {
+      method: 'GET',
+    });
+  },
+
+  createRetentionPolicy: async (
+    payload: DataRetentionPolicyCreateRequest
+  ): Promise<DataRetentionPolicy> => {
+    return apiRequest<DataRetentionPolicy>('/security/retention/policies', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  listLegalHolds: async (status?: string, patientId?: string): Promise<LegalClinicalHold[]> => {
+    const query = new URLSearchParams();
+    if (status) query.append('status', status);
+    if (patientId) query.append('patient_id', patientId);
+    const queryString = query.toString();
+    return apiRequest<LegalClinicalHold[]>(`/security/holds${queryString ? `?${queryString}` : ''}`, {
+      method: 'GET',
+    });
+  },
+
+  placeLegalHold: async (payload: LegalClinicalHoldCreateRequest): Promise<LegalClinicalHold> => {
+    return apiRequest<LegalClinicalHold>('/security/holds', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  releaseLegalHold: async (
+    holdId: string,
+    payload: LegalClinicalHoldReleaseRequest
+  ): Promise<LegalClinicalHold> => {
+    return apiRequest<LegalClinicalHold>(`/security/holds/${encodeURIComponent(holdId)}/release`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  enqueueAuditIntegrityTask: async (): Promise<BackgroundTask> => {
+    return apiRequest<BackgroundTask>('/tasks/security/audit-integrity', {
+      method: 'POST',
+    });
+  },
+
+  enqueueAnomalyScanTask: async (lookbackMinutes = 60): Promise<BackgroundTask> => {
+    return apiRequest<BackgroundTask>(
+      `/tasks/security/anomaly-scan?lookback_minutes=${lookbackMinutes}`,
+      { method: 'POST' }
+    );
+  },
+
+  enqueueComplianceReportTask: async (): Promise<BackgroundTask> => {
+    return apiRequest<BackgroundTask>('/tasks/security/compliance-report', {
+      method: 'POST',
+    });
   },
 };

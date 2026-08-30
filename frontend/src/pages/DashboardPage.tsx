@@ -25,13 +25,14 @@ import { RPMWorkspace } from '../components/rpm/RPMWorkspace';
 import { TrialsPrecisionWorkspace } from '../components/trials/TrialsPrecisionWorkspace';
 import { ClinicalAgentsWorkspace } from '../components/agents/ClinicalAgentsWorkspace';
 import { ImagingRadiologyWorkspace } from '../components/imaging/ImagingRadiologyWorkspace';
+import { SecurityComplianceWorkspace } from '../components/security/SecurityComplianceWorkspace';
 import { TaskMonitor } from '../components/tasks/TaskMonitor';
 import { carePlansApi, mediaApi, notesApi } from '../api/client';
 import { CarePlanCategory, NoteType } from '../types';
 
 export const DashboardPage: React.FC = () => {
   const { user } = useAuth();
-  const { selectedPatient, selectPatientById } = usePatient();
+  const { patients, selectedPatient, selectPatientById } = usePatient();
   const { tasks, retryTask, cancelTask, loadTasks, triggerDocumentOCR } = useTasks(
     selectedPatient?.patient_id
   );
@@ -54,6 +55,7 @@ export const DashboardPage: React.FC = () => {
     | 'trials'
     | 'agents'
     | 'imaging'
+    | 'security'
   >('chat');
 
 
@@ -202,6 +204,13 @@ export const DashboardPage: React.FC = () => {
             >
               🩻 Medical Imaging & Radiology
             </button>
+            <button
+              data-testid="tab-btn-security"
+              className={`btn btn-sm ${activeTab === 'security' ? 'btn-primary' : 'btn-secondary'}`}
+              onClick={() => setActiveTab('security')}
+            >
+              🛡️ Security & Compliance
+            </button>
           </div>
 
           {/* Active Workspace View */}
@@ -270,6 +279,13 @@ export const DashboardPage: React.FC = () => {
               <ImagingRadiologyWorkspace
                 currentUser={user}
                 selectedPatientId={selectedPatient?.patient_id}
+              />
+            )}
+            {activeTab === 'security' && (
+              <SecurityComplianceWorkspace
+                patients={patients}
+                selectedPatient={selectedPatient}
+                onSelectPatient={(p) => selectPatientById(p.patient_id)}
               />
             )}
           </div>

@@ -69,8 +69,15 @@ from app.schemas.fhir import (
     FHIRProvenanceAgent,
     FHIRProvenanceEntity,
     FHIRTask,
-
+    FHIRConsent,
+    FHIRConsentProvision,
+    FHIRConsentVerification,
+    FHIRAuditEvent,
+    FHIRAuditEventAgent,
+    FHIRAuditEventSource,
+    FHIRAuditEventEntity,
 )
+from app.models.security import ClinicalAuditEvent, PatientConsent
 
 
 
@@ -1909,4 +1916,243 @@ class FHIRImagingObservationMapper(BaseFHIRMapper):
                     text=f"Recommendation: {finding.recommendation} | Nature: {finding.finding_nature} | Review Status: {finding.clinician_review_status}",
                 )
             ],
+        )
+
+
+class FHIRConsentMapper:
+    """Map internal PatientConsent domain model to standard FHIR R4 Consent resource."""
+
+    @staticmethod
+    def map_consent(consent: PatientConsent, patient: Optional[Patient] = None) -> FHIRConsent:
+        patient_ref_str = consent.patient_id
+        if patient and patient.patient_id:
+            patient_ref_str = patient.patient_id
+
+        status_str = "active" if consent.status == "ACTIVE" else ("inactive" if consent.status == "REVOKED" else "draft")
+
+        return FHIRConsent(
+            id=consent.consent_id,
+            identifier=[
+                FHIRIdentifier(
+                    system="http://medigen.ai/fhir/consents",
+                    value=consent.consent_id,
+                )
+            ],
+            status=status_str,
+            scope=FHIRCodeableConcept(
+                coding=[
+                    FHIRCoding(
+                        system="http://terminology.hl7.org/CodeSystem/consentscope",
+                        code="patient-privacy",
+                        display="Patient Privacy Consent",
+                    )
+                ],
+                text=consent.scope,
+            ),
+            category=[
+                FHIRCodeableConcept(
+                    coding=[
+                        FHIRCoding(
+                            system="http://terminology.hl7.org/CodeSystem/consentcategorycodes",
+                            code="research" if "RESEARCH" in consent.purpose_of_use else "treatment",
+                            display=consent.purpose_of_use,
+                        )
+                    ],
+                    text=consent.data_category or "GENERAL_CLINICAL",
+                )
+            ],
+            patient=FHIRReference(
+                reference=f"Patient/{patient_ref_str}",
+                display=f"{patient.first_name} {patient.last_name}" if patient else f"Patient {patient_ref_str}",
+            ),
+            dateTime=consent.created_at.isoformat() if consent.created_at else None,
+            performer=[
+                FHIRReference(
+                    reference=f"Patient/{patient_ref_str}",
+                    display=consent.signer_name,
+                )
+            ],
+            organization=[
+                FHIRReference(
+                    reference="Organization/medigen-ai-health-system",
+                    display="MediGen AI Healthcare Network",
+                )
+            ],
+            policyRule=FHIRCodeableConcept(
+                coding=[
+                    FHIRCoding(
+                        system="http://terminology.hl7.org/CodeSystem/v3-ActCode",
+                        code="OPTIN" if consent.policy_rule == "PERMIT" else "OPTOUT",
+                        display="Opt-in / Permit" if consent.policy_rule == "PERMIT" else "Opt-out / Deny",
+                    )
+                ],
+                text=f"Rule: {consent.policy_rule} | Hash: {consent.digital_signature_hash}",
+            ),
+            verification=[
+                FHIRConsentVerification(
+                    verified=True,
+                    verifiedWith=FHIRReference(
+                        reference=f"Practitioner/{consent.witness_or_clinician_id}"
+                        if consent.witness_or_clinician_id
+                        else None,
+                        display=consent.signer_relationship,
+                    ),
+                    verificationDate=consent.valid_from.isoformat() if consent.valid_from else None,
+                )
+            ],
+            provision=FHIRConsentProvision(
+                type="permit" if consent.policy_rule == "PERMIT" else "deny",
+                purpose=[
+                    FHIRCoding(
+                        system="http://terminology.hl7.org/CodeSystem/v3-ActReason",
+                        code=consent.purpose_of_use,
+                        display=consent.purpose_of_use,
+                    )
+                ],
+                securityLabel=[
+                    FHIRCoding(
+                        system="http://terminology.hl7.org/CodeSystem/v3-Confidentiality",
+                        code="R",
+                        display="Restricted" if consent.data_category in ["GENOMICS", "PSYCHIATRY"] else "Normal",
+                    )
+                ],
+            ),
+        )
+
+
+class FHIRAuditEventMapper:
+    """Map internal ClinicalAuditEvent model to standard FHIR R4 AuditEvent resource."""
+
+    @staticmethod
+    def map_audit_event(
+        event: ClinicalAuditEvent, patient: Optional[Patient] = None
+    ) -> FHIRAuditEvent:
+        action_map = {
+            "CREATE": "C",
+            "READ": "R",
+            "UPDATE": "U",
+            "DELETE": "D",
+            "EXECUTE": "E",
+            "EXPORT": "E",
+            "LOGIN": "E",
+            "LOGOUT": "E",
+            "CONSENT_GRANT": "C",
+            "CONSENT_REVOKE": "U",
+            "SECURITY_ALERT": "E",
+            "HOLD_APPLIED": "C",
+            "HOLD_RELEASED": "U",
+        }
+        outcome_map = {
+            "SUCCESS": "0",
+            "DENIED_FORBIDDEN": "4",
+            "DENIED_NO_CONSENT": "4",
+            "WARNING": "8",
+            "ERROR": "12",
+        }
+
+        agents: list[FHIRAuditEventAgent] = [
+            FHIRAuditEventAgent(
+                role=[
+                    FHIRCodeableConcept(
+                        coding=[
+                            FHIRCoding(
+                                system="http://terminology.hl7.org/CodeSystem/v3-ParticipationType",
+                                code="AUT",
+                                display=event.user_role,
+                            )
+                        ]
+                    )
+                ],
+                who=FHIRReference(
+                    reference=f"Practitioner/{event.user_id}" if event.user_id else "Device/system",
+                    display=f"User #{event.user_id} ({event.user_role})" if event.user_id else "System Service",
+                ),
+                altId=str(event.user_id) if event.user_id else None,
+                requestor=True,
+                network={"address": event.ip_address or "127.0.0.1", "type": "2"},
+            )
+        ]
+
+        entities: list[FHIRAuditEventEntity] = []
+        if event.patient_id:
+            entities.append(
+                FHIRAuditEventEntity(
+                    what=FHIRReference(
+                        reference=f"Patient/{event.patient_id}",
+                        display=f"{patient.first_name} {patient.last_name}" if patient else f"Patient {event.patient_id}",
+                    ),
+                    type=FHIRCoding(
+                        system="http://terminology.hl7.org/CodeSystem/audit-entity-type",
+                        code="1",
+                        display="Person",
+                    ),
+                    role=FHIRCoding(
+                        system="http://terminology.hl7.org/CodeSystem/object-role",
+                        code="1",
+                        display="Patient",
+                    ),
+                )
+            )
+
+        if event.resource_type and event.resource_id:
+            entities.append(
+                FHIRAuditEventEntity(
+                    what=FHIRReference(
+                        reference=f"{event.resource_type}/{event.resource_id}",
+                        display=f"{event.resource_type} ({event.resource_id})",
+                    ),
+                    type=FHIRCoding(
+                        system="http://terminology.hl7.org/CodeSystem/audit-entity-type",
+                        code="2",
+                        display="System Object",
+                    ),
+                    detail=[{"type": "record_hash", "valueString": event.record_hash}],
+                )
+            )
+
+        return FHIRAuditEvent(
+            id=event.event_id,
+            type=FHIRCoding(
+                system="http://terminology.hl7.org/CodeSystem/audit-event-type",
+                code="rest",
+                display="RESTful Operation",
+            ),
+            subtype=[
+                FHIRCoding(
+                    system="http://hl7.org/fhir/restful-interaction",
+                    code=event.action.lower(),
+                    display=event.action,
+                )
+            ],
+            action=action_map.get(event.action.upper(), "E"),
+            recorded=event.timestamp.isoformat() if event.timestamp else datetime.now(timezone.utc).isoformat(),
+            outcome=outcome_map.get(event.outcome.upper(), "0"),
+            outcomeDesc=f"Outcome: {event.outcome} | SHA-256 Hash: {event.record_hash}",
+            purposeOfEvent=[
+                FHIRCodeableConcept(
+                    coding=[
+                        FHIRCoding(
+                            system="http://terminology.hl7.org/CodeSystem/v3-ActReason",
+                            code=event.purpose_of_use,
+                            display=event.purpose_of_use,
+                        )
+                    ]
+                )
+            ],
+            agent=agents,
+            source=FHIRAuditEventSource(
+                site="MediGen-AI Clinical Core",
+                observer=FHIRReference(
+                    reference="Device/medigen-ai-backend",
+                    display="MediGen AI Platform Engine",
+                ),
+                type=[
+                    FHIRCoding(
+                        system="http://terminology.hl7.org/CodeSystem/security-source-type",
+                        code="4",
+                        display="Application Server",
+                    )
+                ],
+            ),
+            entity=entities,
         )

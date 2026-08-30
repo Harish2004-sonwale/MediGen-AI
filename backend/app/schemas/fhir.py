@@ -27,6 +27,8 @@ class FHIRResourceType(str, Enum):
     RESEARCH_STUDY = "ResearchStudy"
     PROVENANCE = "Provenance"
     IMAGING_STUDY = "ImagingStudy"
+    CONSENT = "Consent"
+    AUDIT_EVENT = "AuditEvent"
     BUNDLE = "Bundle"
 
 
@@ -582,6 +584,85 @@ class FHIRImagingStudy(BaseModel):
     numberOfInstances: Optional[int] = Field(default=1, description="Number of Study Related Instances")
     description: Optional[str] = Field(default=None, description="Institution-generated description of the study")
     series: list[FHIRImagingStudySeries] = Field(default_factory=list, description="Each study has one or more series of instances")
+
+
+# FHIR Consent & AuditEvent Models
+
+class FHIRConsentProvision(BaseModel):
+    type: str = Field(default="permit", description="deny | permit")
+    period: Optional[FHIRPeriod] = Field(default=None, description="Timeframe for this provision")
+    actor: list[dict[str, Any]] = Field(default_factory=list, description="Who is allowed or denied")
+    action: list[FHIRCodeableConcept] = Field(default_factory=list, description="Actions permitted or denied")
+    securityLabel: list[FHIRCoding] = Field(default_factory=list, description="Security Labels that define affected data")
+    purpose: list[FHIRCoding] = Field(default_factory=list, description="Context of activities covered by this provision")
+    class_: list[FHIRCoding] = Field(default_factory=list, alias="class", description="e.g. Resource Type, Document Type")
+
+
+class FHIRConsentVerification(BaseModel):
+    verified: bool = Field(default=True, description="Has verification taken place")
+    verifiedWith: Optional[FHIRReference] = Field(default=None, description="Person who verified the consent")
+    verificationDate: Optional[str] = Field(default=None, description="When consent verified")
+
+
+class FHIRConsent(BaseModel):
+    model_config = ConfigDict(extra="allow", populate_by_name=True)
+
+    resourceType: str = Field(default="Consent", description="FHIR resource type")
+    id: Optional[str] = Field(default=None, description="Logical id of this artifact")
+    identifier: list[FHIRIdentifier] = Field(default_factory=list, description="Business identifier")
+    status: str = Field(..., description="draft | proposed | active | rejected | inactive | entered-in-error")
+    scope: FHIRCodeableConcept = Field(..., description="Which of the four realms is this consent for")
+    category: list[FHIRCodeableConcept] = Field(default_factory=list, description="Classification of the consent statement")
+    patient: FHIRReference = Field(..., description="Who the consent applies to")
+    dateTime: Optional[str] = Field(default=None, description="When consent was agreed to")
+    performer: list[FHIRReference] = Field(default_factory=list, description="Who is agreeing to the policy and provisions")
+    organization: list[FHIRReference] = Field(default_factory=list, description="Custodian of the consent")
+    policyRule: Optional[FHIRCodeableConcept] = Field(default=None, description="Regulation that this consent follows")
+    verification: list[FHIRConsentVerification] = Field(default_factory=list, description="Consent Verified by patient or Legal Guardian")
+    provision: Optional[FHIRConsentProvision] = Field(default=None, description="Constraints to the base Consent.policyRule")
+
+
+class FHIRAuditEventAgent(BaseModel):
+    type: Optional[FHIRCodeableConcept] = Field(default=None, description="How agent participated")
+    role: list[FHIRCodeableConcept] = Field(default_factory=list, description="Agent role in the event")
+    who: Optional[FHIRReference] = Field(default=None, description="Identifier of who")
+    altId: Optional[str] = Field(default=None, description="Alternative User id e.g. login name")
+    name: Optional[str] = Field(default=None, description="Human-meaningful name for the agent")
+    requestor: bool = Field(default=True, description="Whether user is initiator")
+    network: Optional[dict[str, Any]] = Field(default=None, description="Logical network location for application activity")
+
+
+class FHIRAuditEventSource(BaseModel):
+    site: Optional[str] = Field(default="MediGen-AI Clinical Cloud", description="Logical source location")
+    observer: FHIRReference = Field(..., description="The identity of source detecting the event")
+    type: list[FHIRCoding] = Field(default_factory=list, description="The type of source where event originated")
+
+
+class FHIRAuditEventEntity(BaseModel):
+    what: Optional[FHIRReference] = Field(default=None, description="Specific instance of resource")
+    type: Optional[FHIRCoding] = Field(default=None, description="Type of entity involved")
+    role: Optional[FHIRCoding] = Field(default=None, description="What role the entity played")
+    name: Optional[str] = Field(default=None, description="Descriptor for entity")
+    description: Optional[str] = Field(default=None, description="Descriptive text")
+    detail: list[dict[str, Any]] = Field(default_factory=list, description="Additional Information about the entity")
+
+
+class FHIRAuditEvent(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    resourceType: str = Field(default="AuditEvent", description="FHIR resource type")
+    id: Optional[str] = Field(default=None, description="Logical id of this artifact")
+    type: FHIRCoding = Field(..., description="Type/identifier of event")
+    subtype: list[FHIRCoding] = Field(default_factory=list, description="More specific type/id for the event")
+    action: Optional[str] = Field(default=None, description="Type of action performed: C | R | U | D | E")
+    period: Optional[FHIRPeriod] = Field(default=None, description="When the activity occurred")
+    recorded: str = Field(..., description="Time when the event was recorded")
+    outcome: Optional[str] = Field(default="0", description="Whether the event succeeded or failed (0=success, 4=minor fail, 8=serious fail, 12=major fail)")
+    outcomeDesc: Optional[str] = Field(default=None, description="Description of the outcome")
+    purposeOfEvent: list[FHIRCodeableConcept] = Field(default_factory=list, description="The purposeOfUse of the event")
+    agent: list[FHIRAuditEventAgent] = Field(default_factory=list, description="Actor involved in the event")
+    source: FHIRAuditEventSource = Field(..., description="Audit Event Reporter")
+    entity: list[FHIRAuditEventEntity] = Field(default_factory=list, description="Data or updated entity")
 
 
 # FHIR Bundle Models

@@ -58,6 +58,10 @@ class BackgroundTaskType(str, Enum):
     IMAGING_ANALYSIS = "imaging_analysis"
     RADIOLOGY_REPORT_SYNTHESIS = "radiology_report_synthesis"
     CRITICAL_FINDING_ESCALATION = "critical_finding_escalation"
+    AUDIT_LOG_INTEGRITY_CHECK = "audit_log_integrity_check"
+    SECURITY_ANOMALY_SCAN = "security_anomaly_scan"
+    DATA_RETENTION_EVALUATION = "data_retention_evaluation"
+    COMPLIANCE_REPORT_GENERATION = "compliance_report_generation"
 
 
 

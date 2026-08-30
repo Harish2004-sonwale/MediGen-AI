@@ -22,6 +22,7 @@ from app.api.v1.endpoints import (
     rag,
     rpm,
     safety,
+    security,
     tasks,
     timeline,
     transitions,
@@ -49,6 +50,7 @@ api_router.include_router(rpm.router, prefix="/rpm", tags=["Remote Patient Monit
 api_router.include_router(trials.router, tags=["Clinical Trials & Precision Oncology"])
 api_router.include_router(agents.router, tags=["Clinical AI Agents & Care Coordination"])
 api_router.include_router(imaging.router, tags=["Medical Imaging & Radiology"])
+api_router.include_router(security.router, tags=["Clinical Security & Compliance Governance"])
 api_router.include_router(rag.router)
 
 api_router.include_router(chat.router)

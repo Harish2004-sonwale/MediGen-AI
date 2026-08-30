@@ -1689,3 +1689,249 @@ export interface ImagingTimelineResponse {
   total_studies: number;
   items: ImagingTimelineItem[];
 }
+
+// ============================================================================
+// PHASE 9.0.19: CLINICAL SECURITY, AUDITABILITY, CONSENT & COMPLIANCE
+// ============================================================================
+
+export type AuditAction =
+  | 'CREATE'
+  | 'READ'
+  | 'UPDATE'
+  | 'DELETE'
+  | 'EXECUTE'
+  | 'EXPORT'
+  | 'LOGIN'
+  | 'LOGOUT'
+  | 'CONSENT_GRANT'
+  | 'CONSENT_REVOKE'
+  | 'SECURITY_ALERT'
+  | 'HOLD_APPLIED'
+  | 'HOLD_RELEASED';
+
+export type AuditOutcome =
+  | 'SUCCESS'
+  | 'DENIED_FORBIDDEN'
+  | 'DENIED_NO_CONSENT'
+  | 'WARNING'
+  | 'ERROR';
+
+export interface ClinicalAuditEvent {
+  id: number;
+  event_id: string;
+  timestamp: string;
+  user_id?: number;
+  user_role: string;
+  patient_id?: string;
+  action: AuditAction | string;
+  resource_type: string;
+  resource_id?: string;
+  ip_address?: string;
+  user_agent?: string;
+  purpose_of_use: string;
+  outcome: AuditOutcome | string;
+  metadata_json: Record<string, any>;
+  prev_record_hash: string;
+  record_hash: string;
+}
+
+export interface AuditEventListResponse {
+  events: ClinicalAuditEvent[];
+  total_count: number;
+  page: number;
+  page_size: number;
+}
+
+export interface AuditIntegrityVerificationResponse {
+  verified_at: string;
+  total_records_checked: number;
+  tamper_detected: boolean;
+  broken_links_count: number;
+  tampered_event_ids: string[];
+  chain_head_hash?: string;
+  status: 'VALID' | 'COMPROMISED' | string;
+}
+
+export type ConsentStatus = 'ACTIVE' | 'REVOKED' | 'EXPIRED' | 'PENDING';
+export type ConsentPolicyRule = 'PERMIT' | 'DENY';
+export type ConsentScope =
+  | 'ALL_RECORDS'
+  | 'RESEARCH_ONLY'
+  | 'GENOMICS_ONLY'
+  | 'BEHAVIORAL_HEALTH'
+  | 'THIRD_PARTY_SHARING'
+  | 'RESTRICT_EXPORT';
+
+export interface PatientConsent {
+  id: number;
+  consent_id: string;
+  patient_id: string;
+  status: ConsentStatus | string;
+  scope: ConsentScope | string;
+  policy_rule: ConsentPolicyRule | string;
+  purpose_of_use: string;
+  data_category?: string;
+  actor_type?: string;
+  actor_reference?: string;
+  valid_from: string;
+  valid_to?: string;
+  signed_by_patient: boolean;
+  signer_name: string;
+  signer_relationship: string;
+  witness_or_clinician_id?: number;
+  digital_signature_hash: string;
+  revocation_reason?: string;
+  revoked_at?: string;
+  created_at: string;
+}
+
+export interface PatientConsentCreateRequest {
+  scope: ConsentScope | string;
+  policy_rule: ConsentPolicyRule | string;
+  purpose_of_use: string;
+  data_category?: string;
+  actor_type?: string;
+  actor_reference?: string;
+  valid_from?: string;
+  valid_to?: string;
+  signed_by_patient?: boolean;
+  signer_name: string;
+  signer_relationship?: string;
+  witness_or_clinician_id?: number;
+}
+
+export interface PatientConsentRevokeRequest {
+  revocation_reason: string;
+}
+
+export interface ConsentVerificationRequest {
+  patient_id: string;
+  resource_type: string;
+  action: string;
+  purpose_of_use: string;
+  data_category?: string;
+}
+
+export interface ConsentVerificationResponse {
+  patient_id: string;
+  resource_type: string;
+  action: string;
+  purpose_of_use: string;
+  is_permitted: boolean;
+  reason: string;
+  matched_consent_id?: string;
+  is_emergency_override: boolean;
+}
+
+export type IncidentSeverity = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+export type IncidentStatus = 'OPEN' | 'INVESTIGATING' | 'RESOLVED' | 'FALSE_POSITIVE';
+
+export interface SecurityIncident {
+  id: number;
+  incident_id: string;
+  detected_at: string;
+  severity: IncidentSeverity | string;
+  status: IncidentStatus | string;
+  event_type: string;
+  user_id?: number;
+  patient_id?: string;
+  ip_address?: string;
+  description: string;
+  evidence_metadata: Record<string, any>;
+  assigned_to_user_id?: number;
+  resolution_notes?: string;
+  resolved_at?: string;
+  resolved_by_user_id?: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SecurityIncidentCreateRequest {
+  severity: IncidentSeverity | string;
+  event_type: string;
+  description: string;
+  user_id?: number;
+  patient_id?: string;
+  ip_address?: string;
+  evidence_metadata?: Record<string, any>;
+}
+
+export interface SecurityIncidentUpdateRequest {
+  status?: IncidentStatus | string;
+  severity?: IncidentSeverity | string;
+  assigned_to_user_id?: number;
+  resolution_notes?: string;
+}
+
+export interface SecurityScanResult {
+  scanned_at: string;
+  events_analyzed: number;
+  anomalies_detected: number;
+  new_incidents_created: number;
+  incident_ids: string[];
+}
+
+export interface DataRetentionPolicy {
+  id: number;
+  policy_code: string;
+  data_category: string;
+  retention_period_days: number;
+  action_on_expiry: string;
+  description: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DataRetentionPolicyCreateRequest {
+  policy_code: string;
+  data_category: string;
+  retention_period_days: number;
+  action_on_expiry: string;
+  description: string;
+  is_active?: boolean;
+}
+
+export type HoldStatus = 'ACTIVE' | 'RELEASED';
+
+export interface LegalClinicalHold {
+  id: number;
+  hold_id: string;
+  patient_id?: string;
+  scope_category: string;
+  reason: string;
+  status: HoldStatus | string;
+  placed_by_user_id: number;
+  placed_at: string;
+  released_by_user_id?: number;
+  released_at?: string;
+  notes?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface LegalClinicalHoldCreateRequest {
+  patient_id?: string;
+  scope_category?: string;
+  reason: string;
+  notes?: string;
+}
+
+export interface LegalClinicalHoldReleaseRequest {
+  notes?: string;
+}
+
+export interface ComplianceSummaryResponse {
+  generated_at: string;
+  total_audit_events: number;
+  recent_audit_events_24h: number;
+  audit_tamper_integrity_status: 'VALID' | 'COMPROMISED' | string;
+  total_active_consents: number;
+  total_revoked_consents: number;
+  open_security_incidents: number;
+  critical_security_incidents: number;
+  active_legal_holds: number;
+  active_retention_policies: number;
+  compliance_score_percent: number;
+  status: 'COMPLIANT' | 'WARNING' | 'NON_COMPLIANT' | string;
+}

@@ -30,6 +30,8 @@ from app.schemas.fhir import (
     FHIRRiskAssessment,
     FHIRServiceRequest,
     FHIRTask,
+    FHIRConsent,
+    FHIRAuditEvent,
 )
 from app.services.fhir_export_service import (
     export_agent_provenance_as_fhir,
@@ -59,6 +61,9 @@ from app.services.fhir_export_service import (
     export_research_study_as_fhir,
     export_result_as_fhir_diagnostic_report,
     export_risk_assessment_as_fhir,
+    export_audit_event_as_fhir,
+    export_consent_as_fhir,
+    export_patient_consents_bundle_as_fhir,
 )
 
 
@@ -614,6 +619,65 @@ def get_fhir_imaging_observation(
     except PermissionError as exc:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
 
+
+@router.get(
+    "/Consent/{consent_id}",
+    response_model=FHIRConsent,
+    status_code=status.HTTP_200_OK,
+    summary="Export patient consent directive as FHIR R4 Consent resource",
+)
+def get_fhir_consent(
+    consent_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+) -> FHIRConsent:
+    """Retrieve and export patient consent directive as standard FHIR R4 Consent resource."""
+    try:
+        return export_consent_as_fhir(db, current_user, consent_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+
+
+@router.get(
+    "/AuditEvent/{event_id}",
+    response_model=FHIRAuditEvent,
+    status_code=status.HTTP_200_OK,
+    summary="Export clinical audit record as FHIR R4 AuditEvent resource",
+)
+def get_fhir_audit_event(
+    event_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+) -> FHIRAuditEvent:
+    """Retrieve and export clinical audit event as standard FHIR R4 AuditEvent resource."""
+    try:
+        return export_audit_event_as_fhir(db, current_user, event_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+
+
+@router.get(
+    "/patients/{patient_id}/consents",
+    response_model=FHIRBundle,
+    status_code=status.HTTP_200_OK,
+    summary="Export patient consent directives as FHIR R4 collection Bundle",
+)
+def get_fhir_patient_consents_bundle(
+    patient_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+) -> FHIRBundle:
+    """Retrieve and export all consent directives for a patient as a FHIR R4 collection Bundle."""
+    try:
+        return export_patient_consents_bundle_as_fhir(db, current_user, patient_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
 
 
 # ============================================================================

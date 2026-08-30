@@ -406,3 +406,88 @@ def retry_task_for_user(
     if not retried_task:
         raise ValueError(f"Task '{task_id}' cannot be retried (current status: {task.status.value}).")
     return retried_task
+
+
+# ============================================================================
+# SECURITY & COMPLIANCE BACKGROUND WORKERS
+# ============================================================================
+
+def run_audit_integrity_check_job(user_id: Optional[int] = None) -> dict[str, Any]:
+    """Execute asynchronous audit trail hash-chain verification."""
+    from app.database import SessionLocal
+    from app.services.audit_service import audit_service
+    db = SessionLocal()
+    try:
+        res = audit_service.verify_audit_trail_integrity(db)
+        return res.model_dump(mode="json")
+    finally:
+        db.close()
+
+
+def run_security_anomaly_scan_job(lookback_minutes: int = 60, user_id: Optional[int] = None) -> dict[str, Any]:
+    """Execute asynchronous security anomaly and access pattern scan."""
+    from app.database import SessionLocal
+    from app.services.security_monitoring_service import security_monitoring_service
+    db = SessionLocal()
+    try:
+        res = security_monitoring_service.scan_and_detect_anomalies(db, lookback_minutes=lookback_minutes)
+        return res.model_dump(mode="json")
+    finally:
+        db.close()
+
+
+def run_compliance_report_job(user_id: Optional[int] = None) -> dict[str, Any]:
+    """Execute asynchronous compliance summary and security posture compilation."""
+    from app.database import SessionLocal
+    from app.services.compliance_reporting_service import compliance_reporting_service
+    db = SessionLocal()
+    try:
+        res = compliance_reporting_service.get_compliance_summary(db)
+        return res.model_dump(mode="json")
+    finally:
+        db.close()
+
+
+def enqueue_audit_integrity_task(
+    db: Session, current_user: User, provider: Optional[BaseBackgroundTaskProvider] = None
+) -> BackgroundTask:
+    """Enqueue background audit trail hash chain integrity verification."""
+    task_provider = provider or get_background_task_provider()
+    return task_provider.submit_task(
+        task_type=BackgroundTaskType.AUDIT_LOG_INTEGRITY_CHECK,
+        fn=run_audit_integrity_check_job,
+        fn_args=(current_user.id,),
+        created_by_user_id=current_user.id,
+        payload={"user_id": current_user.id},
+    )
+
+
+def enqueue_security_scan_task(
+    db: Session,
+    current_user: User,
+    lookback_minutes: int = 60,
+    provider: Optional[BaseBackgroundTaskProvider] = None,
+) -> BackgroundTask:
+    """Enqueue background security threat and anomaly scan."""
+    task_provider = provider or get_background_task_provider()
+    return task_provider.submit_task(
+        task_type=BackgroundTaskType.SECURITY_ANOMALY_SCAN,
+        fn=run_security_anomaly_scan_job,
+        fn_args=(lookback_minutes, current_user.id),
+        created_by_user_id=current_user.id,
+        payload={"lookback_minutes": lookback_minutes, "user_id": current_user.id},
+    )
+
+
+def enqueue_compliance_report_task(
+    db: Session, current_user: User, provider: Optional[BaseBackgroundTaskProvider] = None
+) -> BackgroundTask:
+    """Enqueue background compliance report generation."""
+    task_provider = provider or get_background_task_provider()
+    return task_provider.submit_task(
+        task_type=BackgroundTaskType.COMPLIANCE_REPORT_GENERATION,
+        fn=run_compliance_report_job,
+        fn_args=(current_user.id,),
+        created_by_user_id=current_user.id,
+        payload={"user_id": current_user.id},
+    )
