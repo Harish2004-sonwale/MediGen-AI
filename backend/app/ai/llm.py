@@ -746,6 +746,96 @@ class BedrockLLMProvider(BaseLLMProvider):
 
 
 # ---------------------------------------------------------------------------
+# Fallback LLM Provider (Phase 9.0.20)
+# ---------------------------------------------------------------------------
+
+
+class FallbackLLMProvider(BaseLLMProvider):
+    """Resilient multi-provider LLM chain with circuit breaker and deterministic fallback.
+
+    Phase 9.0.20: Platform Hardening, Production Deployment Hardening & Enterprise Scalability.
+    """
+
+    def __init__(
+        self,
+        primary: BaseLLMProvider,
+        secondary: Optional[BaseLLMProvider] = None,
+        fallback: Optional[BaseLLMProvider] = None,
+        name: str = "clinical_llm_chain",
+    ):
+        self.primary = primary
+        self.secondary = secondary
+        self.fallback = fallback or MockLLMProvider()
+        self.name = name
+        from app.core.circuit_breaker import get_circuit_breaker
+
+        self._primary_cb = get_circuit_breaker(f"{name}_primary", failure_threshold=3, recovery_timeout=30.0)
+        self._secondary_cb = (
+            get_circuit_breaker(f"{name}_secondary", failure_threshold=3, recovery_timeout=30.0)
+            if secondary
+            else None
+        )
+
+    def generate_grounded_response(
+        self,
+        query: str,
+        context_chunks: list[GroundedContextChunk],
+        chat_history: Optional[list[dict[str, str]]] = None,
+    ) -> LLMGroundedResponse:
+        # 1. Attempt primary provider
+        try:
+            return self._primary_cb.call(
+                self.primary.generate_grounded_response,
+                query,
+                context_chunks,
+                chat_history=chat_history,
+            )
+        except Exception as exc:
+            logger.warning("Primary LLM provider failed (%s). Attempting secondary/fallback.", exc)
+
+        # 2. Attempt secondary provider if configured
+        if self.secondary and self._secondary_cb:
+            try:
+                return self._secondary_cb.call(
+                    self.secondary.generate_grounded_response,
+                    query,
+                    context_chunks,
+                    chat_history=chat_history,
+                )
+            except Exception as exc2:
+                logger.warning("Secondary LLM provider failed (%s). Falling back to deterministic fallback.", exc2)
+
+        # 3. Deterministic safe fallback
+        resp = self.fallback.generate_grounded_response(query, context_chunks, chat_history=chat_history)
+        if resp.raw_response is None:
+            resp.raw_response = {}
+        resp.raw_response["degraded_mode"] = True
+        resp.raw_response["fallback_reason"] = "Primary and secondary LLM providers unavailable"
+        return resp
+
+    def generate_grounded_response_stream(
+        self,
+        query: str,
+        context_chunks: list[GroundedContextChunk],
+        chat_history: Optional[list[dict[str, str]]] = None,
+    ) -> Iterator[str]:
+        try:
+            yield from self.primary.generate_grounded_response_stream(query, context_chunks, chat_history=chat_history)
+            return
+        except Exception as exc:
+            logger.warning("Primary LLM stream failed (%s). Falling back to secondary/deterministic stream.", exc)
+
+        if self.secondary:
+            try:
+                yield from self.secondary.generate_grounded_response_stream(query, context_chunks, chat_history=chat_history)
+                return
+            except Exception as exc2:
+                logger.warning("Secondary LLM stream failed (%s). Using fallback stream.", exc2)
+
+        yield from self.fallback.generate_grounded_response_stream(query, context_chunks, chat_history=chat_history)
+
+
+# ---------------------------------------------------------------------------
 # Factory
 # ---------------------------------------------------------------------------
 
@@ -777,6 +867,11 @@ def get_llm_provider(
     if prov in ("bedrock", "aws_bedrock", "aws"):
         return BedrockLLMProvider(model_id=model or settings.BEDROCK_MODEL_ID)
 
+    if prov == "fallback":
+        # Returns resilient multi-provider fallback wrapper
+        primary = BedrockLLMProvider(model_id=settings.BEDROCK_MODEL_ID) if settings.AWS_ACCESS_KEY_ID else MockLLMProvider()
+        return FallbackLLMProvider(primary=primary, fallback=MockLLMProvider(model_name=mod))
+
     raise ValueError(
-        f"Unsupported LLM provider '{provider}'. Supported providers: 'mock', 'openai', 'cloud', 'bedrock'."
+        f"Unsupported LLM provider '{provider}'. Supported providers: 'mock', 'openai', 'cloud', 'bedrock', 'fallback'."
     )

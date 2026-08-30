@@ -26,6 +26,7 @@ import { TrialsPrecisionWorkspace } from '../components/trials/TrialsPrecisionWo
 import { ClinicalAgentsWorkspace } from '../components/agents/ClinicalAgentsWorkspace';
 import { ImagingRadiologyWorkspace } from '../components/imaging/ImagingRadiologyWorkspace';
 import { SecurityComplianceWorkspace } from '../components/security/SecurityComplianceWorkspace';
+import { SystemDiagnosticsWorkspace } from '../components/operations/SystemDiagnosticsWorkspace';
 import { TaskMonitor } from '../components/tasks/TaskMonitor';
 import { carePlansApi, mediaApi, notesApi } from '../api/client';
 import { CarePlanCategory, NoteType } from '../types';
@@ -56,6 +57,7 @@ export const DashboardPage: React.FC = () => {
     | 'agents'
     | 'imaging'
     | 'security'
+    | 'diagnostics'
   >('chat');
 
 
@@ -211,6 +213,13 @@ export const DashboardPage: React.FC = () => {
             >
               🛡️ Security & Compliance
             </button>
+            <button
+              data-testid="tab-btn-diagnostics"
+              className={`btn btn-sm ${activeTab === 'diagnostics' ? 'btn-primary' : 'btn-secondary'}`}
+              onClick={() => setActiveTab('diagnostics')}
+            >
+              ⚙️ Infrastructure & Diagnostics
+            </button>
           </div>
 
           {/* Active Workspace View */}
@@ -287,6 +296,9 @@ export const DashboardPage: React.FC = () => {
                 selectedPatient={selectedPatient}
                 onSelectPatient={(p) => selectPatientById(p.patient_id)}
               />
+            )}
+            {activeTab === 'diagnostics' && (
+              <SystemDiagnosticsWorkspace />
             )}
           </div>
 

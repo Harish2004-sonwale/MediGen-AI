@@ -87,6 +87,34 @@ class Settings(BaseSettings):
     MEDIA_MAX_FILE_SIZE_BYTES: int = 52428800  # 50 MB
     IMAGING_PROVIDER: str = "mock"
 
+    # Distributed Redis & Caching Configuration (Phase 9.0.20)
+    REDIS_URL: str = "redis://localhost:6379/0"
+    CACHE_ENABLED: bool = True
+    CACHE_TTL_SECONDS: int = 3600
+
+    # Rate Limiting & Abuse Protection (Phase 9.0.20)
+    RATE_LIMIT_ENABLED: bool = True
+    RATE_LIMIT_LOGIN_PER_MINUTE: int = 5
+    RATE_LIMIT_API_PER_MINUTE: int = 60
+    RATE_LIMIT_BURST: int = 20
+
+    # Pluggable Storage & Object Storage Configuration (Phase 9.0.20)
+    # Options: 'local' (default) | 's3' (AWS S3 / MinIO) | 'mock'
+    STORAGE_PROVIDER: str = "local"
+    S3_BUCKET_NAME: str = "medigen-clinical-storage"
+    S3_ENDPOINT_URL: str | None = None
+    S3_REGION: str = "us-east-1"
+    S3_ACCESS_KEY: str | None = None
+    S3_SECRET_KEY: str | None = None
+
+    # Prometheus Metrics & Observability (Phase 9.0.20)
+    PROMETHEUS_METRICS_ENABLED: bool = True
+
+    # Pluggable Audit Streaming & SIEM Integration (Phase 9.0.20)
+    AUDIT_STREAMING_ENABLED: bool = False
+    AUDIT_STREAMING_DESTINATION: str = "none"  # 'none' | 'syslog' | 'webhook' | 'cloudwatch'
+    AUDIT_STREAMING_ENDPOINT: str | None = None
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
@@ -150,6 +178,12 @@ class Settings(BaseSettings):
                 "CORS_ORIGINS cannot be wildcard '*' in production. Specify explicit allowed domains."
             )
 
+        # 5. S3 Storage credentials if S3 provider is configured in production
+        if self.STORAGE_PROVIDER == "s3" and (not self.S3_ACCESS_KEY or not self.S3_SECRET_KEY):
+            errors.append(
+                "S3_ACCESS_KEY and S3_SECRET_KEY must be provided when STORAGE_PROVIDER is 's3' in production."
+            )
+
         return errors
 
     def safe_dump(self) -> dict[str, Any]:
@@ -160,6 +194,8 @@ class Settings(BaseSettings):
             "OPENAI_API_KEY",
             "ANTHROPIC_API_KEY",
             "AWS_SECRET_ACCESS_KEY",
+            "S3_SECRET_KEY",
+            "S3_ACCESS_KEY",
             "OPENFDA_API_KEY",
             "CELERY_BROKER_URL",
             "CELERY_RESULT_BACKEND",
@@ -175,6 +211,12 @@ class Settings(BaseSettings):
                     prefix = parts[0]
                     scheme_and_user = prefix.rsplit(":", 1)[0]
                     safe[k] = f"{scheme_and_user}:[REDACTED]@{parts[1]}"
+                else:
+                    safe[k] = v
+            elif k in ("REDIS_URL", "CELERY_BROKER_URL", "CELERY_RESULT_BACKEND") and isinstance(v, str):
+                if "@" in v and ":" in v.split("@")[0]:
+                    parts = v.split("@", 1)
+                    safe[k] = f"{parts[0].split('://')[0]}://[REDACTED]@{parts[1]}"
                 else:
                     safe[k] = v
             else:

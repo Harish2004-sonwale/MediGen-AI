@@ -712,3 +712,40 @@ class FHIRBatchImportResponse(BaseModel):
     failed: int = Field(default=0, description="Total failed resources")
     results: list[FHIRImportResult] = Field(default_factory=list, description="Individual resource results")
     errors: list[str] = Field(default_factory=list, description="Batch-level error messages if any")
+
+
+# FHIR CapabilityStatement (Phase 9.0.20)
+
+class FHIRCapabilityInteraction(BaseModel):
+    code: str = Field(..., description="read | vread | update | patch | delete | history-instance | history-type | create | search-type")
+    documentation: Optional[str] = Field(default=None, description="What this interaction entails")
+
+
+class FHIRCapabilityResource(BaseModel):
+    type: str = Field(..., description="Resource Type (Patient, Encounter, etc.)")
+    profile: Optional[str] = Field(default=None, description="Base System Profile")
+    interaction: list[FHIRCapabilityInteraction] = Field(default_factory=list, description="Supported operations")
+    searchParam: list[dict[str, str]] = Field(default_factory=list, description="Search parameters for this resource")
+
+
+class FHIRCapabilityRest(BaseModel):
+    mode: str = Field(default="server", description="client | server")
+    documentation: Optional[str] = Field(default=None, description="General description of implementation")
+    security: Optional[dict[str, Any]] = Field(default=None, description="Information about security of implementation")
+    resource: list[FHIRCapabilityResource] = Field(default_factory=list, description="Resource supported by the server")
+
+
+class FHIRCapabilityStatement(BaseModel):
+    model_config = ConfigDict(extra="allow", populate_by_name=True)
+
+    resourceType: str = Field(default="CapabilityStatement", description="FHIR resource type")
+    id: Optional[str] = Field(default="medigen-ai-capability-statement", description="Logical id")
+    status: str = Field(default="active", description="draft | active | retired | unknown")
+    date: str = Field(..., description="Date this statement was published")
+    publisher: Optional[str] = Field(default="MediGen AI Clinical Intelligence Platform")
+    kind: str = Field(default="instance", description="instance | capability | requirements")
+    software: Optional[dict[str, str]] = Field(default=None, description="Software that is covered by this statement")
+    implementation: Optional[dict[str, str]] = Field(default=None, description="If this describes a specific instance")
+    fhirVersion: str = Field(default="4.0.1", description="FHIR Version (4.0.1)")
+    format: list[str] = Field(default=["application/fhir+json", "application/json"], description="formats supported (xml | json | etc.)")
+    rest: list[FHIRCapabilityRest] = Field(default_factory=list, description="If the endpoint is a RESTful one")

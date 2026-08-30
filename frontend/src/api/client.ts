@@ -157,11 +157,11 @@ import {
   SecurityIncidentCreateRequest,
   SecurityIncidentUpdateRequest,
   SecurityScanResult,
+  SystemLivenessResponse,
+  SystemReadinessResponse,
+  SystemMetricsResponse,
+  FHIRCapabilityStatement,
 } from '../types';
-
-
-
-
 
 const API_BASE_URL = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_URL) || '/api/v1';
 
@@ -212,6 +212,21 @@ export async function apiRequest<T>(
     clearStoredToken();
     window.dispatchEvent(new Event('medigen:unauthorized'));
     throw new Error('Your session has expired. Please sign in again.');
+  }
+
+  if (response.status === 429) {
+    const retryAfter = response.headers.get('Retry-After') || '60';
+    window.dispatchEvent(
+      new CustomEvent('medigen:ratelimit', {
+        detail: { retryAfter: parseInt(retryAfter, 10) },
+      })
+    );
+    let errorDetail = `Rate limit exceeded. Please wait ${retryAfter}s before retrying.`;
+    try {
+      const errorData = await response.json();
+      errorDetail = errorData.message || errorDetail;
+    } catch {}
+    throw new Error(errorDetail);
   }
 
   if (!response.ok) {
@@ -2057,6 +2072,21 @@ export const imagingApi = {
 
 // FHIR R4 Interoperability Export API
 export const fhirApi = {
+  getCapabilityStatement: async (): Promise<FHIRCapabilityStatement> => {
+    return apiRequest<FHIRCapabilityStatement>('/fhir/metadata');
+  },
+
+  exportPatientBundle: async (patientId: string): Promise<any> => {
+    return apiRequest<any>(`/fhir/patients/${encodeURIComponent(patientId)}/bundle`);
+  },
+
+  importBundle: async (bundlePayload: any): Promise<any> => {
+    return apiRequest<any>('/fhir/Bundle', {
+      method: 'POST',
+      body: JSON.stringify(bundlePayload),
+    });
+  },
+
   exportAgentTask: async (recommendationId: string): Promise<any> => {
     return apiRequest<any>(`/fhir/AgentTask/${encodeURIComponent(recommendationId)}`, { method: 'GET' });
   },
@@ -2282,5 +2312,28 @@ export const securityApi = {
     return apiRequest<BackgroundTask>('/tasks/security/compliance-report', {
       method: 'POST',
     });
+  },
+};
+
+// 21. Infrastructure, Health & System Diagnostics APIs (Phase 9.0.20)
+export const systemApi = {
+  getLiveness: async (): Promise<SystemLivenessResponse> => {
+    return apiRequest<SystemLivenessResponse>('/health/live');
+  },
+
+  getReadiness: async (): Promise<SystemReadinessResponse> => {
+    return apiRequest<SystemReadinessResponse>('/health/ready');
+  },
+
+  getMetrics: async (): Promise<SystemMetricsResponse> => {
+    return apiRequest<SystemMetricsResponse>('/health/metrics');
+  },
+
+  getPrometheusMetricsText: async (): Promise<string> => {
+    const token = getStoredToken();
+    const headers: Record<string, string> = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    const res = await fetch('/api/v1/health/metrics/prometheus', { headers });
+    return res.text();
   },
 };

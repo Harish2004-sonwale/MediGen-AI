@@ -103,6 +103,14 @@ class AuditService:
         db.add(audit_record)
         db.commit()
         db.refresh(audit_record)
+
+        # 6. Stream to external SIEM if configured
+        try:
+            from app.core.audit_streaming import stream_audit_event
+            stream_audit_event(audit_record)
+        except Exception:
+            pass
+
         return audit_record
 
     def verify_audit_trail_integrity(self, db: Session) -> AuditIntegrityVerificationResponse:

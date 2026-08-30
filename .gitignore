@@ -29,6 +29,7 @@ share/python-wheels/
 .env
 .env.*
 !.env.example
+!.env.production.example
 venv/
 .venv/
 backend/.venv/

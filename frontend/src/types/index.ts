@@ -1935,3 +1935,100 @@ export interface ComplianceSummaryResponse {
   compliance_score_percent: number;
   status: 'COMPLIANT' | 'WARNING' | 'NON_COMPLIANT' | string;
 }
+
+// ============================================================================
+// Phase 9.0.20: System Diagnostics, Operational Metrics & FHIR Metadata
+// ============================================================================
+
+export interface SystemLivenessResponse {
+  status: 'alive' | string;
+  service: string;
+  version: string;
+  environment: string;
+  correlation_id?: string;
+}
+
+export interface SystemComponentHealth {
+  status?: string;
+  healthy: boolean;
+  provider?: string;
+  collection?: string;
+  error?: string;
+  metrics?: Record<string, any>;
+  [key: string]: any;
+}
+
+export interface SystemReadinessResponse {
+  status: 'ready' | 'not_ready' | string;
+  ready: boolean;
+  service: string;
+  version: string;
+  components: {
+    database?: SystemComponentHealth;
+    cache?: SystemComponentHealth;
+    vector_store?: SystemComponentHealth;
+    task_worker?: SystemComponentHealth;
+    drug_knowledge?: SystemComponentHealth;
+    [key: string]: SystemComponentHealth | undefined;
+  };
+  correlation_id?: string;
+}
+
+export interface SystemMetricsResponse {
+  service: string;
+  version: string;
+  environment: string;
+  http: {
+    total_requests: number;
+    uptime_seconds: number;
+    requests_by_status: Record<string, number>;
+    avg_duration_ms: number;
+    recent_latencies_ms: number[];
+  };
+  tasks: {
+    queued: number;
+    running: number;
+    completed: number;
+    failed: number;
+    active_threads?: number;
+    [key: string]: any;
+  };
+  correlation_id?: string;
+}
+
+export interface FHIRCapabilityInteraction {
+  code: string;
+  documentation?: string;
+}
+
+export interface FHIRCapabilityResource {
+  type: string;
+  profile?: string;
+  interaction: FHIRCapabilityInteraction[];
+  searchParam?: Array<Record<string, string>>;
+}
+
+export interface FHIRCapabilityStatement {
+  resourceType: 'CapabilityStatement';
+  id?: string;
+  status: string;
+  date: string;
+  publisher?: string;
+  kind: string;
+  software?: {
+    name: string;
+    version: string;
+  };
+  implementation?: {
+    description: string;
+    url: string;
+  };
+  fhirVersion: string;
+  format: string[];
+  rest: Array<{
+    mode: string;
+    documentation?: string;
+    security?: Record<string, any>;
+    resource: FHIRCapabilityResource[];
+  }>;
+}

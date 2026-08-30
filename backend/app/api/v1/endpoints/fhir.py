@@ -32,6 +32,10 @@ from app.schemas.fhir import (
     FHIRTask,
     FHIRConsent,
     FHIRAuditEvent,
+    FHIRCapabilityStatement,
+    FHIRCapabilityRest,
+    FHIRCapabilityResource,
+    FHIRCapabilityInteraction,
 )
 from app.services.fhir_export_service import (
     export_agent_provenance_as_fhir,
@@ -727,3 +731,84 @@ def import_bundle(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
+@router.get(
+    "/metadata",
+    response_model=FHIRCapabilityStatement,
+    status_code=status.HTTP_200_OK,
+    summary="Get FHIR R4 CapabilityStatement for MediGen AI platform",
+)
+def get_fhir_capability_statement() -> FHIRCapabilityStatement:
+    """Return FHIR R4 CapabilityStatement declaring server conformance, resources, and interactions."""
+    resource_types = [
+        ("Patient", ["read", "search-type"]),
+        ("Encounter", ["read"]),
+        ("Condition", ["read"]),
+        ("MedicationStatement", ["read"]),
+        ("Observation", ["read"]),
+        ("DiagnosticReport", ["read"]),
+        ("CarePlan", ["read"]),
+        ("ServiceRequest", ["read"]),
+        ("Group", ["read"]),
+        ("Communication", ["read"]),
+        ("Composition", ["read"]),
+        ("Measure", ["read"]),
+        ("MeasureReport", ["read"]),
+        ("Device", ["read"]),
+        ("Questionnaire", ["read"]),
+        ("QuestionnaireResponse", ["read"]),
+        ("ResearchStudy", ["read"]),
+        ("RiskAssessment", ["read"]),
+        ("ImagingStudy", ["read"]),
+        ("Consent", ["read"]),
+        ("AuditEvent", ["read"]),
+    ]
+
+    resources = [
+        FHIRCapabilityResource(
+            type=rtype,
+            profile=f"http://hl7.org/fhir/StructureDefinition/{rtype}",
+            interaction=[FHIRCapabilityInteraction(code=code) for code in ops],
+        )
+        for rtype, ops in resource_types
+    ]
+
+    return FHIRCapabilityStatement(
+        id="medigen-ai-capability-statement",
+        status="active",
+        date="2026-08-30T00:00:00Z",
+        publisher="MediGen AI Clinical Intelligence Platform",
+        kind="instance",
+        software={
+            "name": "MediGen AI Clinical Platform",
+            "version": "0.1.0",
+        },
+        implementation={
+            "description": "MediGen AI FHIR R4 Interoperability Gateway & Clinical Decision Support System",
+            "url": "http://localhost:8000/api/v1/fhir",
+        },
+        fhirVersion="4.0.1",
+        format=["application/fhir+json", "application/json"],
+        rest=[
+            FHIRCapabilityRest(
+                mode="server",
+                documentation="RESTful FHIR R4 Clinical Decision Support & Interoperability Gateway",
+                security={
+                    "cors": True,
+                    "service": [
+                        {
+                            "coding": [
+                                {
+                                    "system": "http://terminology.hl7.org/CodeSystem/restful-security-service",
+                                    "code": "OAuth",
+                                    "display": "OAuth2 / JWT Bearer Authentication",
+                                }
+                            ]
+                        }
+                    ],
+                },
+                resource=resources,
+            )
+        ],
+    )

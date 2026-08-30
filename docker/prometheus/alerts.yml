@@ -1,0 +1,62 @@
+# ==============================================================================
+# MediGen AI - Prometheus Alerting Rules
+# Clinical Platform Reliability & Observability Alert Definitions
+# ==============================================================================
+
+groups:
+  - name: medigen_platform_alerts
+    rules:
+      # 1. High 5xx Server Error Rate
+      - alert: HighHttp5xxRate
+        expr: rate(medigen_http_requests_total{status_code=~"5.."}[5m]) > 0.05
+        for: 2m
+        labels:
+          severity: critical
+          team: clinical-reliability
+        annotations:
+          summary: "High 5xx error rate detected on MediGen AI API"
+          description: "Server 5xx error rate exceeds 5% over the past 5 minutes. Immediate investigation required."
+
+      # 2. Elevated Request Latency
+      - alert: HighRequestLatency
+        expr: medigen_http_request_duration_seconds > 1.5
+        for: 5m
+        labels:
+          severity: warning
+          team: clinical-reliability
+        annotations:
+          summary: "Elevated average API request duration"
+          description: "Average API request duration has exceeded 1.5 seconds for > 5 minutes."
+
+      # 3. Cache Availability Degradation
+      - alert: RedisCacheDown
+        expr: medigen_cache_connected == 0
+        for: 3m
+        labels:
+          severity: warning
+          team: devops
+        annotations:
+          summary: "Redis Cache backend is offline or unreachable"
+          description: "MediGen AI has fallen back to local in-memory caching because Redis is unavailable."
+
+      # 4. Background Task Queue Saturation
+      - alert: HighTaskQueueDepth
+        expr: medigen_tasks_queued > 50
+        for: 5m
+        labels:
+          severity: warning
+          team: background-workers
+        annotations:
+          summary: "Background task queue depth is elevated"
+          description: "More than 50 background clinical tasks are queued for > 5 minutes."
+
+      # 5. External Integration Circuit Breaker Open
+      - alert: ExternalIntegrationCircuitOpen
+        expr: medigen_circuit_breaker_state == 2
+        for: 1m
+        labels:
+          severity: warning
+          team: integrations
+        annotations:
+          summary: "External Integration Circuit Breaker Tripped (OPEN)"
+          description: "An external cloud service (LLM, OCR, or OpenFDA) circuit breaker has tripped due to repeated failures. System running in graceful degraded mode."

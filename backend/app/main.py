@@ -41,6 +41,17 @@ async def lifespan(app: FastAPI):
         if prod_errors:
             for err in prod_errors:
                 logger.error("Production configuration issue detected: %s", err)
+            raise RuntimeError(
+                f"Critical production configuration errors detected ({len(prod_errors)} issues). "
+                "Halting application startup for patient safety and compliance security."
+            )
+
+    # Initialize cache and rate limiter
+    from app.core.cache import get_cache
+    from app.core.rate_limiter import get_rate_limiter
+
+    get_cache()
+    get_rate_limiter()
 
     # Initialize background worker provider
     worker_provider = get_background_task_provider()
@@ -71,10 +82,14 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Correlation ID and Request Timing Middleware
+# 1. Correlation ID and Request Timing Middleware
 app.add_middleware(CorrelationIdMiddleware)
 
-# CORS configuration
+# 2. Rate Limiting & Abuse Protection Middleware
+from app.core.rate_limiter import RateLimiterMiddleware
+app.add_middleware(RateLimiterMiddleware)
+
+# 3. CORS configuration
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.get_cors_origins(),
