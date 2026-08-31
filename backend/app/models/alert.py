@@ -40,6 +40,10 @@ class ClinicalAlert(Base):
         index=True,
         nullable=True,
     )
+    facility_id: Mapped[Optional[str]] = mapped_column(String(64), nullable=True, index=True, default="FAC-001")
+    escalation_level: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    escalated_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    escalation_notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     alert_type: Mapped[str] = mapped_column(String(50), index=True, nullable=False)
     severity: Mapped[AlertSeverity] = mapped_column(

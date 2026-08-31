@@ -37,6 +37,7 @@ class MedicalDocument(Base):
         index=True,
         nullable=True,
     )
+    facility_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True, default="FAC-001")
     title: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     document_type: Mapped[DocumentType] = mapped_column(
         Enum(

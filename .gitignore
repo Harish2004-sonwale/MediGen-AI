@@ -69,6 +69,8 @@ htmlcov/
 *.db
 data/
 backend/data/
+app_data/
+backend/app_data/
 vector_db/
 medical_documents/
 

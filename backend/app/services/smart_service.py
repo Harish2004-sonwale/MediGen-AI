@@ -12,6 +12,7 @@ import uuid
 import jwt
 from sqlalchemy.orm import Session
 
+from app.core.cache import get_cache
 from app.core.config import settings
 from app.models.tenant import SmartAuthSession
 from app.schemas.smart import (
@@ -35,11 +36,12 @@ TEST_JWK_E = "AQAB"
 
 
 class SmartService:
-    """SMART on FHIR 2.0.0 Authorization and Identity Service."""
+    """SMART on FHIR 2.0.0 Authorization, Token Revocation (RFC 7009) and Identity Service."""
 
     def __init__(self) -> None:
         self._signing_key = settings.JWT_SECRET_KEY
         self._algorithm = settings.JWT_ALGORITHM
+        self._revoked_token_hashes: set[str] = set()
 
     def get_smart_configuration(self, base_url: str) -> SmartConfigurationResponse:
         """Returns SMART on FHIR 2.0 discovery configuration document."""
@@ -48,6 +50,7 @@ class SmartService:
             authorization_endpoint=f"{clean_base}/api/v1/smart/authorize",
             token_endpoint=f"{clean_base}/api/v1/smart/token",
             introspection_endpoint=f"{clean_base}/api/v1/smart/introspect",
+            revocation_endpoint=f"{clean_base}/api/v1/smart/revoke",
             jwks_uri=f"{clean_base}/.well-known/jwks.json",
             issuer=clean_base,
             grant_types_supported=["authorization_code", "client_credentials"],
@@ -230,8 +233,41 @@ class SmartService:
             smart_style_url=None,
         )
 
+    def revoke_token(self, db: Session, token: str, token_type_hint: Optional[str] = None) -> bool:
+        """Revokes a SMART access token or refresh token according to RFC 7009."""
+        token_hash = hashlib.sha256(token.encode()).hexdigest()
+        self._revoked_token_hashes.add(token_hash)
+
+        # Clear matching active session in database if present
+        session = db.query(SmartAuthSession).filter(SmartAuthSession.access_token_hash == token_hash).first()
+        if session:
+            session.access_token_hash = None
+            db.commit()
+
+        # Invalidate in Redis blacklist cache if cache is available
+        try:
+            cache = get_cache()
+            if cache.is_available:
+                cache.set(f"revoked_token:{token_hash}", "1", ttl=86400)
+        except Exception:
+            pass
+
+        logger.info("Successfully revoked SMART token with hash %s", token_hash[:12])
+        return True
+
     def introspect_token(self, db: Session, token: str) -> SmartIntrospectResponse:
         """Decodes and validates a SMART access token according to RFC 7662."""
+        token_hash = hashlib.sha256(token.encode()).hexdigest()
+        if token_hash in self._revoked_token_hashes:
+            return SmartIntrospectResponse(active=False)
+
+        try:
+            cache = get_cache()
+            if cache.is_available and cache.get(f"revoked_token:{token_hash}"):
+                return SmartIntrospectResponse(active=False)
+        except Exception:
+            pass
+
         try:
             payload = jwt.decode(token, self._signing_key, algorithms=[self._algorithm])
             exp = payload.get("exp", 0)

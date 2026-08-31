@@ -30,6 +30,7 @@ class ImagingStudy(Base):
     patient_id = Column(Integer, ForeignKey("patients.id", ondelete="RESTRICT"), nullable=False, index=True)
     encounter_id = Column(Integer, ForeignKey("encounters.id", ondelete="SET NULL"), nullable=True, index=True)
     order_id = Column(Integer, ForeignKey("clinical_orders.id", ondelete="SET NULL"), nullable=True, index=True)
+    facility_id = Column(String(64), nullable=True, index=True, default="FAC-001")
 
     modality = Column(String(32), nullable=False, index=True)  # XRAY, CT, MRI, ULTRASOUND, MAMMOGRAPHY, PET_CT, ECHOCARDIOGRAPHY, OTHER
     body_site = Column(String(32), nullable=False, index=True)  # CHEST, ABDOMEN, PELVIS, HEAD_BRAIN, SPINE, EXTREMITY, CARDIAC, BREAST, NECK, OTHER

@@ -65,6 +65,7 @@ class ClinicalOrderUpdate(BaseModel):
     clinical_indication: Optional[str] = None
     specimen_source: Optional[str] = None
     order_details: Optional[dict[str, Any]] = None
+    version: Optional[int] = Field(default=None, description="Current version of the order for optimistic locking concurrency control")
 
 
 class ClinicalOrderResponse(BaseModel):
@@ -78,6 +79,8 @@ class ClinicalOrderResponse(BaseModel):
     encounter_id: Optional[int] = None
     ordering_user_id: Optional[int] = None
     ordering_user_name: Optional[str] = None
+    facility_id: Optional[str] = None
+    version: int = 1
     order_category: OrderCategory
     order_type: str
     priority: OrderPriority

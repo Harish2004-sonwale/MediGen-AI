@@ -38,6 +38,8 @@ class CarePlan(Base):
         ForeignKey("encounters.id", ondelete="SET NULL"),
         nullable=True,
     )
+    facility_id: Mapped[Optional[str]] = mapped_column(String(64), nullable=True, index=True, default="FAC-001")
+    version: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
 
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     category: Mapped[CarePlanCategory] = mapped_column(

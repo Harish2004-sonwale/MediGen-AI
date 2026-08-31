@@ -39,6 +39,7 @@ class DiagnosticMedia(Base):
         index=True,
         nullable=True,
     )
+    facility_id: Mapped[Optional[str]] = mapped_column(String(64), nullable=True, index=True, default="FAC-001")
     title: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     modality: Mapped[MediaModality] = mapped_column(
         Enum(

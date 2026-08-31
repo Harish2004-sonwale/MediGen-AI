@@ -174,6 +174,13 @@ import {
   TerminologyNormalizeResponse,
   TerminologyCrossWalkResponse,
   WebSocketStats,
+  OutboxEvent,
+  OutboxMetrics,
+  MFASetupResponse,
+  MFAStatusResponse,
+  MFAVerifyResponse,
+  FHIRSubscription,
+  BulkExportJob,
 } from '../types';
 
 const API_BASE_URL = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_URL) || '/api/v1';
@@ -2547,5 +2554,113 @@ export const telehealthApi = {
       method: 'POST',
       body: JSON.stringify(frame),
     });
+  },
+};
+
+// 27. Transactional Outbox & Reliability APIs (Phase 9.0.22)
+export const outboxApi = {
+  listEvents: async (status?: string, limit = 50, offset = 0): Promise<OutboxEvent[]> => {
+    const params = new URLSearchParams();
+    if (status) params.append('status', status);
+    params.append('limit', String(limit));
+    params.append('offset', String(offset));
+    return apiRequest<OutboxEvent[]>(`/outbox/events?${params.toString()}`);
+  },
+
+  replayDeadLetters: async (eventIds?: string[], limit = 50): Promise<{ replayed_count: number; message: string }> => {
+    return apiRequest<{ replayed_count: number; message: string }>('/outbox/replay', {
+      method: 'POST',
+      body: JSON.stringify({ event_ids: eventIds, limit }),
+    });
+  },
+
+  getMetrics: async (): Promise<OutboxMetrics> => {
+    return apiRequest<OutboxMetrics>('/outbox/metrics');
+  },
+};
+
+// 28. Multi-Factor Authentication (TOTP / MFA) APIs (Phase 9.0.22)
+export const mfaApi = {
+  setup: async (): Promise<MFASetupResponse> => {
+    return apiRequest<MFASetupResponse>('/auth/mfa/setup', {
+      method: 'POST',
+    });
+  },
+
+  enable: async (code: string): Promise<MFAVerifyResponse> => {
+    return apiRequest<MFAVerifyResponse>('/auth/mfa/enable', {
+      method: 'POST',
+      body: JSON.stringify({ code }),
+    });
+  },
+
+  verify: async (code: string): Promise<MFAVerifyResponse> => {
+    return apiRequest<MFAVerifyResponse>('/auth/mfa/verify', {
+      method: 'POST',
+      body: JSON.stringify({ code }),
+    });
+  },
+
+  disable: async (code: string): Promise<MFAVerifyResponse> => {
+    return apiRequest<MFAVerifyResponse>('/auth/mfa/disable', {
+      method: 'POST',
+      body: JSON.stringify({ code }),
+    });
+  },
+
+  getStatus: async (): Promise<MFAStatusResponse> => {
+    return apiRequest<MFAStatusResponse>('/auth/mfa/status');
+  },
+};
+
+// 29. FHIR R4 Topic-Based Subscriptions APIs (Phase 9.0.22)
+export const fhirSubscriptionsApi = {
+  createSubscription: async (data: {
+    topic: string;
+    criteria: string;
+    channel_type: 'REST_HOOK' | 'WEBSOCKET' | 'EMAIL';
+    endpoint_url: string;
+    secret_token?: string;
+  }): Promise<FHIRSubscription> => {
+    return apiRequest<FHIRSubscription>('/fhir/Subscription', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  listSubscriptions: async (topic?: string, status?: string): Promise<FHIRSubscription[]> => {
+    const params = new URLSearchParams();
+    if (topic) params.append('topic', topic);
+    if (status) params.append('status', status);
+    const qs = params.toString();
+    return apiRequest<FHIRSubscription[]>(`/fhir/Subscription${qs ? `?${qs}` : ''}`);
+  },
+
+  deleteSubscription: async (subscriptionId: string): Promise<{ success: boolean; message: string }> => {
+    return apiRequest<{ success: boolean; message: string }>(`/fhir/Subscription/${encodeURIComponent(subscriptionId)}`, {
+      method: 'DELETE',
+    });
+  },
+};
+
+// 30. FHIR Bulk Data Export ($export) APIs (Phase 9.0.22)
+export const bulkExportApi = {
+  kickoffExport: async (resourceTypes?: string[]): Promise<{ job_id: string; status: string; poll_url: string }> => {
+    const params = new URLSearchParams();
+    if (resourceTypes && resourceTypes.length > 0) {
+      params.append('_type', resourceTypes.join(','));
+    }
+    const qs = params.toString();
+    return apiRequest<{ job_id: string; status: string; poll_url: string }>(
+      `/fhir/Patient/$export${qs ? `?${qs}` : ''}`,
+      {
+        method: 'POST',
+        headers: { Prefer: 'respond-async' },
+      }
+    );
+  },
+
+  getExportStatus: async (jobId: string): Promise<BulkExportJob> => {
+    return apiRequest<BulkExportJob>(`/fhir/bulk-export/${encodeURIComponent(jobId)}/status`);
   },
 };

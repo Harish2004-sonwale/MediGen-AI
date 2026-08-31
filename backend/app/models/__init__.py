@@ -70,6 +70,11 @@ from app.models.tenant import (
     SmartAuthSession,
     TerminologyMapping,
 )
+from app.models.outbox import OutboxEvent
+from app.models.idempotency import IdempotencyRecord
+from app.models.mfa import MFACredential
+from app.models.fhir_subscription import FHIRSubscription
+from app.models.bulk_export import BulkExportJob
 
 __all__ = [
     "User",
@@ -131,4 +136,9 @@ __all__ = [
     "EHRIntegrationConfig",
     "SmartAuthSession",
     "TerminologyMapping",
+    "OutboxEvent",
+    "IdempotencyRecord",
+    "MFACredential",
+    "FHIRSubscription",
+    "BulkExportJob",
 ]

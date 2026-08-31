@@ -30,6 +30,7 @@ class Encounter(Base):
         index=True,
         nullable=True,
     )
+    facility_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True, default="FAC-001")
     encounter_date: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),

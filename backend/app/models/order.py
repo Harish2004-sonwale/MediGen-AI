@@ -30,6 +30,8 @@ class ClinicalOrder(Base):
     patient_id = Column(Integer, ForeignKey("patients.id", ondelete="RESTRICT"), nullable=False, index=True)
     encounter_id = Column(Integer, ForeignKey("encounters.id", ondelete="SET NULL"), nullable=True, index=True)
     ordering_user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    facility_id = Column(String(64), nullable=True, index=True, default="FAC-001")
+    version = Column(Integer, default=1, nullable=False)
 
     order_category = Column(String(30), nullable=False, default="laboratory", index=True)  # laboratory, imaging, medication, nursing, consultation
     order_type = Column(String(100), nullable=False, index=True)  # cbc_with_diff, chest_xray_pa, etc.

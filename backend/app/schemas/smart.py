@@ -100,3 +100,13 @@ class SmartIntrospectResponse(BaseModel):
     iss: Optional[str] = None
     patient: Optional[str] = None
     facility_id: Optional[str] = None
+
+
+class SmartRevokeRequest(BaseModel):
+    token: str
+    token_type_hint: Optional[str] = "access_token"
+
+
+class SmartRevokeResponse(BaseModel):
+    revoked: bool
+    message: str

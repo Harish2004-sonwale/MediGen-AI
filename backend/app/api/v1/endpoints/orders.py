@@ -4,10 +4,14 @@ Phase 9.0.13: Computerized Physician Order Entry (CPOE), Diagnostic Order Lifecy
 """
 
 from typing import Optional
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Header, Query, Response, status
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_active_user
+from app.core.idempotency import (
+    check_and_get_cached_idempotency_response,
+    store_idempotency_response,
+)
 from app.database import get_db
 from app.models.user import User
 from app.schemas.order import (
@@ -44,11 +48,41 @@ router = APIRouter(tags=["Clinical Orders (CPOE) & Diagnostic Results"])
 def place_clinical_order(
     patient_id: str,
     payload: ClinicalOrderCreate,
+    response: Response,
+    x_idempotency_key: Optional[str] = Header(None, alias="X-Idempotency-Key"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
 ) -> ClinicalOrderResponse:
-    """Place a structured laboratory, imaging, medication, nursing, or consult order."""
-    return order_service.create_clinical_order(db, patient_id, payload, current_user)
+    """Place a structured laboratory, imaging, medication, nursing, or consult order with optional idempotency."""
+    endpoint_path = f"/patients/{patient_id}/orders"
+    if x_idempotency_key and x_idempotency_key.strip():
+        cached = check_and_get_cached_idempotency_response(
+            db=db,
+            idempotency_key=x_idempotency_key.strip(),
+            endpoint=endpoint_path,
+            request_payload=payload.model_dump(mode="json"),
+        )
+        if cached is not None:
+            status_code, body = cached
+            response.status_code = status_code
+            response.headers["X-Cache-Lookup"] = "IDEMPOTENT-HIT"
+            return ClinicalOrderResponse(**body)
+
+    order_resp = order_service.create_clinical_order(db, patient_id, payload, current_user)
+
+    if x_idempotency_key and x_idempotency_key.strip():
+        store_idempotency_response(
+            db=db,
+            idempotency_key=x_idempotency_key.strip(),
+            endpoint=endpoint_path,
+            request_payload=payload.model_dump(mode="json"),
+            response_code=status.HTTP_201_CREATED,
+            response_body=order_resp.model_dump(mode="json"),
+            user_id=current_user.id,
+            facility_id=order_resp.facility_id,
+        )
+
+    return order_resp
 
 
 @router.post(

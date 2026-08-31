@@ -20,6 +20,7 @@ from app.models.order import ClinicalOrder, DiagnosticResult
 from app.models.patient import Patient
 from app.models.user import User, UserRole
 from app.schemas.alert import AlertSeverity, AlertStatus
+from app.services.outbox_service import record_outbox_event
 
 from app.schemas.order import (
     AbnormalFlag,
@@ -91,6 +92,8 @@ def _to_order_response(o: ClinicalOrder) -> ClinicalOrderResponse:
         encounter_id=o.encounter_id,
         ordering_user_id=o.ordering_user_id,
         ordering_user_name=o.ordering_user.name if o.ordering_user else None,
+        facility_id=o.facility_id,
+        version=o.version if hasattr(o, "version") and o.version else 1,
         order_category=OrderCategory(o.order_category),
         order_type=o.order_type,
         priority=OrderPriority(o.priority),
@@ -188,6 +191,8 @@ def create_clinical_order(
         patient_id=patient.id,
         encounter_id=payload.encounter_id,
         ordering_user_id=current_user.id,
+        facility_id=patient.facility_id or "FAC-001",
+        version=1,
         order_category=payload.order_category.value,
         order_type=payload.order_type,
         priority=payload.priority.value,
@@ -202,6 +207,20 @@ def create_clinical_order(
         updated_at=now_ts,
     )
     db.add(order)
+    record_outbox_event(
+        db=db,
+        event_type="ORDER_CREATED",
+        aggregate_type="ORDER",
+        aggregate_id=order_id,
+        payload={
+            "order_id": order_id,
+            "patient_id": patient.patient_id,
+            "order_type": payload.order_type,
+            "priority": payload.priority.value,
+            "status": "placed",
+        },
+        facility_id=order.facility_id,
+    )
     db.commit()
     db.refresh(order)
 
@@ -316,6 +335,18 @@ def update_clinical_order(
             detail=f"Clinical order '{order_id_str}' not found.",
         )
 
+    # Optimistic locking check
+    if payload.version is not None:
+        current_version = order.version if hasattr(order, "version") and order.version else 1
+        if current_version != payload.version:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=(
+                    f"Conflict: Clinical order '{order_id_str}' has been modified by another user session. "
+                    f"Current version is {current_version}, provided version is {payload.version}."
+                ),
+            )
+
     if payload.priority is not None:
         order.priority = payload.priority.value
     if payload.clinical_indication is not None:
@@ -329,7 +360,22 @@ def update_clinical_order(
         if payload.status == OrderStatus.COMPLETED and not order.completed_at:
             order.completed_at = datetime.now(timezone.utc)
 
+    order.version = (order.version if hasattr(order, "version") and order.version else 1) + 1
     order.updated_at = datetime.now(timezone.utc)
+
+    record_outbox_event(
+        db=db,
+        event_type="ORDER_UPDATED",
+        aggregate_type="ORDER",
+        aggregate_id=order.order_id,
+        payload={
+            "order_id": order.order_id,
+            "status": order.status,
+            "priority": order.priority,
+            "version": order.version,
+        },
+        facility_id=order.facility_id,
+    )
     db.commit()
     db.refresh(order)
     return _to_order_response(order)

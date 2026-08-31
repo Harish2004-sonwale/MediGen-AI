@@ -13,6 +13,8 @@ from app.schemas.smart import (
     SmartConfigurationResponse,
     SmartIntrospectRequest,
     SmartIntrospectResponse,
+    SmartRevokeRequest,
+    SmartRevokeResponse,
     SmartTokenRequest,
     SmartTokenResponse,
 )
@@ -113,3 +115,20 @@ def smart_introspect(
 ) -> SmartIntrospectResponse:
     """Validates and introspects a SMART access token (RFC 7662)."""
     return smart_service.introspect_token(db=db, token=payload.token)
+
+
+@router.post("/revoke", response_model=SmartRevokeResponse, summary="SMART Token Revocation")
+def smart_revoke(
+    payload: SmartRevokeRequest,
+    db: Session = Depends(get_db),
+) -> SmartRevokeResponse:
+    """Revokes a SMART access or refresh token (RFC 7009)."""
+    revoked = smart_service.revoke_token(
+        db=db,
+        token=payload.token,
+        token_type_hint=payload.token_type_hint,
+    )
+    return SmartRevokeResponse(
+        revoked=revoked,
+        message="Token revocation processed successfully.",
+    )

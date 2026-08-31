@@ -26,6 +26,7 @@ class DischargeProtocol(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     discharge_id = Column(String(32), unique=True, index=True, nullable=False)
+    version = Column(Integer, default=1, nullable=False)
     patient_id = Column(
         Integer,
         ForeignKey("patients.id", ondelete="RESTRICT"),

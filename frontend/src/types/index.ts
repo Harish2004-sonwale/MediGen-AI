@@ -2226,3 +2226,79 @@ export interface WebSocketStats {
   active_telehealth_sessions: number;
   total_connected_clients: number;
 }
+
+// ============================================================================
+// Phase 9.0.22: Enterprise Reliability, Concurrency, Interoperability & MFA
+// ============================================================================
+
+export interface OutboxEvent {
+  id: number;
+  event_id: string;
+  event_type: string;
+  aggregate_type: string;
+  aggregate_id: string;
+  payload: Record<string, any>;
+  status: 'PENDING' | 'PUBLISHED' | 'FAILED' | 'DEAD_LETTER';
+  attempts: number;
+  max_attempts: number;
+  error_message?: string;
+  retry_after?: string;
+  facility_id?: string;
+  created_at: string;
+  published_at?: string;
+}
+
+export interface OutboxMetrics {
+  total: number;
+  pending: number;
+  published: number;
+  failed: number;
+  dead_letter: number;
+}
+
+export interface MFASetupResponse {
+  secret: string;
+  otpauth_uri: string;
+  backup_codes: string[];
+  message: string;
+}
+
+export interface MFAStatusResponse {
+  is_enabled: boolean;
+  backup_codes_remaining: number;
+  last_used_at?: string;
+}
+
+export interface MFAVerifyResponse {
+  verified: boolean;
+  message: string;
+}
+
+export interface FHIRSubscription {
+  id: number;
+  subscription_id: string;
+  topic: string;
+  criteria: string;
+  channel_type: 'REST_HOOK' | 'WEBSOCKET' | 'EMAIL';
+  endpoint_url: string;
+  status: 'ACTIVE' | 'OFF' | 'ERROR';
+  facility_id?: string;
+  created_at: string;
+}
+
+export interface BulkExportJob {
+  id: number;
+  job_id: string;
+  user_id: number;
+  facility_id?: string;
+  status: 'ACCEPTED' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED';
+  resource_types_json?: string[];
+  output_urls_json?: Array<{
+    type: string;
+    url: string;
+    count?: number;
+  }>;
+  progress_percent: number;
+  created_at: string;
+  completed_at?: string;
+}
