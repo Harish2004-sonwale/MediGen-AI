@@ -1,13 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import * as client from '../../api/client';
 import { CDSCard, CDSService, SmartConfiguration, TerminologyConcept } from '../../types';
+import { BulkExportModal } from './BulkExportModal';
+import { FHIRSubscriptionsConsole } from './FHIRSubscriptionsConsole';
 
 interface Props {
   selectedPatientId?: string;
 }
 
 export const SmartFhirEhrWorkspace: React.FC<Props> = ({ selectedPatientId = 'PAT-001' }) => {
-  const [activeTab, setActiveTab] = useState<'smart_launch' | 'cds_hooks' | 'terminology'>('cds_hooks');
+  const [activeTab, setActiveTab] = useState<'smart_launch' | 'cds_hooks' | 'terminology' | 'subscriptions' | 'bulk_export'>('cds_hooks');
+  const [showBulkExportModal, setShowBulkExportModal] = useState(false);
   const [smartConfig, setSmartConfig] = useState<SmartConfiguration | null>(null);
   const [cdsServices, setCdsServices] = useState<CDSService[]>([]);
   const [cdsCards, setCdsCards] = useState<CDSCard[]>([]);
@@ -134,6 +137,29 @@ export const SmartFhirEhrWorkspace: React.FC<Props> = ({ selectedPatientId = 'PA
             style={{ padding: '8px 16px', borderRadius: '6px', cursor: 'pointer', border: '1px solid #cbd5e1' }}
           >
             Terminology Normalizer
+          </button>
+          <button
+            id="btn-fhir-subscriptions-tab"
+            className={`btn-subtle ${activeTab === 'subscriptions' ? 'active' : ''}`}
+            onClick={() => setActiveTab('subscriptions')}
+            style={{ padding: '8px 16px', borderRadius: '6px', cursor: 'pointer', border: '1px solid #cbd5e1' }}
+          >
+            Topic Subscriptions
+          </button>
+          <button
+            id="btn-bulk-export"
+            onClick={() => setShowBulkExportModal(true)}
+            style={{
+              padding: '8px 16px',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              border: 'none',
+              backgroundColor: '#0891b2',
+              color: '#fff',
+              fontWeight: 600,
+            }}
+          >
+            Bulk FHIR Export ($export)
           </button>
         </div>
       </div>
@@ -312,6 +338,21 @@ export const SmartFhirEhrWorkspace: React.FC<Props> = ({ selectedPatientId = 'PA
             </div>
           )}
         </div>
+      )}
+
+      {/* FHIR TOPIC SUBSCRIPTIONS TAB */}
+      {activeTab === 'subscriptions' && (
+        <div data-testid="fhir-subscriptions-tab-panel">
+          <FHIRSubscriptionsConsole />
+        </div>
+      )}
+
+      {/* BULK FHIR EXPORT MODAL */}
+      {showBulkExportModal && (
+        <BulkExportModal
+          facilityId="FAC-001"
+          onClose={() => setShowBulkExportModal(false)}
+        />
       )}
     </div>
   );

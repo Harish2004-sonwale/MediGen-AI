@@ -246,6 +246,18 @@ def update_care_plan(
             detail=f"Cannot modify care plan in finalized status '{care_plan.status.value}'.",
         )
 
+    # Optimistic locking version check
+    if plan_in.version is not None:
+        current_version = getattr(care_plan, "version", 1) or 1
+        if current_version != plan_in.version:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=(
+                    f"Conflict: Care plan '{plan_id}' has been modified by another user session. "
+                    f"Current version is {current_version}, provided version is {plan_in.version}."
+                ),
+            )
+
     if plan_in.title is not None:
         care_plan.title = plan_in.title.strip()
     if plan_in.category is not None:
@@ -259,14 +271,15 @@ def update_care_plan(
     if plan_in.interventions is not None:
         care_plan.interventions_json = [i.model_dump(mode="json") for i in plan_in.interventions]
     if plan_in.end_date is not None:
-
         care_plan.end_date = plan_in.end_date
 
+    # Increment optimistic locking version
+    care_plan.version = (getattr(care_plan, "version", 1) or 1) + 1
     care_plan.updated_at = datetime.now(timezone.utc)
     db.commit()
     db.refresh(care_plan)
 
-    logger.info("Updated care plan %s by user_id=%s", care_plan.plan_id, current_user.id)
+    logger.info("Updated care plan %s (v%d) by user_id=%s", care_plan.plan_id, care_plan.version, current_user.id)
     return CarePlanResponse.model_validate(care_plan)
 
 

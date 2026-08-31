@@ -53,6 +53,7 @@ def patch_session_local_for_tests():
         patch("app.services.handoff_service.SessionLocal", TestingSessionLocal),
         patch("app.services.cohort_service.SessionLocal", TestingSessionLocal),
         patch("app.services.care_plan_service.SessionLocal", TestingSessionLocal),
+        patch("app.tasks.outbox_tasks.SessionLocal", TestingSessionLocal),
     ]
     for p in patches:
         p.start()

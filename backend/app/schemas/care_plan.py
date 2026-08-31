@@ -75,6 +75,7 @@ class CarePlanUpdate(BaseModel):
     goals: Optional[list[CarePlanGoal]] = None
     interventions: Optional[list[CarePlanIntervention]] = None
     end_date: Optional[datetime] = None
+    version: Optional[int] = Field(default=None, description="Optimistic locking version token")
 
 
 class CarePlanReviewRequest(BaseModel):
@@ -102,6 +103,7 @@ class CarePlanResponse(BaseModel):
     id: int
     plan_id: str
     patient_id: int
+    facility_id: Optional[str] = None
     author_user_id: Optional[int]
     encounter_id: Optional[int]
     title: str
@@ -116,6 +118,7 @@ class CarePlanResponse(BaseModel):
     reviewed_at: Optional[datetime]
     start_date: datetime
     end_date: Optional[datetime]
+    version: int = 1
     created_at: datetime
     updated_at: datetime
 

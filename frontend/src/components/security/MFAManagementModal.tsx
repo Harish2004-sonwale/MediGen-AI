@@ -3,11 +3,11 @@ import { mfaApi } from '../../api/client';
 import { MFASetupResponse, MFAStatusResponse } from '../../types';
 
 interface MFAManagementModalProps {
-  isOpen: boolean;
+  isOpen?: boolean;
   onClose: () => void;
 }
 
-export const MFAManagementModal: React.FC<MFAManagementModalProps> = ({ isOpen, onClose }) => {
+export const MFAManagementModal: React.FC<MFAManagementModalProps> = ({ isOpen = true, onClose }) => {
   const [status, setStatus] = useState<MFAStatusResponse | null>(null);
   const [setupData, setSetupData] = useState<MFASetupResponse | null>(null);
   const [verifyCode, setVerifyCode] = useState('');

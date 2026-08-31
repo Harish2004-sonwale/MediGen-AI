@@ -2,8 +2,9 @@
 // MediGen AI - Header Component
 // ==============================================================================
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { MFAManagementModal } from '../security/MFAManagementModal';
 
 interface HeaderProps {
   onOpenSafetyModal: () => void;
@@ -17,6 +18,7 @@ export const Header: React.FC<HeaderProps> = ({
   activeTaskCount,
 }) => {
   const { user, logout } = useAuth();
+  const [showMFAModal, setShowMFAModal] = useState(false);
 
   const getRoleBadgeClass = (role?: string) => {
     switch (role) {
@@ -87,6 +89,15 @@ export const Header: React.FC<HeaderProps> = ({
                 </span>
               </div>
             </div>
+            <button
+              id="btn-header-mfa"
+              className="btn btn-secondary btn-sm"
+              onClick={() => setShowMFAModal(true)}
+              title="Configure Multi-Factor Authentication"
+              style={{ color: '#a78bfa', borderColor: 'rgba(167, 139, 250, 0.3)' }}
+            >
+              🔐 MFA
+            </button>
             <button className="btn btn-secondary btn-sm" onClick={logout} title="Sign Out">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
@@ -98,6 +109,10 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
         )}
       </div>
+
+      {showMFAModal && (
+        <MFAManagementModal onClose={() => setShowMFAModal(false)} />
+      )}
     </header>
   );
 };

@@ -67,6 +67,7 @@ class ClinicalHandoff(Base):
     )  # List of ContingencyPlan dicts
     synthesis_notes = Column(Text, nullable=True)  # Receiver readback notes
 
+    version = Column(Integer, server_default="1", default=1, nullable=False)
     is_ai_generated = Column(Boolean, default=True, nullable=False)
     acknowledged_at = Column(DateTime(timezone=True), nullable=True)
 

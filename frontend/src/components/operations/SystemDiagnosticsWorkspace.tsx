@@ -6,6 +6,7 @@ import {
   SystemMetricsResponse,
   FHIRCapabilityStatement,
 } from '../../types';
+import { OutboxDLQMonitor } from './OutboxDLQMonitor';
 
 export const SystemDiagnosticsWorkspace: React.FC = () => {
   const [liveness, setLiveness] = useState<SystemLivenessResponse | null>(null);
@@ -14,7 +15,7 @@ export const SystemDiagnosticsWorkspace: React.FC = () => {
   const [fhirCapability, setFhirCapability] = useState<FHIRCapabilityStatement | null>(null);
   const [prometheusText, setPrometheusText] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(true);
-  const [activeSubTab, setActiveSubTab] = useState<'overview' | 'metrics' | 'fhir' | 'prometheus'>('overview');
+  const [activeSubTab, setActiveSubTab] = useState<'overview' | 'metrics' | 'fhir' | 'prometheus' | 'outbox_dlq'>('overview');
   const [error, setError] = useState<string | null>(null);
   const [lastRefreshed, setLastRefreshed] = useState<Date>(new Date());
 
@@ -191,6 +192,17 @@ export const SystemDiagnosticsWorkspace: React.FC = () => {
           }`}
         >
           📜 Prometheus Exposition
+        </button>
+        <button
+          id="btn-outbox-dlq-tab"
+          onClick={() => setActiveSubTab('outbox_dlq')}
+          className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 ${
+            activeSubTab === 'outbox_dlq'
+              ? 'border-amber-500 text-amber-400'
+              : 'border-transparent text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          📬 Outbox & DLQ Monitor
         </button>
       </div>
 
@@ -472,6 +484,13 @@ export const SystemDiagnosticsWorkspace: React.FC = () => {
           <pre className="p-4 bg-slate-950 border border-slate-800/80 rounded-lg text-xs font-mono text-emerald-400/90 overflow-x-auto max-h-[500px]">
             {prometheusText || 'Loading Prometheus metrics text...'}
           </pre>
+        </div>
+      )}
+
+      {/* SUBTAB 5: Outbox & Dead-Letter Queue Monitor */}
+      {activeSubTab === 'outbox_dlq' && (
+        <div data-testid="outbox-dlq-tab-panel">
+          <OutboxDLQMonitor />
         </div>
       )}
     </div>

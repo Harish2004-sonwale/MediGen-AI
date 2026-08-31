@@ -15,6 +15,7 @@ import {
   SecurityIncident,
   SecurityScanResult,
 } from '../../types';
+import { MFAManagementModal } from './MFAManagementModal';
 
 interface SecurityComplianceWorkspaceProps {
   patients: Patient[];
@@ -28,6 +29,7 @@ export const SecurityComplianceWorkspace: React.FC<SecurityComplianceWorkspacePr
   onSelectPatient,
 }) => {
   const [activeTab, setActiveTab] = useState<'audit' | 'consent' | 'incidents' | 'governance'>('audit');
+  const [showMFAModal, setShowMFAModal] = useState(false);
   const [loading, setLoading] = useState<boolean>(false);
   const [actionMessage, setActionMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
@@ -388,8 +390,21 @@ export const SecurityComplianceWorkspace: React.FC<SecurityComplianceWorkspacePr
             >
               <span>🔄</span> Refresh Posture
             </button>
+            <button
+              id="btn-mfa-settings"
+              onClick={() => setShowMFAModal(true)}
+              className="px-4 py-2 bg-violet-600/80 hover:bg-violet-600 text-white rounded-xl font-medium text-xs shadow-md transition-all flex items-center gap-2"
+              data-testid="mfa-settings-btn"
+            >
+              <span>🔐</span> MFA Configuration
+            </button>
           </div>
         </div>
+
+        {/* MFA Management Modal */}
+        {showMFAModal && (
+          <MFAManagementModal onClose={() => setShowMFAModal(false)} />
+        )}
 
         {/* Real-Time Metrics Grid */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mt-6">

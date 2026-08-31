@@ -51,6 +51,20 @@ try:
         task_time_limit=3600,       # 1 hour maximum execution
         worker_prefetch_multiplier=1,
         worker_max_tasks_per_child=100,  # Recycle worker child to prevent memory leaks
+        beat_schedule={
+            "outbox-dispatcher-every-5s": {
+                "task": "app.tasks.dispatch_outbox_events",
+                "schedule": 5.0,
+            },
+            "alert-escalation-every-60s": {
+                "task": "app.tasks.escalate_critical_alerts",
+                "schedule": 60.0,
+            },
+            "outbox-retention-daily": {
+                "task": "app.tasks.prune_outbox_events",
+                "schedule": 86400.0,
+            },
+        },
     )
     logger.info("Celery application initialized with broker: %s", broker_url)
 except ImportError:
@@ -63,6 +77,34 @@ except ImportError:
 # -----------------------------------------------------------------------------
 
 if celery_app is not None:
+
+    @celery_app.task(name="app.tasks.dispatch_outbox_events")
+    def celery_dispatch_outbox_events(batch_size: int = 50):
+        """Periodic background task to dispatch pending outbox events."""
+        from app.tasks.outbox_tasks import process_outbox_events_sync
+        return process_outbox_events_sync(batch_size=batch_size)
+
+    @celery_app.task(name="app.tasks.escalate_critical_alerts")
+    def celery_escalate_critical_alerts():
+        """Periodic background task to scan and escalate unacknowledged critical alerts."""
+        from app.database import SessionLocal
+        from app.services.alert_escalation_service import scan_and_escalate_critical_alerts
+        db = SessionLocal()
+        try:
+            return scan_and_escalate_critical_alerts(db)
+        finally:
+            db.close()
+
+    @celery_app.task(name="app.tasks.prune_outbox_events")
+    def celery_prune_outbox_events(retention_days: int = 30):
+        """Periodic background task to prune aged published outbox events."""
+        from app.database import SessionLocal
+        from app.services.outbox_service import prune_published_outbox_events
+        db = SessionLocal()
+        try:
+            return prune_published_outbox_events(db, retention_days=retention_days)
+        finally:
+            db.close()
 
     @celery_app.task(name="app.tasks.process_document", bind=True)
     def celery_process_document(self, document_id: int, user_id: int, correlation_id: Optional[str] = None):

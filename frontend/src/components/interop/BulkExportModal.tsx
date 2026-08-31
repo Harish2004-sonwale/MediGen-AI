@@ -3,11 +3,12 @@ import { bulkExportApi } from '../../api/client';
 import { BulkExportJob } from '../../types';
 
 interface BulkExportModalProps {
-  isOpen: boolean;
+  isOpen?: boolean;
+  facilityId?: string;
   onClose: () => void;
 }
 
-export const BulkExportModal: React.FC<BulkExportModalProps> = ({ isOpen, onClose }) => {
+export const BulkExportModal: React.FC<BulkExportModalProps> = ({ isOpen = true, onClose }) => {
   const [selectedTypes, setSelectedTypes] = useState<string[]>(['Patient', 'Encounter', 'Condition', 'Observation']);
   const [job, setJob] = useState<BulkExportJob | null>(null);
   const [loading, setLoading] = useState(false);

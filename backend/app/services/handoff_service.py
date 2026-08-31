@@ -109,6 +109,7 @@ def _to_handoff_response(h: ClinicalHandoff) -> HandoffResponse:
         synthesis_notes=h.synthesis_notes,
         is_ai_generated=h.is_ai_generated,
         acknowledged_at=h.acknowledged_at,
+        version=getattr(h, "version", 1) or 1,
         created_at=h.created_at,
         updated_at=h.updated_at,
     )
@@ -357,6 +358,18 @@ def update_handoff(
             detail=f"Clinical handoff '{handoff_id_str}' not found.",
         )
 
+    # Optimistic locking version check
+    if payload.version is not None:
+        current_version = getattr(h, "version", 1) or 1
+        if current_version != payload.version:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=(
+                    f"Conflict: Clinical handoff '{handoff_id_str}' has been modified by another user session. "
+                    f"Current version is {current_version}, provided version is {payload.version}."
+                ),
+            )
+
     if payload.illness_severity is not None:
         h.illness_severity = payload.illness_severity.value
     if payload.summary is not None:
@@ -370,6 +383,8 @@ def update_handoff(
     if payload.status is not None:
         h.status = payload.status.value
 
+    # Increment optimistic locking version
+    h.version = (getattr(h, "version", 1) or 1) + 1
     h.updated_at = datetime.now(timezone.utc)
     db.commit()
     db.refresh(h)

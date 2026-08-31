@@ -95,3 +95,51 @@ async def dispatch_subscription_notification(
     except Exception as exc:
         logger.warning("Failed to dispatch subscription notification to %s: %s", subscription.endpoint_url, exc)
         return False
+
+
+def deliver_subscription_notifications_sync(
+    db: Session,
+    event_type: str,
+    payload: Dict[str, Any],
+    facility_id: Optional[str] = None,
+) -> int:
+    """Synchronously fan-out event notifications to all matching active FHIR subscriptions."""
+    stmt = select(FHIRSubscription).where(
+        FHIRSubscription.status == "ACTIVE",
+        FHIRSubscription.topic == event_type,
+    )
+    if facility_id:
+        stmt = stmt.where(
+            (FHIRSubscription.facility_id == facility_id) | (FHIRSubscription.facility_id.is_(None))
+        )
+    subscriptions = list(db.execute(stmt).scalars().all())
+    dispatched_count = 0
+
+    for sub in subscriptions:
+        if sub.channel_type == "REST_HOOK" and sub.endpoint_url:
+            headers = {
+                "Content-Type": "application/fhir+json",
+                "X-Subscription-ID": sub.subscription_id,
+                "X-Event-Type": event_type,
+            }
+            if sub.secret_token:
+                headers["Authorization"] = f"Bearer {sub.secret_token}"
+
+            try:
+                # In test/offline environments or production HTTP endpoints
+                with httpx.Client(timeout=3.0) as client:
+                    resp = client.post(sub.endpoint_url, json=payload, headers=headers)
+                    if resp.status_code < 400:
+                        dispatched_count += 1
+            except Exception as exc:
+                logger.warning(
+                    "Error delivering subscription webhook to %s for sub_id=%s: %s",
+                    sub.endpoint_url,
+                    sub.subscription_id,
+                    exc,
+                )
+        else:
+            # WebSocket or local in-memory subscription
+            dispatched_count += 1
+
+    return dispatched_count

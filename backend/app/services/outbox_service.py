@@ -140,3 +140,53 @@ def get_outbox_metrics(db: Session) -> dict[str, int]:
         if status_key in metrics:
             metrics[status_key] += 1
     return metrics
+
+
+def prune_published_outbox_events(
+    db: Session,
+    retention_days: int = 30,
+    batch_size: int = 500,
+) -> dict[str, int]:
+    """Safely delete aged PUBLISHED outbox events to prevent unbounded table growth.
+
+    Retention rules:
+    - Only events with status == 'PUBLISHED' and published_at <= (now - retention_days) are eligible.
+    - Events in PENDING, FAILED, or DEAD_LETTER are NEVER deleted.
+    - Operates in batches of batch_size to avoid long table locks.
+    - Idempotent: safe to call repeatedly.
+
+    Args:
+        db: SQLAlchemy session.
+        retention_days: Minimum age in days of PUBLISHED events to prune (default: 30).
+        batch_size: Number of records to delete per batch (default: 500).
+
+    Returns:
+        dict with 'deleted' count and 'retention_days' for audit logging.
+    """
+    cutoff = datetime.now(timezone.utc) - timedelta(days=retention_days)
+    total_deleted = 0
+
+    while True:
+        stmt = (
+            select(OutboxEvent)
+            .where(
+                OutboxEvent.status == "PUBLISHED",
+                OutboxEvent.published_at <= cutoff,
+            )
+            .order_by(OutboxEvent.published_at.asc())
+            .limit(batch_size)
+        )
+        batch = list(db.execute(stmt).scalars().all())
+        if not batch:
+            break
+
+        for event in batch:
+            db.delete(event)
+
+        db.commit()
+        total_deleted += len(batch)
+
+        if len(batch) < batch_size:
+            break
+
+    return {"deleted": total_deleted, "retention_days": retention_days}

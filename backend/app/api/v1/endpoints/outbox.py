@@ -16,7 +16,7 @@ from app.schemas.outbox import (
     OutboxReplayResponse,
 )
 from app.schemas.user import UserRole
-from app.services.outbox_service import get_outbox_metrics, replay_dead_letter_events
+from app.services.outbox_service import get_outbox_metrics, prune_published_outbox_events, replay_dead_letter_events
 
 router = APIRouter(prefix="/outbox", tags=["Transactional Outbox & Reliability"])
 
@@ -59,3 +59,19 @@ def get_outbox_telemetry_metrics(
     """Retrieve aggregate reliability metrics for outbox events."""
     metrics = get_outbox_metrics(db)
     return OutboxMetricsResponse(**metrics)
+
+
+@router.post("/prune", status_code=status.HTTP_200_OK)
+def prune_outbox_events(
+    retention_days: int = Query(30, ge=1, le=365, description="Minimum age in days of PUBLISHED events to prune"),
+    batch_size: int = Query(500, ge=1, le=5000, description="Records to delete per batch"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(UserRole.ADMIN)),
+) -> dict:
+    """Prune aged PUBLISHED outbox events. Only PUBLISHED events older than retention_days are deleted.
+    PENDING, FAILED, and DEAD_LETTER events are never pruned. Idempotent and safe to run repeatedly."""
+    result = prune_published_outbox_events(db, retention_days=retention_days, batch_size=batch_size)
+    return {
+        "message": f"Pruned {result['deleted']} published outbox event(s) older than {retention_days} day(s).",
+        **result,
+    }

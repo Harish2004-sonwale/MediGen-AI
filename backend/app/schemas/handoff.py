@@ -87,6 +87,7 @@ class HandoffUpdate(BaseModel):
     situational_awareness: Optional[list[ContingencyPlan]] = None
     receiver_user_id: Optional[int] = None
     status: Optional[HandoffStatus] = None
+    version: Optional[int] = Field(default=None, description="Optimistic locking version token")
 
 
 class HandoffAcknowledge(BaseModel):
@@ -118,6 +119,7 @@ class HandoffResponse(BaseModel):
     synthesis_notes: Optional[str] = None
     is_ai_generated: bool
     acknowledged_at: Optional[datetime] = None
+    version: int = 1
     created_at: datetime
     updated_at: datetime
 
