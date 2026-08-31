@@ -126,4 +126,4 @@ class HandoffListResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     items: list[HandoffResponse]
-    total: number if False else int
+    total: int

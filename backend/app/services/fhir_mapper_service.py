@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from typing import Any, Optional
 
 from app.models.care_plan import CarePlan

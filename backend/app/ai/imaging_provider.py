@@ -335,7 +335,7 @@ class MockImagingAIProvider(BaseImagingAIProvider):
         # Calculate cryptographic provenance hashes for each finding
         for idx, f in enumerate(findings):
             ftype = f["finding_type"]
-            f_hash = hashlib.md5(f"{study_id}-{idx}-{ftype}".encode()).hexdigest()[:8].upper()
+            f_hash = hashlib.sha256(f"{study_id}-{idx}-{ftype}".encode()).hexdigest()[:8].upper()
             f["finding_id"] = f"FND-{datetime.now(timezone.utc).strftime('%Y%m%d')}-{f_hash}"
             f["provenance_hash"] = _compute_sha256({
                 "study_id": study_id,

@@ -2032,3 +2032,197 @@ export interface FHIRCapabilityStatement {
     resource: FHIRCapabilityResource[];
   }>;
 }
+
+// ==============================================================================
+// Phase 9.0.21: Enterprise EHR Integration, SMART on FHIR 2.0 & CDS Hooks
+// ==============================================================================
+
+export interface SmartConfiguration {
+  authorization_endpoint: string;
+  token_endpoint: string;
+  introspection_endpoint?: string;
+  jwks_uri: string;
+  issuer?: string;
+  grant_types_supported: string[];
+  code_challenge_methods_supported: string[];
+  scopes_supported: string[];
+  response_types_supported: string[];
+  capabilities: string[];
+}
+
+export interface JWKKey {
+  kty: string;
+  use: string;
+  alg: string;
+  kid: string;
+  n: string;
+  e: string;
+}
+
+export interface JWKSResponse {
+  keys: JWKKey[];
+}
+
+export interface SmartTokenResponse {
+  access_token: string;
+  token_type: string;
+  expires_in: number;
+  scope: string;
+  id_token?: string;
+  patient?: string;
+  encounter?: string;
+  facility_id?: string;
+  smart_style_url?: string;
+}
+
+export interface SmartIntrospectResponse {
+  active: boolean;
+  scope?: string;
+  client_id?: string;
+  sub?: string;
+  exp?: number;
+  iat?: number;
+  iss?: string;
+  patient?: string;
+  facility_id?: string;
+}
+
+export interface CDSService {
+  hook: string;
+  name: string;
+  id: string;
+  title: string;
+  description: string;
+  prefetch?: Record<string, string>;
+  usageRequirements?: string;
+}
+
+export interface CDSServicesDiscoveryResponse {
+  services: CDSService[];
+}
+
+export interface CDSSource {
+  label: string;
+  url?: string;
+  icon?: string;
+  topic?: Record<string, any>;
+}
+
+export interface CDSSuggestionAction {
+  type: string;
+  description: string;
+  resource?: Record<string, any>;
+}
+
+export interface CDSSuggestion {
+  label: string;
+  uuid?: string;
+  isRecommended?: boolean;
+  actions: CDSSuggestionAction[];
+}
+
+export interface CDSLink {
+  label: string;
+  url: string;
+  type: string;
+  appContext?: string;
+}
+
+export interface CDSCard {
+  uuid?: string;
+  summary: string;
+  detail?: string;
+  indicator: 'info' | 'warning' | 'critical';
+  source: CDSSource;
+  suggestions?: CDSSuggestion[];
+  selectionBehavior?: string;
+  links?: CDSLink[];
+}
+
+export interface CDSHookResponse {
+  cards: CDSCard[];
+}
+
+export interface DepartmentUnit {
+  id: number;
+  department_id: string;
+  facility_id: string;
+  name: string;
+  dept_code: string;
+  floor_or_wing?: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ClinicalFacility {
+  id: number;
+  facility_id: string;
+  org_id: string;
+  name: string;
+  facility_code: string;
+  address_json: Record<string, any>;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+  departments?: DepartmentUnit[];
+}
+
+export interface HealthOrganization {
+  id: number;
+  org_id: string;
+  name: string;
+  org_type: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+  facilities?: ClinicalFacility[];
+}
+
+export interface EHRIntegrationConfig {
+  id: number;
+  config_id: string;
+  facility_id: string;
+  ehr_vendor: string;
+  fhir_base_url: string;
+  client_id: string;
+  smart_auth_url?: string;
+  smart_token_url?: string;
+  is_enabled: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TerminologyConcept {
+  system: string;
+  code: string;
+  display: string;
+  confidence: number;
+  match_type: string;
+  source: string;
+}
+
+export interface TerminologyNormalizeResponse {
+  query: string;
+  normalized?: TerminologyConcept;
+  alternatives: TerminologyConcept[];
+  semantic_distance: number;
+  status: string;
+}
+
+export interface TerminologyCrossWalkResponse {
+  source_system: string;
+  source_code: string;
+  target_system: string;
+  target_code?: string;
+  target_display?: string;
+  confidence: number;
+  status: string;
+}
+
+export interface WebSocketStats {
+  active_telemetry_patients: number;
+  active_collaboration_rooms: number;
+  active_telehealth_sessions: number;
+  total_connected_clients: number;
+}

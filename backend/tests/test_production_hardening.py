@@ -27,7 +27,6 @@ from app.main import app
 from app.models.security import AuditAction, AuditOutcome, ClinicalAuditEvent
 
 
-client = TestClient(app)
 
 
 # -----------------------------------------------------------------------------
@@ -275,7 +274,7 @@ def test_fallback_llm_provider():
 # -----------------------------------------------------------------------------
 
 
-def test_prometheus_metrics_endpoint():
+def test_prometheus_metrics_endpoint(client: TestClient):
     """Verify GET /api/v1/health/metrics/prometheus returns Prometheus exposition format."""
     response = client.get("/api/v1/health/metrics/prometheus")
     assert response.status_code == 200
@@ -285,7 +284,7 @@ def test_prometheus_metrics_endpoint():
     assert "medigen_cache_connected" in text_content
 
 
-def test_fhir_capability_statement_metadata():
+def test_fhir_capability_statement_metadata(client: TestClient):
     """Verify GET /api/v1/fhir/metadata returns standard FHIR R4 CapabilityStatement."""
     response = client.get("/api/v1/fhir/metadata")
     assert response.status_code == 200

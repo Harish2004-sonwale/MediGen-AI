@@ -1,7 +1,7 @@
 from datetime import datetime
 import hashlib
 import json
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any, Optional
 from sqlalchemy import (
     Boolean,
     DateTime,
@@ -17,6 +17,10 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database.base import Base
+
+if TYPE_CHECKING:
+    from app.models.patient import Patient
+    from app.models.user import User
 
 
 class AuditAction(str):

@@ -39,6 +39,44 @@ def db_session() -> Generator[Session, None, None]:
 
 
 @pytest.fixture(autouse=True)
+def patch_session_local_for_tests():
+    """Ensure all background worker jobs and services use the in-memory TestingSessionLocal."""
+    patches = [
+        patch("app.database.connection.SessionLocal", TestingSessionLocal),
+        patch("app.database.session.SessionLocal", TestingSessionLocal),
+        patch("app.database.SessionLocal", TestingSessionLocal),
+        patch("app.services.task_service.SessionLocal", TestingSessionLocal),
+        patch("app.services.quality_service.SessionLocal", TestingSessionLocal),
+        patch("app.services.order_service.SessionLocal", TestingSessionLocal),
+        patch("app.services.note_service.SessionLocal", TestingSessionLocal),
+        patch("app.services.media_service.SessionLocal", TestingSessionLocal),
+        patch("app.services.handoff_service.SessionLocal", TestingSessionLocal),
+        patch("app.services.cohort_service.SessionLocal", TestingSessionLocal),
+        patch("app.services.care_plan_service.SessionLocal", TestingSessionLocal),
+    ]
+    for p in patches:
+        p.start()
+    try:
+        yield
+    finally:
+        for p in reversed(patches):
+            p.stop()
+
+
+@pytest.fixture(autouse=True)
+def configure_test_task_provider():
+    """Ensure tests run background tasks synchronously by default to eliminate thread race conditions."""
+    from app.ai.task_worker import (
+        SyncBackgroundTaskProvider,
+        set_background_task_provider,
+        reset_background_task_provider,
+    )
+    set_background_task_provider(SyncBackgroundTaskProvider())
+    yield
+    reset_background_task_provider()
+
+
+@pytest.fixture(autouse=True)
 def patch_vector_store_for_tests():
     """
     Auto-applied fixture: redirect ChromaDB and embedding provider to

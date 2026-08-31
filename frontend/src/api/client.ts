@@ -161,6 +161,19 @@ import {
   SystemReadinessResponse,
   SystemMetricsResponse,
   FHIRCapabilityStatement,
+  SmartConfiguration,
+  JWKSResponse,
+  SmartTokenResponse,
+  SmartIntrospectResponse,
+  CDSServicesDiscoveryResponse,
+  CDSHookResponse,
+  HealthOrganization,
+  ClinicalFacility,
+  DepartmentUnit,
+  EHRIntegrationConfig,
+  TerminologyNormalizeResponse,
+  TerminologyCrossWalkResponse,
+  WebSocketStats,
 } from '../types';
 
 const API_BASE_URL = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_URL) || '/api/v1';
@@ -2335,5 +2348,204 @@ export const systemApi = {
     if (token) headers['Authorization'] = `Bearer ${token}`;
     const res = await fetch('/api/v1/health/metrics/prometheus', { headers });
     return res.text();
+  },
+};
+
+// 22. SMART on FHIR 2.0 APIs (Phase 9.0.21)
+export const smartApi = {
+  getSmartConfig: async (): Promise<SmartConfiguration> => {
+    const res = await fetch('/.well-known/smart-configuration');
+    return res.json();
+  },
+
+  getJwks: async (): Promise<JWKSResponse> => {
+    const res = await fetch('/.well-known/jwks.json');
+    return res.json();
+  },
+
+  authorize: async (params: Record<string, string>): Promise<{ code: string; state?: string }> => {
+    const qs = new URLSearchParams(params).toString();
+    return apiRequest<{ code: string; state?: string }>(`/smart/authorize?${qs}`);
+  },
+
+  exchangeToken: async (params: {
+    grant_type: string;
+    code: string;
+    redirect_uri: string;
+    client_id: string;
+    code_verifier?: string;
+  }): Promise<SmartTokenResponse> => {
+    const form = new URLSearchParams();
+    form.append('grant_type', params.grant_type);
+    form.append('code', params.code);
+    form.append('redirect_uri', params.redirect_uri);
+    form.append('client_id', params.client_id);
+    if (params.code_verifier) form.append('code_verifier', params.code_verifier);
+
+    const res = await fetch('/api/v1/smart/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: form.toString(),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: 'Token exchange failed' }));
+      throw new Error(err.detail || 'Token exchange failed');
+    }
+    return res.json();
+  },
+
+  introspectToken: async (token: string): Promise<SmartIntrospectResponse> => {
+    return apiRequest<SmartIntrospectResponse>('/smart/introspect', {
+      method: 'POST',
+      body: JSON.stringify({ token }),
+    });
+  },
+};
+
+// 23. CDS Hooks 2.0 APIs (Phase 9.0.21)
+export const cdsApi = {
+  discoverServices: async (): Promise<CDSServicesDiscoveryResponse> => {
+    const res = await fetch('/cds-services');
+    return res.json();
+  },
+
+  invokePatientView: async (patientId: string, userId = 'Practitioner/doc-01'): Promise<CDSHookResponse> => {
+    const res = await fetch('/cds-services/patient-view', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        hook: 'patient-view',
+        hookInstance: `inst-${Date.now()}`,
+        context: { userId, patientId },
+      }),
+    });
+    return res.json();
+  },
+
+  invokeOrderSelect: async (
+    patientId: string,
+    selections: string[],
+    userId = 'Practitioner/doc-01'
+  ): Promise<CDSHookResponse> => {
+    const res = await fetch('/cds-services/order-select', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        hook: 'order-select',
+        hookInstance: `inst-${Date.now()}`,
+        context: { userId, patientId, selections },
+      }),
+    });
+    return res.json();
+  },
+};
+
+// 24. Multi-Tenant Health Systems & Facility APIs (Phase 9.0.21)
+export const tenantApi = {
+  listOrganizations: async (): Promise<HealthOrganization[]> => {
+    return apiRequest<HealthOrganization[]>('/tenants/organizations');
+  },
+
+  createOrganization: async (data: { name: string; org_type?: string }): Promise<HealthOrganization> => {
+    return apiRequest<HealthOrganization>('/tenants/organizations', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  listFacilities: async (orgId?: string): Promise<ClinicalFacility[]> => {
+    const query = orgId ? `?org_id=${encodeURIComponent(orgId)}` : '';
+    return apiRequest<ClinicalFacility[]>(`/tenants/facilities${query}`);
+  },
+
+  createFacility: async (data: {
+    org_id: string;
+    name: string;
+    facility_code: string;
+    address_json?: Record<string, any>;
+  }): Promise<ClinicalFacility> => {
+    return apiRequest<ClinicalFacility>('/tenants/facilities', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  listDepartments: async (facilityId: string): Promise<DepartmentUnit[]> => {
+    return apiRequest<DepartmentUnit[]>(`/tenants/facilities/${encodeURIComponent(facilityId)}/departments`);
+  },
+
+  createDepartment: async (data: {
+    facility_id: string;
+    name: string;
+    dept_code: string;
+    floor_or_wing?: string;
+  }): Promise<DepartmentUnit> => {
+    return apiRequest<DepartmentUnit>('/tenants/departments', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  getEHRConfig: async (facilityId: string): Promise<EHRIntegrationConfig | null> => {
+    return apiRequest<EHRIntegrationConfig | null>(
+      `/tenants/facilities/${encodeURIComponent(facilityId)}/ehr-config`
+    );
+  },
+
+  configureEHR: async (data: {
+    facility_id: string;
+    ehr_vendor: string;
+    fhir_base_url: string;
+    client_id: string;
+    smart_auth_url?: string;
+    smart_token_url?: string;
+  }): Promise<EHRIntegrationConfig> => {
+    return apiRequest<EHRIntegrationConfig>('/tenants/ehr-config', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+};
+
+// 25. Clinical Terminology Normalization APIs (Phase 9.0.21)
+export const terminologyApi = {
+  normalizeConcept: async (query: string, targetSystem?: string): Promise<TerminologyNormalizeResponse> => {
+    return apiRequest<TerminologyNormalizeResponse>('/terminology/normalize', {
+      method: 'POST',
+      body: JSON.stringify({ query, target_system: targetSystem }),
+    });
+  },
+
+  crosswalkCode: async (
+    sourceSystem: string,
+    sourceCode: string,
+    targetSystem: string
+  ): Promise<TerminologyCrossWalkResponse> => {
+    return apiRequest<TerminologyCrossWalkResponse>('/terminology/crosswalk', {
+      method: 'POST',
+      body: JSON.stringify({
+        source_system: sourceSystem,
+        source_code: sourceCode,
+        target_system: targetSystem,
+      }),
+    });
+  },
+};
+
+// 26. Real-Time Telemetry & Telehealth WebSocket Helpers (Phase 9.0.21)
+export const telehealthApi = {
+  getIceServers: async (): Promise<{ iceServers: Array<{ urls: string }> }> => {
+    return apiRequest<{ iceServers: Array<{ urls: string }> }>('/telehealth/ice-servers');
+  },
+
+  getWebSocketStats: async (): Promise<WebSocketStats> => {
+    return apiRequest<WebSocketStats>('/ws/stats');
+  },
+
+  broadcastTelemetry: async (patientId: string, frame: Record<string, any>): Promise<{ status: string }> => {
+    return apiRequest<{ status: string }>(`/telemetry/${encodeURIComponent(patientId)}/broadcast`, {
+      method: 'POST',
+      body: JSON.stringify(frame),
+    });
   },
 };

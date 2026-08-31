@@ -621,6 +621,13 @@ def get_background_task_provider(
         return provider
 
 
+def set_background_task_provider(provider: BaseBackgroundTaskProvider) -> None:
+    """Explicitly set the global background task provider (for test isolation)."""
+    global _GLOBAL_TASK_PROVIDER
+    with _PROVIDER_LOCK:
+        _GLOBAL_TASK_PROVIDER = provider
+
+
 def reset_background_task_provider() -> None:
     """Reset the global background task provider singleton (for test isolation)."""
     global _GLOBAL_TASK_PROVIDER

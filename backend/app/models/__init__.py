@@ -62,6 +62,14 @@ from app.models.security import (
     PatientConsent,
     SecurityIncident,
 )
+from app.models.tenant import (
+    ClinicalFacility,
+    DepartmentUnit,
+    EHRIntegrationConfig,
+    HealthOrganization,
+    SmartAuthSession,
+    TerminologyMapping,
+)
 
 __all__ = [
     "User",
@@ -117,4 +125,10 @@ __all__ = [
     "SecurityIncident",
     "DataRetentionPolicy",
     "LegalClinicalHold",
+    "HealthOrganization",
+    "ClinicalFacility",
+    "DepartmentUnit",
+    "EHRIntegrationConfig",
+    "SmartAuthSession",
+    "TerminologyMapping",
 ]

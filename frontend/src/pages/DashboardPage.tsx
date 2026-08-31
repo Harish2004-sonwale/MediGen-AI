@@ -27,6 +27,9 @@ import { ClinicalAgentsWorkspace } from '../components/agents/ClinicalAgentsWork
 import { ImagingRadiologyWorkspace } from '../components/imaging/ImagingRadiologyWorkspace';
 import { SecurityComplianceWorkspace } from '../components/security/SecurityComplianceWorkspace';
 import { SystemDiagnosticsWorkspace } from '../components/operations/SystemDiagnosticsWorkspace';
+import { SmartFhirEhrWorkspace } from '../components/interop/SmartFhirEhrWorkspace';
+import { LiveCollaborationWorkspace } from '../components/collaboration/LiveCollaborationWorkspace';
+import { HealthSystemTenantWorkspace } from '../components/tenants/HealthSystemTenantWorkspace';
 import { TaskMonitor } from '../components/tasks/TaskMonitor';
 import { carePlansApi, mediaApi, notesApi } from '../api/client';
 import { CarePlanCategory, NoteType } from '../types';
@@ -58,6 +61,9 @@ export const DashboardPage: React.FC = () => {
     | 'imaging'
     | 'security'
     | 'diagnostics'
+    | 'smart_ehr'
+    | 'collaboration'
+    | 'tenants'
   >('chat');
 
 
@@ -220,6 +226,27 @@ export const DashboardPage: React.FC = () => {
             >
               ⚙️ Infrastructure & Diagnostics
             </button>
+            <button
+              data-testid="tab-btn-smart-ehr"
+              className={`btn btn-sm ${activeTab === 'smart_ehr' ? 'btn-primary' : 'btn-secondary'}`}
+              onClick={() => setActiveTab('smart_ehr')}
+            >
+              🔌 SMART on FHIR & CDS Hooks
+            </button>
+            <button
+              data-testid="tab-btn-collaboration"
+              className={`btn btn-sm ${activeTab === 'collaboration' ? 'btn-primary' : 'btn-secondary'}`}
+              onClick={() => setActiveTab('collaboration')}
+            >
+              🔴 Live Telemetry & Collaboration
+            </button>
+            <button
+              data-testid="tab-btn-tenants"
+              className={`btn btn-sm ${activeTab === 'tenants' ? 'btn-primary' : 'btn-secondary'}`}
+              onClick={() => setActiveTab('tenants')}
+            >
+              🏥 Health Systems & Facilities
+            </button>
           </div>
 
           {/* Active Workspace View */}
@@ -299,6 +326,15 @@ export const DashboardPage: React.FC = () => {
             )}
             {activeTab === 'diagnostics' && (
               <SystemDiagnosticsWorkspace />
+            )}
+            {activeTab === 'smart_ehr' && (
+              <SmartFhirEhrWorkspace selectedPatientId={selectedPatient?.patient_id} />
+            )}
+            {activeTab === 'collaboration' && (
+              <LiveCollaborationWorkspace selectedPatientId={selectedPatient?.patient_id} />
+            )}
+            {activeTab === 'tenants' && (
+              <HealthSystemTenantWorkspace />
             )}
           </div>
 

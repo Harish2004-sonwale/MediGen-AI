@@ -1,6 +1,6 @@
 from contextlib import asynccontextmanager
 import logging
-from fastapi import Depends, FastAPI, Request, status
+from fastapi import Depends, FastAPI, Request, WebSocket, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
@@ -123,6 +123,45 @@ async def global_exception_handler(request: Request, exc: Exception) -> JSONResp
 
 # Include API v1 router
 app.include_router(api_router, prefix=settings.API_V1_STR)
+
+# ------------------------------------------------------------------------------
+# Phase 9.0.21: SMART on FHIR 2.0 & CDS Hooks Root Endpoints & WebSockets
+# ------------------------------------------------------------------------------
+from app.services.smart_service import smart_service
+from app.api.v1.endpoints.cds import router as cds_router
+from app.api.v1.endpoints.websockets import (
+    handle_collaboration_ws,
+    handle_telehealth_ws,
+    handle_telemetry_ws,
+)
+
+# Root SMART on FHIR 2.0 Discovery
+@app.get("/.well-known/smart-configuration", tags=["SMART on FHIR 2.0"])
+def root_smart_configuration(request: Request):
+    """Standard root SMART on FHIR 2.0 discovery document."""
+    base_url = str(request.base_url).rstrip("/")
+    return smart_service.get_smart_configuration(base_url)
+
+@app.get("/.well-known/jwks.json", tags=["SMART on FHIR 2.0"])
+def root_jwks_json():
+    """Standard root JSON Web Key Set for token validation."""
+    return smart_service.get_jwks()
+
+# Mount CDS Services at root /cds-services per CDS Hooks 2.0 spec
+app.include_router(cds_router, prefix="/cds-services", tags=["CDS Hooks 2.0"])
+
+# Real-Time Bi-Directional WebSockets
+@app.websocket("/ws/telemetry/{patient_id}")
+async def ws_telemetry_endpoint(websocket: WebSocket, patient_id: str, token: str = None):
+    await handle_telemetry_ws(websocket, patient_id, token)
+
+@app.websocket("/ws/collaboration/{patient_id}")
+async def ws_collaboration_endpoint(websocket: WebSocket, patient_id: str, token: str = None):
+    await handle_collaboration_ws(websocket, patient_id, token)
+
+@app.websocket("/ws/telehealth/{session_id}")
+async def ws_telehealth_endpoint(websocket: WebSocket, session_id: str, token: str = None):
+    await handle_telehealth_ws(websocket, session_id, token)
 
 
 @app.get("/")
