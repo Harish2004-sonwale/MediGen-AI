@@ -16,7 +16,16 @@ from app.models.care_plan import CarePlan
 from app.models.encounter import Encounter
 from app.models.order import DiagnosticResult
 from app.models.patient import Patient
+from app.models.security import (
+    AuditAction,
+    AuditOutcome,
+    ConsentPolicyRule,
+    ConsentScope,
+    ConsentStatus,
+    PatientConsent,
+)
 from app.schemas.bulk_export import BulkExportRequest
+from app.services.audit_service import audit_service
 from app.services.fhir_mapper_service import (
     FHIRCarePlanMapper,
     FHIREncounterMapper,
@@ -79,13 +88,56 @@ def execute_bulk_export_sync(
         clean_base = base_url.rstrip("/")
         output_files: List[Dict[str, Any]] = []
 
-        # 1. Export Patients
+        # 1. Export Patients (Evaluating active consent opt-outs & restrictions)
         patients_stmt = select(Patient)
         if job.facility_id:
             patients_stmt = patients_stmt.where(
                 (Patient.facility_id == job.facility_id) | (Patient.facility_id.is_(None))
             )
-        patients = list(db.execute(patients_stmt).scalars().all())
+        all_patients = list(db.execute(patients_stmt).scalars().all())
+
+        now_dt = datetime.now(timezone.utc)
+        patient_str_ids = [p.patient_id for p in all_patients if p.patient_id]
+
+        restricted_patient_str_ids = set()
+        if patient_str_ids:
+            consents_stmt = select(PatientConsent).where(
+                PatientConsent.patient_id.in_(patient_str_ids),
+                PatientConsent.status == ConsentStatus.ACTIVE,
+                (PatientConsent.valid_to.is_(None)) | (PatientConsent.valid_to >= now_dt),
+            )
+            active_consents = list(db.execute(consents_stmt).scalars().all())
+            for c in active_consents:
+                if c.policy_rule == ConsentPolicyRule.DENY or c.scope == ConsentScope.RESTRICT_EXPORT:
+                    restricted_patient_str_ids.add(c.patient_id)
+
+        if restricted_patient_str_ids:
+            logger.info(
+                "Bulk export job %s: omitted %d patient(s) due to active consent opt-out/restrictions: %s",
+                job_id,
+                len(restricted_patient_str_ids),
+                list(restricted_patient_str_ids),
+            )
+            try:
+                audit_service.emit_audit_event(
+                    db=db,
+                    action=AuditAction.EXPORT,
+                    resource_type="BulkExportJob",
+                    resource_id=job_id,
+                    user_id=job.user_id,
+                    purpose_of_use="BULK_EXPORT",
+                    outcome=AuditOutcome.DENIED_NO_CONSENT,
+                    metadata={
+                        "job_id": job_id,
+                        "omitted_patient_count": len(restricted_patient_str_ids),
+                        "omitted_patient_ids": list(restricted_patient_str_ids),
+                        "reason": "Omitted due to active patient consent restriction directive (RESTRICT_EXPORT / DENY)",
+                    },
+                )
+            except Exception as audit_err:
+                logger.warning("Failed to emit consent filtering audit event: %s", audit_err)
+
+        patients = [p for p in all_patients if p.patient_id not in restricted_patient_str_ids]
         patient_ids = {p.id for p in patients}
 
         patient_file = job_dir / "Patient.ndjson"

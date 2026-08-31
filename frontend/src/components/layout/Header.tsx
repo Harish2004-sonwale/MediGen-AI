@@ -1,5 +1,5 @@
 // ==============================================================================
-// MediGen AI - Header Component
+// MediGen AI - Header Component with Active Facility Context Selector
 // ==============================================================================
 
 import React, { useState } from 'react';
@@ -17,7 +17,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenTasksModal,
   activeTaskCount,
 }) => {
-  const { user, logout } = useAuth();
+  const { user, logout, activeFacilityId, activeFacility, availableFacilities, setActiveFacility } = useAuth();
   const [showMFAModal, setShowMFAModal] = useState(false);
 
   const getRoleBadgeClass = (role?: string) => {
@@ -33,6 +33,9 @@ export const Header: React.FC<HeaderProps> = ({
     }
   };
 
+  const currentFacilityName = activeFacility?.name || activeFacilityId || 'Primary Facility';
+  const currentFacilityCode = activeFacility?.facility_code || activeFacilityId || 'FAC-001';
+
   return (
     <header className="app-header">
       <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
@@ -47,6 +50,62 @@ export const Header: React.FC<HeaderProps> = ({
         <span style={{ fontSize: '0.75rem', background: 'rgba(255,255,255,0.06)', padding: '2px 8px', borderRadius: '4px', color: 'var(--text-muted)' }}>
           Clinical Intelligence Platform
         </span>
+
+        {/* Active Facility Context Ribbon & Selector */}
+        {user && (
+          <div
+            data-testid="header-facility-ribbon"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              background: 'linear-gradient(90deg, rgba(2, 132, 199, 0.12) 0%, rgba(15, 23, 42, 0.5) 100%)',
+              border: '1px solid rgba(2, 132, 199, 0.3)',
+              borderRadius: '6px',
+              padding: '3px 10px',
+              marginLeft: '8px',
+            }}
+          >
+            <span style={{ fontSize: '0.9rem' }}>🏥</span>
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <span style={{ fontSize: '0.625rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--brand-primary)', fontWeight: 600 }}>
+                Active Facility
+              </span>
+              {availableFacilities.length > 1 ? (
+                <select
+                  data-testid="header-facility-selector"
+                  value={activeFacilityId || ''}
+                  onChange={(e) => setActiveFacility(e.target.value)}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: 'var(--text-primary)',
+                    fontSize: '0.75rem',
+                    fontWeight: 600,
+                    outline: 'none',
+                    cursor: 'pointer',
+                    padding: '0 4px 0 0',
+                  }}
+                  title="Switch Active Clinical Facility Context"
+                >
+                  {availableFacilities.map((fac) => (
+                    <option key={fac.facility_id} value={fac.facility_id} style={{ background: '#0f172a', color: '#f8fafc' }}>
+                      {fac.name} ({fac.facility_code})
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <span
+                  data-testid="active-facility-badge"
+                  style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-primary)' }}
+                  title={`Facility Code: ${currentFacilityCode}`}
+                >
+                  {currentFacilityName} <span style={{ color: 'var(--text-muted)', fontSize: '0.7rem' }}>({currentFacilityCode})</span>
+                </span>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>

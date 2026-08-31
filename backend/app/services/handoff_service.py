@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 
 from app.ai.handoff_provider import get_handoff_provider
 from app.ai.task_worker import get_background_task_provider
+from app.core.tenant_context import verify_cross_facility_transfer_authorization
 from app.database.session import SessionLocal
 from app.models.alert import ClinicalAlert
 from app.models.care_plan import CarePlan
@@ -167,6 +168,18 @@ def create_handoff(
     patient = _get_patient(db, patient_id_str)
     handoff_id = _generate_handoff_id()
 
+    # Cross-facility transfer authorization check
+    source_fac = payload.source_facility_id or getattr(patient, "facility_id", None) or getattr(current_user, "default_facility_id", None) or "FAC-001"
+    dest_fac = payload.destination_facility_id or source_fac
+    verify_cross_facility_transfer_authorization(
+        db=db,
+        user=current_user,
+        source_facility_id=source_fac,
+        destination_facility_id=dest_fac,
+        patient_id=patient.patient_id,
+        resource_id=handoff_id,
+    )
+
     actions_dict = [a.model_dump() for a in payload.action_items] if payload.action_items else []
     contingencies_dict = [c.model_dump() for c in payload.situational_awareness] if payload.situational_awareness else []
 
@@ -192,7 +205,10 @@ def create_handoff(
     db.refresh(handoff)
 
     logger.info("Created clinical handoff %s for patient %s by user %s", handoff_id, patient.patient_id, current_user.id)
-    return _to_handoff_response(handoff)
+    resp = _to_handoff_response(handoff)
+    resp.source_facility_id = source_fac
+    resp.destination_facility_id = dest_fac
+    return resp
 
 
 def synthesize_handoff(
@@ -209,7 +225,20 @@ def synthesize_handoff(
         )
 
     patient = _get_patient(db, patient_id_str)
+
+    # Cross-facility transfer authorization check
+    source_fac = payload.source_facility_id or getattr(patient, "facility_id", None) or getattr(current_user, "default_facility_id", None) or "FAC-001"
+    dest_fac = payload.destination_facility_id or source_fac
+    verify_cross_facility_transfer_authorization(
+        db=db,
+        user=current_user,
+        source_facility_id=source_fac,
+        destination_facility_id=dest_fac,
+        patient_id=patient.patient_id,
+    )
+
     age = 45
+
     if patient.date_of_birth:
         age = (date.today() - patient.date_of_birth).days // 365
 

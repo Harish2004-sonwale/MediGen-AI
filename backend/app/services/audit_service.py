@@ -129,10 +129,17 @@ class AuditService:
                 tampered_event_ids.append(event.event_id)
 
             # Re-calculate hash for this event
+            ts_iso = ""
+            if event.timestamp:
+                ts = event.timestamp
+                if ts.tzinfo is None:
+                    ts = ts.replace(tzinfo=timezone.utc)
+                ts_iso = ts.isoformat()
+
             computed_hash = ClinicalAuditEvent.calculate_hash(
                 prev_hash=event.prev_record_hash,
                 event_id=event.event_id,
-                timestamp_iso=event.timestamp.isoformat() if event.timestamp else "",
+                timestamp_iso=ts_iso,
                 user_id=event.user_id,
                 patient_id=event.patient_id,
                 action=event.action,

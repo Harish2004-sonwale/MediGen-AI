@@ -64,6 +64,10 @@ try:
                 "task": "app.tasks.prune_outbox_events",
                 "schedule": 86400.0,
             },
+            "audit-integrity-sweep-daily": {
+                "task": "app.tasks.verify_audit_log_integrity_task",
+                "schedule": 86400.0,
+            },
         },
     )
     logger.info("Celery application initialized with broker: %s", broker_url)
@@ -78,11 +82,18 @@ except ImportError:
 
 if celery_app is not None:
 
+    @celery_app.task(name="app.tasks.verify_audit_log_integrity_task")
+    def celery_verify_audit_log_integrity_task():
+        """Periodic background task to verify complete SHA-256 audit hash chain integrity."""
+        from app.tasks.audit_tasks import verify_audit_log_integrity_task
+        return verify_audit_log_integrity_task()
+
     @celery_app.task(name="app.tasks.dispatch_outbox_events")
     def celery_dispatch_outbox_events(batch_size: int = 50):
         """Periodic background task to dispatch pending outbox events."""
         from app.tasks.outbox_tasks import process_outbox_events_sync
         return process_outbox_events_sync(batch_size=batch_size)
+
 
     @celery_app.task(name="app.tasks.escalate_critical_alerts")
     def celery_escalate_critical_alerts():

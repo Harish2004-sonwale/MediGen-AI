@@ -198,11 +198,30 @@ export const setStoredToken = (token: string, remember = true): void => {
   }
 };
 
+// Facility Context Management
+export const getActiveFacilityId = (): string | null => {
+  return localStorage.getItem('medigen_active_facility_id') || sessionStorage.getItem('medigen_active_facility_id');
+};
+
+export const setActiveFacilityId = (facilityId: string | null): void => {
+  if (facilityId) {
+    localStorage.setItem('medigen_active_facility_id', facilityId);
+  } else {
+    localStorage.removeItem('medigen_active_facility_id');
+    sessionStorage.removeItem('medigen_active_facility_id');
+  }
+  if (typeof window !== 'undefined' && window.dispatchEvent) {
+    window.dispatchEvent(new CustomEvent('medigen:facility_changed', { detail: { facilityId } }));
+  }
+};
+
 export const clearStoredToken = (): void => {
   localStorage.removeItem('medigen_token');
   sessionStorage.removeItem('medigen_token');
   localStorage.removeItem('medigen_user');
   sessionStorage.removeItem('medigen_user');
+  localStorage.removeItem('medigen_active_facility_id');
+  sessionStorage.removeItem('medigen_active_facility_id');
 };
 
 // Generic Fetch Wrapper
@@ -211,10 +230,15 @@ export async function apiRequest<T>(
   options: RequestInit = {}
 ): Promise<T> {
   const token = getStoredToken();
+  const facilityId = getActiveFacilityId();
   const headers = new Headers(options.headers || {});
 
   if (token && !headers.has('Authorization')) {
     headers.set('Authorization', `Bearer ${token}`);
+  }
+
+  if (facilityId && !headers.has('X-Facility-ID')) {
+    headers.set('X-Facility-ID', facilityId);
   }
 
   if (!(options.body instanceof FormData) && !headers.has('Content-Type')) {

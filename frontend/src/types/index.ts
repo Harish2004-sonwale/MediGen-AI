@@ -11,6 +11,7 @@ export interface User {
   email: string;
   role: UserRole;
   is_active: boolean;
+  default_facility_id?: string;
   created_at: string;
   updated_at: string;
 }

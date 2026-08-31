@@ -323,32 +323,36 @@ MediGen-AI/
    - [x] **Phase 9.0.20 — Platform Hardening, Production Deployment Hardening & Enterprise Scalability**: Completed & Verified ✅
    - [x] **Phase 9.0.21 — Enterprise EHR Integration, SMART on FHIR 2.0 App Launch, CDS Hooks Ecosystem & Real-Time Multi-Clinician Collaboration**: Completed & Verified ✅
    - [x] **Phase 9.0.22 — Enterprise Reliability, Concurrency, Interoperability, MFA Security & AI Governance**: Completed & Verified ✅
-   - [x] **Phase 9.0.23 — Event Pipeline Integration, Multi-Resource Interoperability & UI Orchestration**:
-       - **Status**: ✅ **COMPLETED** | ✅ **VERIFIED** | ✅ **READY FOR PUBLICATION**
+   - [x] **Phase 9.0.23 — Event Pipeline Integration, Multi-Resource Interoperability & UI Orchestration**: Completed & Verified ✅
+   - [x] **Phase 9.0.24 — Governance, SMART on FHIR v2 Scope Enforcement & Multi-Facility Operations**:
+       - **Status**: ✅ **COMPLETED** | ✅ **VERIFIED** | ✅ **OFFICIALLY PUBLISHED**
        - **Key Capabilities Delivered**:
-         - **Distributed Event Pipeline Integration (P1-1)**: Transactional outbox dispatcher extended to deliver domain events to matching active FHIR subscriptions (REST-hook webhook delivery with `X-Subscription-ID` / `X-Event-Type` headers, and WebSocket fan-out) and real-time Redis WebSocket telemetry broadcast.
-         - **Clinical Optimistic Concurrency Control (P1-2)**: Version tokens enforced with `HTTP 409 Conflict` detection for `CarePlan` (`update_care_plan`) and `ClinicalHandoff` (`update_handoff`), backed by Alembic Migration `0024_handoff_concurrency_version`.
-         - **Patient-Compartment Bulk FHIR Export (P1-3)**: Multi-resource streaming (`Patient`, `Encounter`, `Observation`, `CarePlan`, `DiagnosticReport`) in NDJSON format with facility-level tenant isolation.
-         - **Frontend Enterprise UI Orchestration (P2-1)**: Unified integration of `MFAManagementModal`, `FHIRSubscriptionsConsole`, `BulkExportModal`, and `OutboxDLQMonitor` in Header, Smart/FHIR workspace, and System Diagnostics.
-         - **Automated Celery Beat Scheduling (P2-2)**: Worker configuration with automated schedules for outbox dispatching (every 5s), critical alert escalation (every 60s), and outbox retention pruning (daily).
-         - **Outbox Retention Lifecycle (P2-3)**: Safe automated pruning of aged `PUBLISHED` events via `/api/v1/outbox/prune` while preserving all `PENDING`, `FAILED`, and `DEAD_LETTER` events.
+         - **Patient Consent Directive Enforcement on Bulk FHIR Export (P1-1)**: Enforced active `PatientConsent` directives (`RESTRICT_EXPORT` or `DENY`) with complete compartment isolation across child resources (`Encounter`, `Observation`, `CarePlan`, `DiagnosticReport`) and non-PHI audit event logging.
+         - **Cross-Facility Referral Authorization & Audit Scoping (P1-2)**: Established explicit server-side transfer authorization barriers verifying source facility clinician privileges, cross-validating facility existence, raising `HTTP 403 Forbidden` for unauthorized transfers, and logging structured `AUDIT_CROSS_FACILITY_TRANSFER` audit records.
+         - **Automated Cryptographic Audit Chain Verification (P2-1)**: Implemented Celery task `verify_audit_log_integrity_task` for read-only HMAC-SHA256 hash-chain verification with critical logging, `AUDIT_CHAIN_INTEGRITY_TAMPER_DETECTED` outbox event dispatch, and daily Celery Beat scheduling (`02:00 UTC`).
+         - **SMART on FHIR v2 Fine-Grained Scope Enforcement (P2-2)**: Implemented granular scope validation (`patient/Patient.read`, `patient/*.rs`, `user/Observation.write`, `patient/*.cures`, `system/*.*`) returning `HTTP 403 Forbidden` with RFC 6750 `insufficient_scope` challenge while preserving internal clinician JWT workflows.
+         - **Frontend Active Facility Context Ribbon & Switcher (P2-3)**: Implemented dynamic Active Facility Ribbon in Header with interactive multi-facility selector (`<select data-testid="header-facility-selector">`), reactive context synchronization via `AuthContext`, and automatic `X-Facility-ID` injection on all outbound API requests.
        - **Verification Summary**:
-         - **Backend Regression Suite**: 448 passed, 3 skipped, 0 failed across 451 test items (294s)
-         - **Frontend Vitest Suite**: 70 passed across 22 test files, 0 failed (16.7s)
-         - **Production Build**: PASS — 0 TypeScript/build errors (`tsc && vite build` in 1.30s)
+         - **Backend Regression Suite**: 466 passed, 3 skipped, 0 failed across 469 test items (406.81s)
+         - **Phase 9.0.24 Governance Suite**: 18 passed, 0 failed (12.31s)
+         - **SMART on FHIR Suite**: 2 passed, 0 failed (2.18s)
+         - **Frontend Vitest Suite**: 76 passed across 23 test files, 0 failed (22.59s)
+         - **Phase 9.0.24 Frontend Suite**: 6 passed, 0 failed (159ms)
+         - **Production Build**: PASS — 0 TypeScript/build errors (`tsc && vite build` in 1.17s)
          - **Alembic Validation**: PASS — all migrations 0001–0024 validated (`alembic upgrade head --sql`)
-         - **Flake8 / Bandit**: PASS — 0 critical lint/security issues
+         - **Flake8 / Bandit**: PASS — 0 critical lint issues, 0 High/Critical security vulnerabilities
+         - **Git Diff Check**: PASS — clean (0 whitespace errors)
 
 ---
 
 ### ⏳ Next in Queue
 
-- [ ] **Phase 9.0.24+ — Large-Scale Hospital Network Deployments & Regional Federated EHR Interoperability**:
-  - Future multi-facility health system orchestration, regional federated EHR indexing, cross-hospital secure data replication, and high-concurrency enterprise load testing.
+- [ ] **Phase 9.0.25 — Regional Federated EHR Interoperability & Multi-Hospital Clinical Pathways**:
+  - Regional federated patient identity resolution, cross-hospital secure clinical document replication, and enterprise EHR interoperability scaling.
 
 ---
 
 ### 📋 Planned Milestones
 
-- [ ] **Phase 9.0.25+ — Next-Generation Clinical Intelligence & Federated Learning Operations**:
+- [ ] **Phase 9.0.26+ — Next-Generation Clinical Intelligence & Federated Learning Operations**:
   - Longitudinal multi-modal foundation models, federated clinical trial intelligence, and automated cross-facility clinical pathway synthesis.

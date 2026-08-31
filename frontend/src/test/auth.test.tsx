@@ -30,9 +30,15 @@ vi.mock('../api/client', () => ({
     }),
     getMe: vi.fn().mockRejectedValue(new Error('No session')),
   },
+  tenantApi: {
+    listFacilities: vi.fn().mockResolvedValue([]),
+    listOrganizations: vi.fn().mockResolvedValue([]),
+  },
   getStoredToken: vi.fn().mockReturnValue(null),
   setStoredToken: vi.fn(),
   clearStoredToken: vi.fn(),
+  getActiveFacilityId: vi.fn().mockReturnValue(null),
+  setActiveFacilityId: vi.fn(),
 }));
 
 describe('Authentication & Login Page', () => {

@@ -2,7 +2,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_active_user
+from app.api.deps import get_current_active_user, require_smart_scope
 from app.database import get_db
 from app.models.user import User
 from app.schemas.fhir import (
@@ -94,6 +94,7 @@ router = APIRouter(prefix="/fhir", tags=["FHIR R4 Interoperability"])
     response_model=FHIRPatient,
     status_code=status.HTTP_200_OK,
     summary="Export patient demographics as FHIR R4 Patient resource",
+    dependencies=[Depends(require_smart_scope("patient/Patient.read"))],
 )
 def get_fhir_patient(
     patient_id: str,
@@ -114,6 +115,7 @@ def get_fhir_patient(
     response_model=FHIREncounter,
     status_code=status.HTTP_200_OK,
     summary="Export clinical encounter as FHIR R4 Encounter resource",
+    dependencies=[Depends(require_smart_scope("patient/Encounter.read"))],
 )
 def get_fhir_encounter(
     encounter_id: str,
@@ -134,6 +136,7 @@ def get_fhir_encounter(
     response_model=FHIRCondition,
     status_code=status.HTTP_200_OK,
     summary="Export clinical diagnosis as FHIR R4 Condition resource",
+    dependencies=[Depends(require_smart_scope("patient/Condition.read"))],
 )
 def get_fhir_condition(
     condition_id: str,
@@ -154,6 +157,7 @@ def get_fhir_condition(
     response_model=FHIRMedicationStatement,
     status_code=status.HTTP_200_OK,
     summary="Export medication history as FHIR R4 MedicationStatement resource",
+    dependencies=[Depends(require_smart_scope("patient/MedicationStatement.read"))],
 )
 def get_fhir_medication(
     medication_id: str,
@@ -174,6 +178,7 @@ def get_fhir_medication(
     response_model=FHIRObservation,
     status_code=status.HTTP_200_OK,
     summary="Export clinical observation/lab result as FHIR R4 Observation resource",
+    dependencies=[Depends(require_smart_scope("patient/Observation.read"))],
 )
 def get_fhir_observation(
     observation_id: str,
@@ -194,6 +199,7 @@ def get_fhir_observation(
     response_model=FHIRBundle,
     status_code=status.HTTP_200_OK,
     summary="Export all patient clinical history as a FHIR R4 Bundle",
+    dependencies=[Depends(require_smart_scope("patient/Patient.read"))],
 )
 def get_fhir_patient_bundle(
     patient_id: str,
@@ -214,6 +220,7 @@ def get_fhir_patient_bundle(
     response_model=FHIRCarePlan,
     status_code=status.HTTP_200_OK,
     summary="Export clinical care plan as a FHIR R4 CarePlan resource",
+    dependencies=[Depends(require_smart_scope("patient/CarePlan.read"))],
 )
 def get_fhir_care_plan(
     care_plan_id: str,
@@ -234,12 +241,14 @@ def get_fhir_care_plan(
     response_model=FHIRTask,
     status_code=status.HTTP_200_OK,
     summary="Export clinical care task as a FHIR R4 Task resource",
+    dependencies=[Depends(require_smart_scope("patient/Task.read"))],
 )
 def get_fhir_task(
     task_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
 ) -> FHIRTask:
+
     """Retrieve and export a care task as a standard FHIR R4 Task resource."""
     try:
         return export_care_task_as_fhir(db, current_user, task_id)
@@ -354,6 +363,7 @@ def get_fhir_service_request(
     response_model=FHIRDiagnosticReport,
     status_code=status.HTTP_200_OK,
     summary="Export diagnostic result as a FHIR R4 DiagnosticReport resource",
+    dependencies=[Depends(require_smart_scope("patient/DiagnosticReport.read"))],
 )
 def get_fhir_diagnostic_report(
     result_id: str,

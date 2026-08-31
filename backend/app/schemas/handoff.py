@@ -62,6 +62,8 @@ class HandoffCreate(BaseModel):
     illness_severity: IllnessSeverity = Field(default=IllnessSeverity.STABLE, description="I-PASS Illness Severity classification")
     receiver_user_id: Optional[int] = Field(default=None, description="Receiving clinician user ID")
     encounter_id: Optional[int] = Field(default=None, description="Associated clinical encounter ID")
+    source_facility_id: Optional[str] = Field(default=None, description="Originating healthcare facility ID")
+    destination_facility_id: Optional[str] = Field(default=None, description="Destination healthcare facility ID for cross-facility referral/transfer")
     summary: str = Field(..., min_length=5, description="Patient summary or Situation/Background narrative")
     action_items: list[HandoffActionItem] = Field(default_factory=list, description="Pending clinical action items")
     situational_awareness: list[ContingencyPlan] = Field(default_factory=list, description="If/Then contingency guidelines")
@@ -75,6 +77,8 @@ class HandoffSynthesizeRequest(BaseModel):
     handoff_type: HandoffType = Field(default=HandoffType.SHIFT_CHANGE)
     receiver_user_id: Optional[int] = None
     encounter_id: Optional[int] = None
+    source_facility_id: Optional[str] = None
+    destination_facility_id: Optional[str] = None
     custom_context: Optional[str] = None
 
 
@@ -109,6 +113,8 @@ class HandoffResponse(BaseModel):
     sender_name: Optional[str] = None
     receiver_user_id: Optional[int] = None
     receiver_name: Optional[str] = None
+    source_facility_id: Optional[str] = None
+    destination_facility_id: Optional[str] = None
     framework: HandoffFramework
     handoff_type: HandoffType
     illness_severity: IllnessSeverity
@@ -122,6 +128,7 @@ class HandoffResponse(BaseModel):
     version: int = 1
     created_at: datetime
     updated_at: datetime
+
 
 
 class HandoffListResponse(BaseModel):
