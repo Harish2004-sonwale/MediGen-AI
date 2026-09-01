@@ -75,6 +75,20 @@ from app.models.idempotency import IdempotencyRecord
 from app.models.mfa import MFACredential
 from app.models.fhir_subscription import FHIRSubscription
 from app.models.bulk_export import BulkExportJob
+from app.models.empi import (
+    EMPIMatchReview,
+    EMPIMergeHistory,
+    EnterprisePatientIdentity,
+    PatientIdentityLink,
+)
+from app.models.ccda import CCDADocumentExchange
+from app.models.pathway import (
+    PatientPathwayEnrollment,
+    PatientPathwayStageEvent,
+    PathwayMilestone,
+    PathwayStage,
+    RegionalClinicalPathway,
+)
 
 __all__ = [
     "User",
@@ -141,4 +155,15 @@ __all__ = [
     "MFACredential",
     "FHIRSubscription",
     "BulkExportJob",
+    "EnterprisePatientIdentity",
+    "PatientIdentityLink",
+    "EMPIMatchReview",
+    "EMPIMergeHistory",
+    "CCDADocumentExchange",
+    "RegionalClinicalPathway",
+    "PathwayStage",
+    "PathwayMilestone",
+    "PatientPathwayEnrollment",
+    "PatientPathwayStageEvent",
 ]
+

@@ -181,6 +181,16 @@ import {
   MFAVerifyResponse,
   FHIRSubscription,
   BulkExportJob,
+  EMPICandidateMatch,
+  EMPICandidatesResponse,
+  EMPILinkResponse,
+  EMPIMergeResponse,
+  EMPIMatchReviewItem,
+  CCDAExportResponse,
+  CCDAImportResponse,
+  CCDADocumentExchange,
+  RegionalPathway,
+  PatientPathwayEnrollment,
 } from '../types';
 
 const API_BASE_URL = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_URL) || '/api/v1';
@@ -2686,5 +2696,158 @@ export const bulkExportApi = {
 
   getExportStatus: async (jobId: string): Promise<BulkExportJob> => {
     return apiRequest<BulkExportJob>(`/fhir/bulk-export/${encodeURIComponent(jobId)}/status`);
+  },
+};
+
+// =============================================================================
+// 31. Phase 9.0.25: Enterprise Master Patient Index (EMPI) APIs
+// =============================================================================
+export const empiApi = {
+  findCandidateMatches: async (patientId: string, threshold = 0.65): Promise<EMPICandidatesResponse> => {
+    return apiRequest<EMPICandidatesResponse>(
+      `/empi/match/candidates/${encodeURIComponent(patientId)}?threshold=${threshold}`
+    );
+  },
+
+  linkPatient: async (data: {
+    target_patient_id: string;
+    patient_id: string;
+    link_type?: string;
+  }): Promise<EMPILinkResponse> => {
+    return apiRequest<EMPILinkResponse>('/empi/link', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  unlinkPatient: async (patientId: string, reason?: string): Promise<{ success: boolean; message: string }> => {
+    return apiRequest<{ success: boolean; message: string }>(
+      `/empi/unlink/${encodeURIComponent(patientId)}${reason ? `?reason=${encodeURIComponent(reason)}` : ''}`,
+      { method: 'POST' }
+    );
+  },
+
+  mergeIdentities: async (data: {
+    target_patient_id: string;
+    source_patient_id: string;
+    reason: string;
+  }): Promise<EMPIMergeResponse> => {
+    return apiRequest<EMPIMergeResponse>('/empi/merge', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  splitIdentity: async (mergeId: string, reason?: string): Promise<{ success: boolean; message: string }> => {
+    return apiRequest<{ success: boolean; message: string }>(
+      `/empi/split/${encodeURIComponent(mergeId)}${reason ? `?reason=${encodeURIComponent(reason)}` : ''}`,
+      { method: 'POST' }
+    );
+  },
+
+  listReviews: async (status?: string): Promise<EMPIMatchReviewItem[]> => {
+    const qs = status ? `?status=${encodeURIComponent(status)}` : '';
+    return apiRequest<EMPIMatchReviewItem[]>(`/empi/reviews${qs}`);
+  },
+
+  resolveReview: async (
+    reviewId: string,
+    action: 'confirm_link' | 'reject_match',
+    notes?: string
+  ): Promise<{ success: boolean; message: string }> => {
+    return apiRequest<{ success: boolean; message: string }>(`/empi/reviews/${encodeURIComponent(reviewId)}/resolve`, {
+      method: 'POST',
+      body: JSON.stringify({ action, notes }),
+    });
+  },
+};
+
+// =============================================================================
+// 32. Phase 9.0.25: Regional Cross-Hospital C-CDA Exchange APIs
+// =============================================================================
+export const ccdaApi = {
+  exportDocument: async (
+    patientId: string,
+    documentType = 'continuity_of_care_document'
+  ): Promise<CCDAExportResponse> => {
+    return apiRequest<CCDAExportResponse>('/ccda/export', {
+      method: 'POST',
+      body: JSON.stringify({ patient_id: patientId, document_type: documentType }),
+    });
+  },
+
+  downloadRawXmlUrl: (patientId: string, documentType = 'continuity_of_care_document') => {
+    return `/api/v1/ccda/export/${encodeURIComponent(patientId)}/xml?document_type=${encodeURIComponent(documentType)}`;
+  },
+
+  importDocument: async (data: {
+    patient_id: string;
+    xml_content: string;
+    source_facility?: string;
+  }): Promise<CCDAImportResponse> => {
+    return apiRequest<CCDAImportResponse>('/ccda/import', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  listDocuments: async (patientId?: string): Promise<{ total: number; documents: CCDADocumentExchange[] }> => {
+    const qs = patientId ? `?patient_id=${encodeURIComponent(patientId)}` : '';
+    return apiRequest<{ total: number; documents: CCDADocumentExchange[] }>(`/ccda/documents${qs}`);
+  },
+};
+
+// =============================================================================
+// 33. Phase 9.0.25: Regional Multi-Hospital Clinical Pathways APIs
+// =============================================================================
+export const pathwaysApi = {
+  listPathways: async (): Promise<{ total: number; pathways: RegionalPathway[] }> => {
+    return apiRequest<{ total: number; pathways: RegionalPathway[] }>('/pathways');
+  },
+
+  getPathway: async (pathwayId: string): Promise<RegionalPathway> => {
+    return apiRequest<RegionalPathway>(`/pathways/${encodeURIComponent(pathwayId)}`);
+  },
+
+  enrollPatient: async (data: {
+    patient_id: string;
+    pathway_id: string;
+    facility_id?: string;
+  }): Promise<PatientPathwayEnrollment> => {
+    return apiRequest<PatientPathwayEnrollment>('/pathways/enroll', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  advanceStage: async (
+    enrollmentId: string,
+    data?: { target_stage_id?: string; variance_reason?: string }
+  ): Promise<PatientPathwayEnrollment> => {
+    return apiRequest<PatientPathwayEnrollment>(
+      `/pathways/enrollments/${encodeURIComponent(enrollmentId)}/advance-stage`,
+      {
+        method: 'POST',
+        body: JSON.stringify(data || {}),
+      }
+    );
+  },
+
+  completeMilestone: async (
+    enrollmentId: string,
+    milestoneId: string,
+    notes?: string
+  ): Promise<PatientPathwayEnrollment> => {
+    return apiRequest<PatientPathwayEnrollment>(
+      `/pathways/enrollments/${encodeURIComponent(enrollmentId)}/milestones/${encodeURIComponent(milestoneId)}/complete`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ milestone_id: milestoneId, notes }),
+      }
+    );
+  },
+
+  getPatientEnrollments: async (patientId: string): Promise<PatientPathwayEnrollment[]> => {
+    return apiRequest<PatientPathwayEnrollment[]>(`/pathways/patient/${encodeURIComponent(patientId)}`);
   },
 };

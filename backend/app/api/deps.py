@@ -99,13 +99,21 @@ def get_current_active_user(
     return current_user
 
 
-def require_role(*allowed_roles: UserRole) -> Callable[[User], User]:
+def require_role(*allowed_roles: Any) -> Callable[[User], User]:
     """Dependency factory returning a validator that enforces user role permissions."""
+    flattened_roles: list[Any] = []
+    for r in allowed_roles:
+        if isinstance(r, (list, tuple, set)):
+            flattened_roles.extend(r)
+        else:
+            flattened_roles.append(r)
 
     def role_checker(
         current_user: User = Depends(get_current_active_user),
     ) -> User:
-        if current_user.role not in allowed_roles:
+        user_role_val = current_user.role.value if hasattr(current_user.role, "value") else str(current_user.role)
+        allowed_vals = [r.value if hasattr(r, "value") else str(r) for r in flattened_roles]
+        if current_user.role not in flattened_roles and user_role_val not in allowed_vals:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Operation not permitted for current user role",
@@ -113,6 +121,9 @@ def require_role(*allowed_roles: UserRole) -> Callable[[User], User]:
         return current_user
 
     return role_checker
+
+
+require_roles = require_role
 
 
 def match_smart_scope(granted_scope_str: str, required_scope: str) -> bool:

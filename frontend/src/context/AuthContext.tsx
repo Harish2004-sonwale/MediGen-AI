@@ -117,22 +117,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Initialize session on mount
   useEffect(() => {
     const initAuth = async () => {
-      const existingToken = getStoredToken();
-      if (existingToken) {
-        try {
-          const userData = await authApi.getMe();
-          setUser(userData);
-          await loadUserFacilities(userData);
-        } catch {
-          clearStoredToken();
-          setToken(null);
-          setUser(null);
-          setActiveFacilityIdState(null);
-          setActiveFacilityState(null);
-          setAvailableFacilities([]);
+      try {
+        const existingToken = getStoredToken();
+        if (existingToken) {
+          try {
+            const userData = await authApi.getMe();
+            setUser(userData);
+            await loadUserFacilities(userData);
+          } catch {
+            clearStoredToken();
+            setToken(null);
+            setUser(null);
+            setActiveFacilityIdState(null);
+            setActiveFacilityState(null);
+            setAvailableFacilities([]);
+          }
         }
+      } catch {
+        clearStoredToken();
+        setToken(null);
+        setUser(null);
+      } finally {
+        setIsLoading(false);
       }
-      setIsLoading(false);
     };
 
     initAuth();

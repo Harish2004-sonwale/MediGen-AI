@@ -29,6 +29,7 @@ export interface Patient {
   last_name: string;
   date_of_birth: string;
   gender: string;
+  facility_id?: string;
   phone?: string;
   email?: string;
   address?: string;
@@ -2302,4 +2303,189 @@ export interface BulkExportJob {
   progress_percent: number;
   created_at: string;
   completed_at?: string;
+}
+
+// =============================================================================
+// PHASE 9.0.25: REGIONAL INTEROPERABILITY, EMPI & CLINICAL PATHWAYS
+// =============================================================================
+
+export type EMPIMatchGrade = 'exact' | 'probable' | 'possible' | 'distinct';
+
+export interface EMPICandidateMatch {
+  patient_id: string;
+  first_name: string;
+  last_name: string;
+  date_of_birth: string;
+  gender: string;
+  facility_id: string;
+  match_score: number;
+  grade: EMPIMatchGrade;
+  feature_breakdown: Record<string, number>;
+  enterprise_id?: string;
+  address?: string;
+  phone?: string;
+}
+
+export interface EMPICandidatesResponse {
+  query_patient_id: string;
+  total_candidates: number;
+  candidates: EMPICandidateMatch[];
+}
+
+export interface EMPILinkResponse {
+  enterprise_id: string;
+  patient_id: string;
+  facility_id: string;
+  match_score: number;
+  link_type: string;
+  created_at: string;
+}
+
+export interface EMPIMergeResponse {
+  merge_id: string;
+  target_enterprise_id: string;
+  source_enterprise_id: string;
+  target_patient_id: string;
+  source_patient_id: string;
+  merged_at: string;
+  message: string;
+}
+
+export interface EMPIMatchReviewItem {
+  id: number;
+  review_id: string;
+  patient_id_a: string;
+  patient_id_b: string;
+  facility_id_a: string;
+  facility_id_b: string;
+  match_score: number;
+  feature_breakdown: Record<string, number>;
+  status: 'pending_review' | 'confirmed_match' | 'rejected_match';
+  reviewed_by_user_id?: number;
+  review_notes?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CCDAClinicalItem {
+  display_name: string;
+  code?: string;
+  code_system?: string;
+  status?: string;
+  date_recorded?: string;
+  details?: Record<string, any>;
+}
+
+export interface CCDASectionData {
+  section_title: string;
+  template_id: string;
+  items: CCDAClinicalItem[];
+}
+
+export interface CCDAExportResponse {
+  document_id: string;
+  patient_id: string;
+  document_type: string;
+  title: string;
+  created_at: string;
+  sha256_hash: string;
+  xml_content: string;
+  section_count: number;
+}
+
+export interface CCDAImportResponse {
+  document_id: string;
+  patient_id: string;
+  document_type: string;
+  title: string;
+  sha256_hash: string;
+  problems_count: number;
+  allergies_count: number;
+  medications_count: number;
+  vitals_count: number;
+  sections: CCDASectionData[];
+  message: string;
+}
+
+export interface CCDADocumentExchange {
+  id: number;
+  document_id: string;
+  patient_id: string;
+  facility_id: string;
+  document_type: string;
+  direction: 'export' | 'import';
+  title: string;
+  source_facility?: string;
+  destination_facility?: string;
+  sha256_hash: string;
+  section_count: number;
+  parsed_summary_json: Record<string, any>;
+  created_at: string;
+}
+
+export interface PathwayMilestone {
+  milestone_id: string;
+  stage_id: string;
+  name: string;
+  criteria_code: string;
+  expected_order_type?: string;
+  is_critical: boolean;
+}
+
+export interface PathwayStage {
+  stage_id: string;
+  pathway_id: string;
+  sequence_order: number;
+  name: string;
+  description?: string;
+  assigned_facility_id?: string;
+  target_duration_minutes: number;
+  required_role: string;
+  clinical_criteria_json: Record<string, any>;
+  is_mandatory: boolean;
+  milestones: PathwayMilestone[];
+}
+
+export interface RegionalPathway {
+  pathway_id: string;
+  code: string;
+  name: string;
+  category: string;
+  description: string;
+  tenant_id: string;
+  version: number;
+  target_duration_hours: number;
+  is_active: boolean;
+  created_at: string;
+  stages: PathwayStage[];
+}
+
+export interface PathwayStageEvent {
+  event_id: string;
+  stage_id: string;
+  facility_id: string;
+  actor_user_id: number;
+  transition_type: string;
+  started_at: string;
+  completed_at?: string;
+  duration_minutes?: number;
+  variance_detected: boolean;
+  variance_reason?: string;
+}
+
+export interface PatientPathwayEnrollment {
+  id: number;
+  enrollment_id: string;
+  patient_id: string;
+  pathway_id: string;
+  facility_id: string;
+  current_stage_id: string;
+  status: 'active' | 'completed' | 'suspended' | 'cancelled';
+  enrolled_at: string;
+  completed_at?: string;
+  completed_milestones: string[];
+  variance_notes?: string;
+  has_variance: boolean;
+  pathway?: RegionalPathway;
+  events?: PathwayStageEvent[];
 }

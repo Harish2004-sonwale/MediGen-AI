@@ -6,11 +6,13 @@ from app.api.v1.endpoints import (
     auth,
     bulk_export,
     care_plans,
+    ccda,
     cds,
     chat,
     cohorts,
     doctors,
     documents,
+    empi,
     encounters,
     fhir,
     fhir_subscriptions,
@@ -21,6 +23,7 @@ from app.api.v1.endpoints import (
     notes,
     orders,
     outbox,
+    pathways,
     patients,
     quality,
     rag,
@@ -69,6 +72,9 @@ api_router.include_router(websockets.router, tags=["WebSockets & WebRTC Signalin
 api_router.include_router(fhir_subscriptions.router)
 api_router.include_router(bulk_export.router)
 api_router.include_router(rag.router)
+api_router.include_router(empi.router)
+api_router.include_router(ccda.router)
+api_router.include_router(pathways.router)
 
 api_router.include_router(chat.router)
 api_router.include_router(timeline.router)
@@ -76,3 +82,4 @@ api_router.include_router(safety.router)
 api_router.include_router(fhir.router)
 api_router.include_router(tasks.router)
 api_router.include_router(health.router)
+
