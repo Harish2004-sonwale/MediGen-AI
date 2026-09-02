@@ -45,6 +45,8 @@ def patch_session_local_for_tests():
         patch("app.database.connection.SessionLocal", TestingSessionLocal),
         patch("app.database.session.SessionLocal", TestingSessionLocal),
         patch("app.database.SessionLocal", TestingSessionLocal),
+        patch("app.database.connection.engine", test_engine),
+        patch("app.database.engine", test_engine),
         patch("app.services.task_service.SessionLocal", TestingSessionLocal),
         patch("app.services.quality_service.SessionLocal", TestingSessionLocal),
         patch("app.services.order_service.SessionLocal", TestingSessionLocal),

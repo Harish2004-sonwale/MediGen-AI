@@ -40,19 +40,21 @@ SessionLocal = sessionmaker(
 )
 
 
-def check_db_connectivity() -> bool:
+def check_db_connectivity(target_engine=None) -> bool:
     """Execute lightweight SELECT 1 to verify proactive database connectivity."""
+    eng = target_engine or engine
     try:
-        with engine.connect() as conn:
+        with eng.connect() as conn:
             conn.execute(text("SELECT 1"))
             return True
     except Exception:
         return False
 
 
-def get_connection_pool_status() -> Dict[str, Any]:
+def get_connection_pool_status(target_engine=None) -> Dict[str, Any]:
     """Inspect current SQLAlchemy connection pool telemetry."""
-    pool = getattr(engine, "pool", None)
+    eng = target_engine or engine
+    pool = getattr(eng, "pool", None)
     if not pool or isinstance(pool, NullPool):
         return {"type": "NullPool", "size": 0, "checked_in": 0, "checked_out": 0, "overflow": 0}
 
