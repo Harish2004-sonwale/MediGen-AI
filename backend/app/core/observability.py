@@ -24,9 +24,12 @@ from starlette.responses import Response
 
 # Context variable holding correlation ID for the active request / task
 _CORRELATION_ID_CTX: ContextVar[str] = ContextVar("correlation_id", default="")
+_TRACE_ID_CTX: ContextVar[str] = ContextVar("trace_id", default="")
+_SPAN_ID_CTX: ContextVar[str] = ContextVar("span_id", default="")
 
 # Safe correlation ID pattern: alphanumeric with hyphens/underscores, 4-64 chars
 _CORRELATION_ID_REGEX = re.compile(r"^[a-zA-Z0-9_\-]{4,64}$")
+_TRACEPARENT_REGEX = re.compile(r"^00-([0-9a-f]{32})-([0-9a-f]{16})-([0-9a-f]{2})$", re.IGNORECASE)
 
 # PHI & Secret Sanitization Patterns
 _BEARER_TOKEN_RE = re.compile(r"Bearer\s+[A-Za-z0-9\-\._~\+\/]+=*", re.IGNORECASE)
@@ -41,6 +44,16 @@ def generate_correlation_id() -> str:
     date_str = datetime.now(timezone.utc).strftime("%Y%m%d")
     random_part = secrets.token_hex(4).upper()
     return f"req-{date_str}-{random_part}"
+
+
+def generate_trace_id() -> str:
+    """Generate W3C 128-bit hex trace ID."""
+    return secrets.token_hex(16).lower()
+
+
+def generate_span_id() -> str:
+    """Generate W3C 64-bit hex span ID."""
+    return secrets.token_hex(8).lower()
 
 
 def sanitize_correlation_id(raw_id: Optional[str]) -> str:
@@ -63,6 +76,66 @@ def set_correlation_id(corr_id: str) -> None:
     _CORRELATION_ID_CTX.set(corr_id)
 
 
+def get_trace_id() -> str:
+    """Get active W3C trace ID or generate on demand."""
+    tid = _TRACE_ID_CTX.get()
+    if not tid:
+        tid = generate_trace_id()
+        _TRACE_ID_CTX.set(tid)
+    return tid
+
+
+def set_trace_context(trace_id: str, span_id: str) -> None:
+    """Set active OpenTelemetry trace and span IDs."""
+    _TRACE_ID_CTX.set(trace_id)
+    _SPAN_ID_CTX.set(span_id)
+
+
+def get_traceparent_header() -> str:
+    """Generate standard W3C traceparent header value (00-{trace_id}-{span_id}-01)."""
+    tid = get_trace_id()
+    sid = _SPAN_ID_CTX.get() or generate_span_id()
+    return f"00-{tid}-{sid}-01"
+
+
+# ---------------------------------------------------------------------------
+# OpenTelemetry Distributed Tracing Lightweight Span Context
+# ---------------------------------------------------------------------------
+
+
+class TraceSpan:
+    """Context manager for distributed tracing spans with timing and attributes."""
+
+    def __init__(self, operation_name: str, attributes: Optional[dict[str, Any]] = None):
+        self.operation_name = operation_name
+        self.attributes = attributes or {}
+        self.trace_id = get_trace_id()
+        self.span_id = generate_span_id()
+        self.parent_span_id = _SPAN_ID_CTX.get()
+        self.start_time: float = 0.0
+        self.duration_ms: float = 0.0
+        self._prev_span_id: str = ""
+
+    def __enter__(self):
+        self._prev_span_id = _SPAN_ID_CTX.get()
+        _SPAN_ID_CTX.set(self.span_id)
+        self.start_time = time.perf_counter()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.duration_ms = (time.perf_counter() - self.start_time) * 1000.0
+        _SPAN_ID_CTX.set(self._prev_span_id)
+        if exc_val:
+            self.attributes["error"] = True
+            self.attributes["error.type"] = exc_type.__name__ if exc_type else "Error"
+        return False
+
+
+def trace_operation(operation_name: str, attributes: Optional[dict[str, Any]] = None):
+    """Context manager for distributed tracing operations."""
+    return TraceSpan(operation_name, attributes)
+
+
 def sanitize_log_message(message: str) -> str:
     """Strip or mask accidental credentials, tokens, and PHI identifiers from log text."""
     if not isinstance(message, str):
@@ -83,6 +156,10 @@ class PHISanitizingFilter(logging.Filter):
         if not hasattr(record, "correlation_id") or not record.correlation_id:
             record.correlation_id = get_correlation_id()
 
+        # Inject trace_id onto log record if available
+        if not hasattr(record, "trace_id"):
+            record.trace_id = _TRACE_ID_CTX.get()
+
         # Sanitize log message content
         if isinstance(record.msg, str):
             record.msg = sanitize_log_message(record.msg)
@@ -100,52 +177,69 @@ class PHISanitizingFilter(logging.Filter):
         return True
 
 
+# ---------------------------------------------------------------------------
+# Structured Log Formatters
+# ---------------------------------------------------------------------------
+
+
 class StructuredJsonFormatter(logging.Formatter):
-    """Outputs standardized single-line JSON log records for production log aggregation."""
+    """Production JSON log formatter conforming to enterprise observability standards."""
 
     def format(self, record: logging.LogRecord) -> str:
-        corr_id = getattr(record, "correlation_id", get_correlation_id())
-        now = datetime.now(timezone.utc).isoformat()
-
-        log_data: dict[str, Any] = {
-            "timestamp": now,
+        log_entry: dict[str, Any] = {
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "level": record.levelname,
             "logger": record.name,
             "message": record.getMessage(),
-            "correlation_id": corr_id,
+            "correlation_id": getattr(record, "correlation_id", get_correlation_id()),
+            "trace_id": getattr(record, "trace_id", _TRACE_ID_CTX.get()),
+            "module": record.module,
+            "line": record.lineno,
         }
-
-        # Include exception details if present
         if record.exc_info:
-            log_data["exception"] = self.formatException(record.exc_info)
-
-        # Include operational metadata extras
-        for key, val in record.__dict__.items():
-            if key not in (
-                "args", "asctime", "created", "exc_info", "exc_text", "filename",
-                "funcName", "levelname", "levelno", "lineno", "module", "msecs",
-                "message", "msg", "name", "pathname", "process", "processName",
-                "relativeCreated", "stack_info", "thread", "threadName", "correlation_id",
-            ):
-                log_data[key] = val
-
-        return json.dumps(log_data)
+            log_entry["exception"] = self.formatException(record.exc_info)
+        return json.dumps(log_entry)
 
 
 class StructuredTextFormatter(logging.Formatter):
-    """Human-readable formatted log output for local development and console output."""
+    """Human-readable structured text formatter for local development and stdout streaming."""
 
     def format(self, record: logging.LogRecord) -> str:
+        ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
         corr_id = getattr(record, "correlation_id", get_correlation_id())
-        now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
         msg = record.getMessage()
-        exc_text = f"\n{self.formatException(record.exc_info)}" if record.exc_info else ""
-        return f"[{now}] [{record.levelname:<5}] [{corr_id}] [{record.name}] {msg}{exc_text}"
+        formatted = f"[{ts}] [{record.levelname:<5}] [{corr_id}] [{record.name}] {msg}"
+        if record.exc_info:
+            formatted += f"\n{self.formatException(record.exc_info)}"
+        return formatted
 
 
 # ---------------------------------------------------------------------------
-# Operational Metrics Collector (In-Memory, zero SaaS dependencies)
+# Operational Metrics Collector (In-Memory, Prometheus histogram buckets)
 # ---------------------------------------------------------------------------
+
+LATENCY_HISTOGRAM_BUCKETS = (0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0)
+
+
+def categorize_path(path: str) -> str:
+    """Categorize URL path for operational metrics aggregation."""
+    if "/auth" in path:
+        return "auth"
+    elif "/fhir" in path:
+        return "fhir"
+    elif "/chat" in path or "/rag" in path or "/agents" in path or "/scribe" in path:
+        return "ai"
+    elif "/pacs/waveforms" in path:
+        return "waveforms"
+    elif "/pacs" in path:
+        return "pacs"
+    elif "/patients" in path:
+        return "patients"
+    elif "/emar" in path or "/orders" in path or "/encounters" in path or "/clinical-trials" in path:
+        return "clinical"
+    elif "/health" in path:
+        return "health"
+    return "general"
 
 
 class OperationalMetricsCollector:
@@ -157,14 +251,33 @@ class OperationalMetricsCollector:
         self._error_count_4xx = 0
         self._error_count_5xx = 0
         self._total_response_time_ms = 0.0
+        self._requests_by_status: dict[int, int] = {}
+        self._requests_by_category: dict[str, int] = {}
+        self._latency_buckets: dict[float, int] = {b: 0 for b in LATENCY_HISTOGRAM_BUCKETS}
+        self._ai_requests_total = 0
+        self._ai_duration_sum_ms = 0.0
 
-    def record_request(self, status_code: int, duration_ms: float) -> None:
+    def record_request(self, status_code: int, duration_ms: float, path: str = "/") -> None:
         self._request_count += 1
         self._total_response_time_ms += duration_ms
+        self._requests_by_status[status_code] = self._requests_by_status.get(status_code, 0) + 1
+
+        cat = categorize_path(path)
+        self._requests_by_category[cat] = self._requests_by_category.get(cat, 0) + 1
+
+        duration_sec = duration_ms / 1000.0
+        for b in LATENCY_HISTOGRAM_BUCKETS:
+            if duration_sec <= b:
+                self._latency_buckets[b] += 1
+
         if 400 <= status_code < 500:
             self._error_count_4xx += 1
         elif status_code >= 500:
             self._error_count_5xx += 1
+
+    def record_ai_inference(self, duration_ms: float) -> None:
+        self._ai_requests_total += 1
+        self._ai_duration_sum_ms += duration_ms
 
     def get_snapshot(self) -> dict[str, Any]:
         uptime_seconds = (datetime.now(timezone.utc) - self._start_time).total_seconds()
@@ -181,6 +294,14 @@ class OperationalMetricsCollector:
             "client_errors_4xx": self._error_count_4xx,
             "server_errors_5xx": self._error_count_5xx,
             "avg_response_time_ms": round(avg_latency, 2),
+            "avg_duration_ms": round(avg_latency, 2),
+            "requests_by_status": self._requests_by_status,
+            "requests_by_category": self._requests_by_category,
+            "latency_histogram_buckets": self._latency_buckets,
+            "ai_requests_total": self._ai_requests_total,
+            "ai_avg_duration_ms": round(
+                self._ai_duration_sum_ms / self._ai_requests_total if self._ai_requests_total > 0 else 0.0, 2
+            ),
         }
 
 
@@ -193,12 +314,21 @@ metrics_collector = OperationalMetricsCollector()
 
 
 class CorrelationIdMiddleware(BaseHTTPMiddleware):
-    """FastAPI Middleware that manages correlation IDs, timing, and response headers."""
+    """FastAPI Middleware that manages correlation IDs, OpenTelemetry headers, and response timing."""
 
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
         # Extract or generate correlation ID
         raw_corr_id = request.headers.get("X-Correlation-ID") or request.headers.get("X-Request-ID")
         correlation_id = sanitize_correlation_id(raw_corr_id)
+
+        # Extract or parse W3C traceparent
+        raw_traceparent = request.headers.get("traceparent")
+        if raw_traceparent and _TRACEPARENT_REGEX.match(raw_traceparent.strip()):
+            m = _TRACEPARENT_REGEX.match(raw_traceparent.strip())
+            if m:
+                set_trace_context(trace_id=m.group(1), span_id=m.group(2))
+        else:
+            set_trace_context(trace_id=generate_trace_id(), span_id=generate_span_id())
 
         # Bind to contextvars context
         set_correlation_id(correlation_id)
@@ -216,11 +346,13 @@ class CorrelationIdMiddleware(BaseHTTPMiddleware):
             # Inject response headers
             response.headers["X-Correlation-ID"] = correlation_id
             response.headers["X-Response-Time-Ms"] = f"{duration_ms:.2f}"
+            response.headers["traceparent"] = get_traceparent_header()
 
             # Record metrics
             metrics_collector.record_request(
                 status_code=response.status_code,
                 duration_ms=duration_ms,
+                path=safe_path,
             )
 
             # Operational access log (PHI-free)
@@ -235,7 +367,7 @@ class CorrelationIdMiddleware(BaseHTTPMiddleware):
             return response
         except Exception as exc:
             duration_ms = (time.perf_counter() - start_time) * 1000.0
-            metrics_collector.record_request(status_code=500, duration_ms=duration_ms)
+            metrics_collector.record_request(status_code=500, duration_ms=duration_ms, path=safe_path)
             logger.error(
                 "Unhandled HTTP exception during %s %s: %s (%.2fms)",
                 request.method,
@@ -275,3 +407,4 @@ def configure_logging(log_level: str = "INFO", log_format: str = "text") -> None
         for handler in root_logger.handlers:
             handler.setFormatter(formatter)
             handler.addFilter(phi_filter)
+

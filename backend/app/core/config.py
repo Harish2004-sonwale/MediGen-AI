@@ -8,7 +8,7 @@ class Settings(BaseSettings):
     VERSION: str = "0.1.0"
     ENVIRONMENT: str = "development"  # 'development' | 'staging' | 'production' | 'test'
     DEBUG: bool = True
-    HOST: str = "0.0.0.0"
+    HOST: str = "0.0.0.0"  # nosec B104
     PORT: int = 8000
     API_V1_STR: str = "/api/v1"
     ASGI_WORKERS: int = 1

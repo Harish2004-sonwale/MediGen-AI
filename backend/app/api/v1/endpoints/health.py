@@ -176,16 +176,57 @@ def prometheus_metrics() -> Response:
     if not by_status:
         lines.append('medigen_http_requests_total{status_code="200"} 0')
 
-    # Total requests & duration
+    # Breakdown by category
+    by_category = http_metrics.get("requests_by_category", {})
+    if by_category:
+        lines.extend([
+            "# HELP medigen_http_requests_by_category_total Total HTTP requests by API functional domain.",
+            "# TYPE medigen_http_requests_by_category_total counter",
+        ])
+        for cat, count in by_category.items():
+            lines.append(f'medigen_http_requests_by_category_total{{category="{cat}"}} {count}')
+
+    # Latency Histogram Buckets
+    buckets = http_metrics.get("latency_histogram_buckets", {})
     total_reqs = http_metrics.get("total_requests", 0)
     avg_latency = http_metrics.get("avg_duration_ms", 0.0) / 1000.0  # seconds
+    duration_sum = (http_metrics.get("avg_duration_ms", 0.0) * total_reqs) / 1000.0
+
     lines.extend([
-        "# HELP medigen_http_request_duration_seconds Average HTTP request duration in seconds.",
-        "# TYPE medigen_http_request_duration_seconds gauge",
-        f"medigen_http_request_duration_seconds {avg_latency:.4f}",
+        "# HELP medigen_http_request_duration_seconds HTTP request latency distribution in seconds.",
+        "# TYPE medigen_http_request_duration_seconds histogram",
+    ])
+    for le_val, b_count in sorted(buckets.items(), key=lambda x: x[0]):
+        lines.append(f'medigen_http_request_duration_seconds_bucket{{le="{le_val}"}} {b_count}')
+    lines.append(f'medigen_http_request_duration_seconds_bucket{{le="+Inf"}} {total_reqs}')
+    lines.append(f"medigen_http_request_duration_seconds_sum {duration_sum:.4f}")
+    lines.append(f"medigen_http_request_duration_seconds_count {total_reqs}")
+
+    # Uptime
+    lines.extend([
         "# HELP medigen_uptime_seconds Application process uptime in seconds.",
         "# TYPE medigen_uptime_seconds counter",
         f"medigen_uptime_seconds {http_metrics.get('uptime_seconds', 0):.1f}",
+    ])
+
+    # AI Request Metrics
+    ai_total = http_metrics.get("ai_requests_total", 0)
+    lines.extend([
+        "# HELP medigen_ai_inferences_total Total AI inference & RAG grounding invocations.",
+        "# TYPE medigen_ai_inferences_total counter",
+        f"medigen_ai_inferences_total {ai_total}",
+    ])
+
+    # Database connection pool status
+    from app.database.connection import get_connection_pool_status
+    db_pool = get_connection_pool_status()
+    lines.extend([
+        "# HELP medigen_db_pool_size Configured database connection pool capacity.",
+        "# TYPE medigen_db_pool_size gauge",
+        f"medigen_db_pool_size {db_pool.get('size', 0)}",
+        "# HELP medigen_db_pool_checked_out Active checked-out database connections.",
+        "# TYPE medigen_db_pool_checked_out gauge",
+        f"medigen_db_pool_checked_out {db_pool.get('checked_out', 0)}",
     ])
 
     # Cache connectivity
@@ -219,3 +260,4 @@ def prometheus_metrics() -> Response:
 
     content = "\n".join(lines) + "\n"
     return Response(content=content, media_type="text/plain; version=0.0.4; charset=utf-8")
+

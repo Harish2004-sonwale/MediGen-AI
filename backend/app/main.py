@@ -82,14 +82,18 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# 1. Correlation ID and Request Timing Middleware
+# 1. Correlation ID, Tracing and Request Timing Middleware
 app.add_middleware(CorrelationIdMiddleware)
 
-# 2. Rate Limiting & Abuse Protection Middleware
+# 2. Production Security Headers Middleware
+from app.core.security_headers import SecurityHeadersMiddleware
+app.add_middleware(SecurityHeadersMiddleware)
+
+# 3. Rate Limiting & Abuse Protection Middleware
 from app.core.rate_limiter import RateLimiterMiddleware
 app.add_middleware(RateLimiterMiddleware)
 
-# 3. CORS configuration
+# 4. CORS configuration
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.get_cors_origins(),

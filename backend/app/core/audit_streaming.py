@@ -50,7 +50,7 @@ class SyslogAuditStreamer(BaseAuditStreamer):
                 f"act={event.action}",
                 f"outcome={event.outcome}",
                 f"duser={event.user_role}",
-                f"src={event.ip_address or '0.0.0.0'}",
+                f"src={event.ip_address or '0.0.0.0'}",  # nosec B104
                 f"cs1Label=RecordHash cs1={event.record_hash}",
                 f"cs2Label=PrevHash cs2={event.prev_record_hash}",
                 f"cs3Label=ResourceType cs3={event.resource_type}",
