@@ -107,6 +107,14 @@ from app.models.emar import (
     MedicationAdministrationRecord,
     MedicationBarcodeDirectory,
 )
+from app.models.pacs_waveforms import (
+    AIIsolatedLesionFinding,
+    ArrhythmiaAlertEvent,
+    DICOMInstanceRecord,
+    DICOMSeriesRecord,
+    DICOMStudyRecord,
+    ECGWaveformSession,
+)
 
 __all__ = [
     "User",
@@ -195,6 +203,12 @@ __all__ = [
     "MedicationAdministrationRecord",
     "MedicationBarcodeDirectory",
     "BCMAVerificationLog",
+    "DICOMStudyRecord",
+    "DICOMSeriesRecord",
+    "DICOMInstanceRecord",
+    "AIIsolatedLesionFinding",
+    "ECGWaveformSession",
+    "ArrhythmiaAlertEvent",
 ]
 
 

@@ -220,6 +220,14 @@ import {
   MedicationBarcodeListResponse,
   MedicationBarcodeItem,
   MARStatus,
+  DICOMStudyListResponse,
+  DICOMStudyItem,
+  AILesionFindingItem,
+  AIFindingReviewStatus,
+  ECGSessionListResponse,
+  ECGSessionItem,
+  ArrhythmiaAlertItem,
+  ArrhythmiaEventType,
 } from '../types';
 
 const API_BASE_URL = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_URL) || '/api/v1';
@@ -3148,3 +3156,83 @@ export const emarApi = {
     });
   },
 };
+
+// 39. Phase 9.0.29: DICOM PACS Medical Imaging APIs
+export const pacsApi = {
+  queryStudies: async (patientId?: string, modality?: string): Promise<DICOMStudyListResponse> => {
+    const params = new URLSearchParams();
+    if (patientId) params.append('patient_id', patientId);
+    if (modality) params.append('modality', modality);
+    const qs = params.toString() ? `?${params.toString()}` : '';
+    return apiRequest<DICOMStudyListResponse>(`/pacs/studies${qs}`);
+  },
+
+  getStudyByUid: async (studyInstanceUid: string): Promise<DICOMStudyItem> => {
+    return apiRequest<DICOMStudyItem>(`/pacs/studies/${encodeURIComponent(studyInstanceUid)}`);
+  },
+
+  createStudy: async (payload: {
+    patient_id: string;
+    study_description: string;
+    modality?: string;
+    body_site?: string;
+    referring_physician?: string;
+    performing_institution?: string;
+  }): Promise<DICOMStudyItem> => {
+    return apiRequest<DICOMStudyItem>('/pacs/studies', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  getStudyMetadata: async (studyInstanceUid: string): Promise<Record<string, any>> => {
+    return apiRequest<Record<string, any>>(`/pacs/studies/${encodeURIComponent(studyInstanceUid)}/metadata`);
+  },
+
+  reviewFinding: async (
+    findingId: string,
+    payload: { status: AIFindingReviewStatus; review_notes?: string }
+  ): Promise<AILesionFindingItem> => {
+    return apiRequest<AILesionFindingItem>(`/pacs/findings/${encodeURIComponent(findingId)}/review`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+};
+
+// 40. Phase 9.0.29: Multi-Lead ICU Waveforms & Arrhythmia APIs
+export const waveformsApi = {
+  getPatientSessions: async (patientId: string): Promise<ECGSessionListResponse> => {
+    return apiRequest<ECGSessionListResponse>(`/pacs/waveforms/sessions/${encodeURIComponent(patientId)}`);
+  },
+
+  ingestSession: async (payload: {
+    patient_id: string;
+    rhythm_state: ArrhythmiaEventType;
+    heart_rate_bpm?: number;
+    lead_configuration?: string;
+    sample_rate_hz?: number;
+    duration_seconds?: number;
+  }): Promise<ECGSessionItem> => {
+    return apiRequest<ECGSessionItem>('/pacs/waveforms/sessions', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  listActiveAlerts: async (status?: string): Promise<ArrhythmiaAlertItem[]> => {
+    const qs = status ? `?status=${encodeURIComponent(status)}` : '';
+    return apiRequest<ArrhythmiaAlertItem[]>(`/pacs/waveforms/alerts${qs}`);
+  },
+
+  acknowledgeAlert: async (
+    alertId: string,
+    payload: { clinician_action_taken: string; status?: string }
+  ): Promise<ArrhythmiaAlertItem> => {
+    return apiRequest<ArrhythmiaAlertItem>(`/pacs/waveforms/alerts/${encodeURIComponent(alertId)}/acknowledge`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+};
+

@@ -25,6 +25,7 @@ from app.api.v1.endpoints import (
     notes,
     orders,
     outbox,
+    pacs_waveforms,
     pathways,
     patients,
     quality,
@@ -81,6 +82,7 @@ api_router.include_router(pathways.router)
 api_router.include_router(cds_pgx.router)
 api_router.include_router(trials_governance.router, prefix="/trials-governance", tags=["Clinical Trials Governance & Multi-Center Auditing"])
 api_router.include_router(emar.router, prefix="/emar", tags=["Closed-Loop eMAR & BCMA"])
+api_router.include_router(pacs_waveforms.router, prefix="/pacs", tags=["DICOM PACS & Real-Time Waveforms"])
 
 api_router.include_router(chat.router)
 api_router.include_router(timeline.router)

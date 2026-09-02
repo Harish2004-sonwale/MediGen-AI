@@ -34,6 +34,7 @@ import { RegionalInteroperabilityWorkspace } from '../components/interop/Regiona
 import { CDSPGxOrderSetWorkspace } from '../components/cds/CDSPGxOrderSetWorkspace';
 import { TrialsGovernanceWorkspace } from '../components/trials/TrialsGovernanceWorkspace';
 import { EMARClosedLoopWorkspace } from '../components/emar/EMARClosedLoopWorkspace';
+import { DICOMPACSViewerWorkspace } from '../components/pacs/DICOMPACSViewerWorkspace';
 import { TaskMonitor } from '../components/tasks/TaskMonitor';
 import { carePlansApi, mediaApi, notesApi } from '../api/client';
 import { CarePlanCategory, NoteType } from '../types';
@@ -72,7 +73,8 @@ export const DashboardPage: React.FC = () => {
     | 'cds_pgx'
     | 'trials_governance'
     | 'emar'
-  >('chat');
+    | 'pacs_waveforms'
+  >('timeline');
 
 
 
@@ -283,6 +285,13 @@ export const DashboardPage: React.FC = () => {
             >
               💊 Closed-Loop eMAR & BCMA
             </button>
+            <button
+              data-testid="tab-btn-pacs-waveforms"
+              className={`btn btn-sm ${activeTab === 'pacs_waveforms' ? 'btn-primary' : 'btn-secondary'}`}
+              onClick={() => setActiveTab('pacs_waveforms')}
+            >
+              🖼️ DICOM PACS & ICU Waveforms
+            </button>
           </div>
 
           {/* Active Workspace View */}
@@ -383,6 +392,9 @@ export const DashboardPage: React.FC = () => {
             )}
             {activeTab === 'emar' && (
               <EMARClosedLoopWorkspace />
+            )}
+            {activeTab === 'pacs_waveforms' && (
+              <DICOMPACSViewerWorkspace patientId={selectedPatient?.patient_id || 'PAT-001'} />
             )}
           </div>
 

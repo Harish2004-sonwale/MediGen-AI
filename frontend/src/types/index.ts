@@ -2926,3 +2926,163 @@ export interface DualSignoffPayload {
   witness_password: string;
   witness_notes?: string;
 }
+
+// =============================================================================
+// Phase 9.0.29: DICOM PACS Medical Imaging & Real-Time Waveforms
+// =============================================================================
+
+export type DICOMModality = 'CT' | 'MR' | 'CR' | 'DX' | 'US' | 'XA' | 'NM' | 'PT' | 'ECG' | 'OTHER';
+
+export type AIFindingReviewStatus = 'pending_review' | 'confirmed' | 'rejected' | 'amended';
+
+export type ArrhythmiaEventType =
+  | 'stemi_elevation'
+  | 'atrial_fibrillation'
+  | 'ventricular_tachycardia'
+  | 'asystole'
+  | 'severe_bradycardia'
+  | 'pvc_bigeminy'
+  | 'normal_sinus_rhythm';
+
+export type ArrhythmiaAlertSeverity = 'critical' | 'warning' | 'advisory';
+
+export type AlertLifecycleStatus = 'active' | 'acknowledged' | 'resolved' | 'false_positive';
+
+export interface AILesionFindingItem {
+  id: number;
+  finding_id: string;
+  instance_id: number;
+  lesion_type: string;
+  anatomical_location: string;
+  confidence_score: number;
+  severity: string;
+  geometry_type: string;
+  coordinates_json: {
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+  };
+  heatmap_matrix_json?: Record<string, any>;
+  model_name: string;
+  model_version: string;
+  clinician_review_status: AIFindingReviewStatus;
+  reviewed_by_user_id?: number;
+  review_notes?: string;
+  reviewed_at?: string;
+  created_at: string;
+}
+
+export interface DICOMInstanceItem {
+  id: number;
+  sop_instance_uid: string;
+  series_id: number;
+  sop_class_uid: string;
+  instance_number: number;
+  rows: number;
+  columns: number;
+  bits_allocated: number;
+  bits_stored: number;
+  high_bit: number;
+  pixel_representation: number;
+  photometric_interpretation: string;
+  storage_path: string;
+  thumbnail_path?: string;
+  pixel_data_preview_url?: string;
+  ai_findings: AILesionFindingItem[];
+  created_at: string;
+}
+
+export interface DICOMSeriesItem {
+  id: number;
+  series_instance_uid: string;
+  study_id: number;
+  series_number: number;
+  series_description: string;
+  modality: DICOMModality;
+  body_part_examined: string;
+  patient_position: string;
+  slice_thickness_mm?: number;
+  pixel_spacing_row_mm?: number;
+  pixel_spacing_col_mm?: number;
+  window_center_default: number;
+  window_width_default: number;
+  rescale_intercept: number;
+  rescale_slope: number;
+  number_of_instances: number;
+  instances: DICOMInstanceItem[];
+  created_at: string;
+}
+
+export interface DICOMStudyItem {
+  id: number;
+  study_instance_uid: string;
+  study_id: string;
+  patient_id: number;
+  patient_identifier?: string;
+  facility_id: string;
+  accession_number: string;
+  study_description: string;
+  modality: DICOMModality;
+  body_site: string;
+  study_datetime: string;
+  referring_physician?: string;
+  performing_institution: string;
+  number_of_series: number;
+  number_of_instances: number;
+  dicom_attributes_json?: Record<string, any>;
+  series_list: DICOMSeriesItem[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DICOMStudyListResponse {
+  total: number;
+  studies: DICOMStudyItem[];
+}
+
+export interface ArrhythmiaAlertItem {
+  id: number;
+  alert_id: string;
+  session_id: number;
+  patient_id: number;
+  event_type: ArrhythmiaEventType;
+  severity: ArrhythmiaAlertSeverity;
+  lead_involved: string;
+  heart_rate_bpm: number;
+  st_elevation_mm?: number;
+  alert_description: string;
+  status: AlertLifecycleStatus;
+  triggered_at: string;
+  cooldown_until: string;
+  acknowledged_by_user_id?: number;
+  acknowledged_at?: string;
+  clinician_action_taken?: string;
+}
+
+export interface ECGSessionItem {
+  id: number;
+  session_id: string;
+  patient_id: number;
+  patient_identifier?: string;
+  facility_id: string;
+  encounter_id?: number;
+  device_id: string;
+  lead_configuration: string;
+  sample_rate_hz: number;
+  amplitude_unit: string;
+  start_time: string;
+  duration_seconds: number;
+  current_rhythm_state: ArrhythmiaEventType;
+  heart_rate_bpm: number;
+  multi_lead_samples_json: Record<string, number[]>;
+  is_active_streaming: boolean;
+  alerts: ArrhythmiaAlertItem[];
+  created_at: string;
+}
+
+export interface ECGSessionListResponse {
+  total: number;
+  sessions: ECGSessionItem[];
+}
+
