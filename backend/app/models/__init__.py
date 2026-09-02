@@ -96,6 +96,12 @@ from app.models.cds_pgx import (
     OrderSetExecution,
     PGxRuleDefinition,
 )
+from app.models.trials_governance import (
+    MultiCenterStudySite,
+    TrialCAPARecord,
+    TrialIRBNotification,
+    TrialProtocolDeviation,
+)
 
 __all__ = [
     "User",
@@ -177,6 +183,10 @@ __all__ = [
     "ClinicalOrderSetItem",
     "OrderSetExecution",
     "CDSRuleEvaluationAudit",
+    "MultiCenterStudySite",
+    "TrialProtocolDeviation",
+    "TrialCAPARecord",
+    "TrialIRBNotification",
 ]
 
 

@@ -32,6 +32,7 @@ import { LiveCollaborationWorkspace } from '../components/collaboration/LiveColl
 import { HealthSystemTenantWorkspace } from '../components/tenants/HealthSystemTenantWorkspace';
 import { RegionalInteroperabilityWorkspace } from '../components/interop/RegionalInteroperabilityWorkspace';
 import { CDSPGxOrderSetWorkspace } from '../components/cds/CDSPGxOrderSetWorkspace';
+import { TrialsGovernanceWorkspace } from '../components/trials/TrialsGovernanceWorkspace';
 import { TaskMonitor } from '../components/tasks/TaskMonitor';
 import { carePlansApi, mediaApi, notesApi } from '../api/client';
 import { CarePlanCategory, NoteType } from '../types';
@@ -68,6 +69,7 @@ export const DashboardPage: React.FC = () => {
     | 'tenants'
     | 'regional_interop'
     | 'cds_pgx'
+    | 'trials_governance'
   >('chat');
 
 
@@ -265,6 +267,13 @@ export const DashboardPage: React.FC = () => {
             >
               💊 CDS Rules, PGx & Order Sets
             </button>
+            <button
+              data-testid="tab-btn-trials-governance"
+              className={`btn btn-sm ${activeTab === 'trials_governance' ? 'btn-primary' : 'btn-secondary'}`}
+              onClick={() => setActiveTab('trials_governance')}
+            >
+              🏛️ Trials Governance, GCP & Deviations
+            </button>
           </div>
 
           {/* Active Workspace View */}
@@ -359,6 +368,9 @@ export const DashboardPage: React.FC = () => {
             )}
             {activeTab === 'cds_pgx' && (
               <CDSPGxOrderSetWorkspace />
+            )}
+            {activeTab === 'trials_governance' && (
+              <TrialsGovernanceWorkspace />
             )}
           </div>
 

@@ -2632,3 +2632,161 @@ export interface CDSRuleEvaluationAudit {
   clinician_id?: number;
   created_at: string;
 }
+
+// ==============================================================================
+// Phase 9.0.27: Clinical Trial Governance, Deviations, CAPA & Multi-Center Types
+// ==============================================================================
+
+export type StudySiteStatus = 'active' | 'recruiting_closed' | 'suspended' | 'terminated';
+export type DeviationSeverity = 'minor' | 'major' | 'critical';
+export type DeviationCategory =
+  | 'inclusion_exclusion_breach'
+  | 'informed_consent_variance'
+  | 'missed_study_visit'
+  | 'prohibited_medication'
+  | 'investigational_product_dosing_error'
+  | 'laboratory_out_of_window'
+  | 'safety_reporting_delay';
+export type DeviationStatus =
+  | 'open'
+  | 'under_investigation'
+  | 'capa_assigned'
+  | 'resolved'
+  | 'irb_notified';
+export type CAPARootCause =
+  | 'investigator_oversight'
+  | 'patient_noncompliance'
+  | 'pharmacy_dispensation_delay'
+  | 'laboratory_logistics_error'
+  | 'staff_training_gap'
+  | 'protocol_ambiguity';
+export type CAPAStatus = 'draft' | 'in_progress' | 'verification_pending' | 'closed';
+export type IRBSubmissionType =
+  | 'initial_deviation_report'
+  | 'follow_up_capa'
+  | 'prompt_safety_report_ind'
+  | 'annual_continuing_review';
+
+export interface MultiCenterStudySite {
+  id: number;
+  site_id: string;
+  trial_id: number;
+  facility_id?: string;
+  principal_investigator_user_id?: number;
+  site_name: string;
+  target_accrual: number;
+  current_enrolled: number;
+  site_status: StudySiteStatus;
+  irb_approval_number?: string;
+  irb_approval_date?: string;
+  irb_expiry_date?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TrialProtocolDeviation {
+  id: number;
+  deviation_id: string;
+  trial_id: number;
+  site_id?: number;
+  patient_id?: number;
+  reported_by_user_id: number;
+  deviation_category: DeviationCategory;
+  severity: DeviationSeverity;
+  status: DeviationStatus;
+  description: string;
+  occurred_at: string;
+  discovered_at: string;
+  impact_on_patient_safety?: string;
+  impact_on_data_integrity?: string;
+  requires_irb_submission: boolean;
+  irb_submitted_at?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TrialCAPARecord {
+  id: number;
+  capa_id: string;
+  deviation_id: number;
+  root_cause_category: CAPARootCause;
+  root_cause_analysis: string;
+  corrective_action: string;
+  preventive_action: string;
+  assigned_owner_user_id: number;
+  target_resolution_date: string;
+  actual_resolution_date?: string;
+  status: CAPAStatus;
+  effectiveness_check_notes?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TrialIRBNotification {
+  id: number;
+  notification_id: string;
+  deviation_id: number;
+  irb_committee_name: string;
+  submission_type: IRBSubmissionType;
+  document_content_json: Record<string, any>;
+  submitted_by_user_id: number;
+  submission_timestamp: string;
+  acknowledgement_reference?: string;
+  created_at: string;
+}
+
+export interface TrialPrescreenMatchCriterionResult {
+  criterion_id: string;
+  category: string;
+  criterion_type: string;
+  description: string;
+  is_met: boolean;
+  patient_value?: string;
+  required: boolean;
+}
+
+export interface TrialPrescreenEvaluationItem {
+  trial_id: number;
+  nct_number?: string;
+  title: string;
+  phase: string;
+  disease_condition: string;
+  eligibility_score: number;
+  is_eligible: boolean;
+  matched_criteria_count: number;
+  total_criteria_count: number;
+  disqualifying_reasons: string[];
+  criteria_results: TrialPrescreenMatchCriterionResult[];
+}
+
+export interface TrialPrescreenEvaluationResponse {
+  patient_id: string;
+  evaluated_at: string;
+  total_trials_screened: number;
+  eligible_trials_count: number;
+  evaluations: TrialPrescreenEvaluationItem[];
+}
+
+export interface SiteAccrualMetric {
+  site_id: string;
+  site_name: string;
+  facility_id?: string;
+  target_accrual: number;
+  current_enrolled: number;
+  accrual_percentage: number;
+  open_deviations_count: number;
+  critical_deviations_count: number;
+  status: StudySiteStatus;
+}
+
+export interface MultiCenterTrialGovernanceSummary {
+  trial_id: number;
+  trial_title: string;
+  total_target_accrual: number;
+  total_enrolled: number;
+  overall_accrual_rate: number;
+  active_sites_count: number;
+  total_deviations_count: number;
+  open_capas_count: number;
+  sites_metrics: SiteAccrualMetric[];
+}

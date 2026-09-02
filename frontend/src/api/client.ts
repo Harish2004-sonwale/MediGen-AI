@@ -199,6 +199,17 @@ import {
   CDSRuleEvaluationAudit,
   OrderSetCategory,
   CDSRuleTriggerEvent,
+  MultiCenterStudySite,
+  TrialProtocolDeviation,
+  TrialCAPARecord,
+  TrialIRBNotification,
+  TrialPrescreenEvaluationResponse,
+  MultiCenterTrialGovernanceSummary,
+  DeviationCategory,
+  DeviationSeverity,
+  DeviationStatus,
+  CAPARootCause,
+  IRBSubmissionType,
 } from '../types';
 
 const API_BASE_URL = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_URL) || '/api/v1';
@@ -2941,5 +2952,119 @@ export const cdsPgxApi = {
   listAudits: async (patientId?: string): Promise<{ total: number; audits: CDSRuleEvaluationAudit[] }> => {
     const qs = patientId ? `?patient_id=${encodeURIComponent(patientId)}` : '';
     return apiRequest<{ total: number; audits: CDSRuleEvaluationAudit[] }>(`/cds-pgx/audits${qs}`);
+  },
+};
+
+export const trialsGovernanceApi = {
+  getPrescreening: async (patientId: string): Promise<TrialPrescreenEvaluationResponse> => {
+    return apiRequest<TrialPrescreenEvaluationResponse>(
+      `/trials-governance/prescreen/${encodeURIComponent(patientId)}`
+    );
+  },
+
+  listSites: async (params?: {
+    trial_id?: number;
+    facility_id?: string;
+  }): Promise<{ total: number; sites: MultiCenterStudySite[] }> => {
+    const searchParams = new URLSearchParams();
+    if (params?.trial_id) searchParams.append('trial_id', params.trial_id.toString());
+    if (params?.facility_id) searchParams.append('facility_id', params.facility_id);
+    const qs = searchParams.toString() ? `?${searchParams.toString()}` : '';
+    return apiRequest<{ total: number; sites: MultiCenterStudySite[] }>(
+      `/trials-governance/sites${qs}`
+    );
+  },
+
+  createSite: async (data: {
+    trial_id: number;
+    site_name: string;
+    facility_id?: string;
+    principal_investigator_user_id?: number;
+    target_accrual?: number;
+    irb_approval_number?: string;
+    irb_approval_date?: string;
+    irb_expiry_date?: string;
+  }): Promise<MultiCenterStudySite> => {
+    return apiRequest<MultiCenterStudySite>('/trials-governance/sites', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  listDeviations: async (params?: {
+    trial_id?: number;
+    severity?: DeviationSeverity;
+    status?: DeviationStatus;
+  }): Promise<{ total: number; deviations: TrialProtocolDeviation[] }> => {
+    const searchParams = new URLSearchParams();
+    if (params?.trial_id) searchParams.append('trial_id', params.trial_id.toString());
+    if (params?.severity) searchParams.append('severity', params.severity);
+    if (params?.status) searchParams.append('status', params.status);
+    const qs = searchParams.toString() ? `?${searchParams.toString()}` : '';
+    return apiRequest<{ total: number; deviations: TrialProtocolDeviation[] }>(
+      `/trials-governance/deviations${qs}`
+    );
+  },
+
+  reportDeviation: async (data: {
+    trial_id: number;
+    site_id?: number;
+    patient_id?: string;
+    deviation_category: DeviationCategory;
+    severity?: DeviationSeverity;
+    description: string;
+    occurred_at: string;
+    discovered_at: string;
+    impact_on_patient_safety?: string;
+    impact_on_data_integrity?: string;
+    requires_irb_submission?: boolean;
+  }): Promise<TrialProtocolDeviation> => {
+    return apiRequest<TrialProtocolDeviation>('/trials-governance/deviations', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  createCAPA: async (
+    deviationId: number,
+    data: {
+      root_cause_category: CAPARootCause;
+      root_cause_analysis: string;
+      corrective_action: string;
+      preventive_action: string;
+      assigned_owner_user_id: number;
+      target_resolution_date: string;
+    }
+  ): Promise<TrialCAPARecord> => {
+    return apiRequest<TrialCAPARecord>(
+      `/trials-governance/deviations/${deviationId}/capa`,
+      {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }
+    );
+  },
+
+  submitIRB: async (
+    deviationId: number,
+    data: {
+      irb_committee_name: string;
+      submission_type: IRBSubmissionType;
+      custom_remarks?: string;
+    }
+  ): Promise<TrialIRBNotification> => {
+    return apiRequest<TrialIRBNotification>(
+      `/trials-governance/deviations/${deviationId}/submit-irb`,
+      {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }
+    );
+  },
+
+  getTrialSummary: async (trialId: number): Promise<MultiCenterTrialGovernanceSummary> => {
+    return apiRequest<MultiCenterTrialGovernanceSummary>(
+      `/trials-governance/trials/${trialId}/summary`
+    );
   },
 };
