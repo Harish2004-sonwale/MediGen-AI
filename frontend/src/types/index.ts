@@ -2790,3 +2790,139 @@ export interface MultiCenterTrialGovernanceSummary {
   open_capas_count: number;
   sites_metrics: SiteAccrualMetric[];
 }
+
+// ==============================================================================
+// Phase 9.0.28: Closed-Loop eMAR & Barcode BCMA Interfaces
+// ==============================================================================
+
+export type MARStatus = 'scheduled' | 'administered' | 'held' | 'refused' | 'missed' | 'discontinued';
+export type BCMAVerificationStatus = 'pass' | 'warning_override' | 'mismatch_rejected';
+export type HighAlertMedicationCategory =
+  | 'insulin'
+  | 'anticoagulant'
+  | 'opioid_narcotic'
+  | 'chemotherapy'
+  | 'neuromuscular_blocker'
+  | 'concentrated_electrolyte'
+  | 'general';
+
+export interface MedicationBarcodeItem {
+  id: number;
+  barcode: string;
+  medication_name: string;
+  rxnorm_code: string;
+  ndc_code?: string;
+  standard_dose: string;
+  dosage_form: string;
+  route: string;
+  is_high_alert: boolean;
+  high_alert_category?: HighAlertMedicationCategory;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface MedicationBarcodeListResponse {
+  total: number;
+  items: MedicationBarcodeItem[];
+}
+
+export interface MARRecord {
+  id: number;
+  mar_id: string;
+  order_id?: number;
+  patient_id: number;
+  patient_identifier?: string;
+  facility_id: string;
+  medication_name: string;
+  medication_code: string;
+  prescribed_dose: string;
+  prescribed_route: string;
+  prescribed_frequency: string;
+  scheduled_time: string;
+  actual_admin_time?: string;
+  status: MARStatus;
+  administering_nurse_id?: number;
+  administering_nurse_name?: string;
+  administered_dose?: string;
+  administered_route?: string;
+  site_of_administration?: string;
+  is_high_alert: boolean;
+  requires_dual_witness: boolean;
+  dual_witness_user_id?: number;
+  dual_witness_user_name?: string;
+  dual_witness_timestamp?: string;
+  variance_reason?: string;
+  patient_response_notes?: string;
+  vital_signs_pre_admin_json?: Record<string, any>;
+  barcode_scanned_patient_id?: string;
+  barcode_scanned_med_id?: string;
+  verification_passed: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MARScheduleListResponse {
+  total: number;
+  records: MARRecord[];
+}
+
+export interface RightVerificationResult {
+  passed: boolean;
+  expected: string;
+  scanned: string;
+  details?: string;
+}
+
+export interface BCMAVerify5RightsResponse {
+  verification_status: BCMAVerificationStatus;
+  overall_passed: boolean;
+  patient_verification: RightVerificationResult;
+  medication_verification: RightVerificationResult;
+  dose_verification: RightVerificationResult;
+  route_verification: RightVerificationResult;
+  time_verification: RightVerificationResult;
+  is_high_alert: boolean;
+  requires_dual_signoff: boolean;
+  matched_mar_record?: MARRecord;
+  discrepancy_warnings: string[];
+  verification_token: string;
+  timestamp: string;
+}
+
+export interface MARScheduleDosesPayload {
+  patient_id: string;
+  order_id?: number;
+  facility_id?: string;
+  medication_name: string;
+  medication_code: string;
+  prescribed_dose: string;
+  prescribed_route: string;
+  frequency_code: string;
+  start_time?: string;
+  total_doses?: number;
+  is_high_alert?: boolean;
+  requires_dual_witness?: boolean;
+}
+
+export interface MARAdministerPayload {
+  administered_dose?: string;
+  administered_route?: string;
+  site_of_administration?: string;
+  scanned_patient_barcode?: string;
+  scanned_med_barcode?: string;
+  vital_signs_pre_admin?: Record<string, any>;
+  variance_reason?: string;
+  patient_response_notes?: string;
+}
+
+export interface MARHoldRefusePayload {
+  status: MARStatus;
+  clinical_reason: string;
+  patient_response_notes?: string;
+}
+
+export interface DualSignoffPayload {
+  witness_user_email: string;
+  witness_password: string;
+  witness_notes?: string;
+}

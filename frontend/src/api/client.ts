@@ -210,6 +210,16 @@ import {
   DeviationStatus,
   CAPARootCause,
   IRBSubmissionType,
+  MARRecord,
+  MARScheduleListResponse,
+  BCMAVerify5RightsResponse,
+  MARScheduleDosesPayload,
+  MARAdministerPayload,
+  MARHoldRefusePayload,
+  DualSignoffPayload,
+  MedicationBarcodeListResponse,
+  MedicationBarcodeItem,
+  MARStatus,
 } from '../types';
 
 const API_BASE_URL = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_URL) || '/api/v1';
@@ -3066,5 +3076,75 @@ export const trialsGovernanceApi = {
     return apiRequest<MultiCenterTrialGovernanceSummary>(
       `/trials-governance/trials/${trialId}/summary`
     );
+  },
+};
+
+export const emarApi = {
+  getSchedule: async (patientId: string, status?: MARStatus): Promise<MARScheduleListResponse> => {
+    const qs = status ? `?status=${status}` : '';
+    return apiRequest<MARScheduleListResponse>(`/emar/schedule/${encodeURIComponent(patientId)}${qs}`);
+  },
+
+  scheduleDoses: async (payload: MARScheduleDosesPayload): Promise<MARRecord[]> => {
+    return apiRequest<MARRecord[]>('/emar/schedule', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  verify5Rights: async (payload: {
+    patient_id: string;
+    scanned_patient_barcode: string;
+    scanned_med_barcode: string;
+    mar_id?: string;
+    intended_dose?: string;
+    intended_route?: string;
+  }): Promise<BCMAVerify5RightsResponse> => {
+    return apiRequest<BCMAVerify5RightsResponse>('/emar/verify-5-rights', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  administerDose: async (marId: string, payload: MARAdministerPayload): Promise<MARRecord> => {
+    return apiRequest<MARRecord>(`/emar/records/${encodeURIComponent(marId)}/administer`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  holdOrRefuseDose: async (marId: string, payload: MARHoldRefusePayload): Promise<MARRecord> => {
+    return apiRequest<MARRecord>(`/emar/records/${encodeURIComponent(marId)}/hold-refuse`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  dualSignoff: async (marId: string, payload: DualSignoffPayload): Promise<MARRecord> => {
+    return apiRequest<MARRecord>(`/emar/records/${encodeURIComponent(marId)}/dual-signoff`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  listBarcodes: async (search?: string): Promise<MedicationBarcodeListResponse> => {
+    const qs = search ? `?search=${encodeURIComponent(search)}` : '';
+    return apiRequest<MedicationBarcodeListResponse>(`/emar/barcodes${qs}`);
+  },
+
+  registerBarcode: async (payload: {
+    barcode: string;
+    medication_name: string;
+    rxnorm_code: string;
+    standard_dose: string;
+    dosage_form?: string;
+    route?: string;
+    is_high_alert?: boolean;
+    high_alert_category?: string;
+  }): Promise<MedicationBarcodeItem> => {
+    return apiRequest<MedicationBarcodeItem>('/emar/barcodes', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
   },
 };

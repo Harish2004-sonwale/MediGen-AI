@@ -102,6 +102,11 @@ from app.models.trials_governance import (
     TrialIRBNotification,
     TrialProtocolDeviation,
 )
+from app.models.emar import (
+    BCMAVerificationLog,
+    MedicationAdministrationRecord,
+    MedicationBarcodeDirectory,
+)
 
 __all__ = [
     "User",
@@ -187,6 +192,9 @@ __all__ = [
     "TrialProtocolDeviation",
     "TrialCAPARecord",
     "TrialIRBNotification",
+    "MedicationAdministrationRecord",
+    "MedicationBarcodeDirectory",
+    "BCMAVerificationLog",
 ]
 
 

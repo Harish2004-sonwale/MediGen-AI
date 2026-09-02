@@ -1,6 +1,6 @@
 # MediGen-AI: Complete Enterprise Healthcare Platform Roadmap
 
-**Current Released Baseline**: Phase 9.0.25 (`0345bb4`)  
+**Current Released Baseline**: Phase 9.0.28 (`In Progress / Ready for Commit`)  
 **Target Completion**: Phase 9.0.30 (Production-Ready Complete Enterprise Platform)  
 **Status**: ACTIVE EXECUTION  
 
@@ -8,9 +8,12 @@
 
 ## 1. Executive Summary of Current Platform State
 
-As of **Phase 9.0.25**, MediGen-AI possesses an enterprise foundation comprising:
-- **Core EHR**: Patient demographics, encounters, vitals, allergies, conditions, medications, orders, clinical notes, care plans, documents, and diagnostics.
+As of **Phase 9.0.28**, MediGen-AI possesses an enterprise foundation comprising:
+- **Core EHR & Nursing Operations**: Patient demographics, encounters, vitals, allergies, conditions, medications, orders, clinical notes, care plans, documents, diagnostics, and **Closed-Loop eMAR & Barcode BCMA Administration**.
 - **Enterprise Multi-Tenancy & Multi-Facility**: Health system tenant isolation, facility switching ribbons (`FAC-METRO-MAIN`, `FAC-METRO-WEST`), cross-facility transfer authorizations, and RBAC.
+- **Clinical Decision Support & Pharmacogenomics (Phase 9.0.26)**: CPIC Level A/B PGx engine (`CYP2D6`, `CYP2C19`, `DPYD`, `TPMT`, `HLA-B*5701`, `SLCO1B1`), multidisciplinary order sets (Sepsis, DKA, Stroke, ACS), CDS override audit logging.
+- **Clinical Trial Governance & Precision Auto-Enrollment (Phase 9.0.27)**: Real-time biomarker patient prescreening, GCP protocol deviation reporting, 5-Whys CAPA root cause analysis, FDA/IRB 21 CFR Part 312 submissions, and multi-center network accrual tracking.
+- **Closed-Loop eMAR & Bedside BCMA 5-Rights Verification (Phase 9.0.28)**: Bedside barcode verification engine (Right Patient, Right Drug, Right Dose, Right Route, Right Time), ISMP High-Alert dual-clinician witness authentication, pre-admin vital checks, held/refused dose workflows, and pharmacy NDC catalog.
 - **AI Platform**: Grounded RAG with citations, AI Scribe, Imaging AI, multi-agent care coordination, anti-prompt injection, and AI evaluation harness.
 - **Interoperability & Standards**: FHIR R4 API, SMART on FHIR 2.0 with PKCE & granular scopes, Bulk FHIR `$export` with consent filtering, CDS Hooks 2.0, HL7 C-CDA R2.1 generation/ingestion, Federated EMPI with probabilistic matching, and Regional Clinical Pathways.
 - **Security & Governance**: SHA-256 HMAC tamper-evident audit logs, legal clinical holds, retention policies, MFA, and consent management.
@@ -21,55 +24,42 @@ As of **Phase 9.0.25**, MediGen-AI possesses an enterprise foundation comprising
 
 ```mermaid
 graph TD
-    P25[Phase 9.0.25: Federated Interoperability & EMPI - RELEASED] --> P26[Phase 9.0.26: CDS Rules Engine, PGx & Order Sets]
-    P26 --> P27[Phase 9.0.27: Multi-Center Trials & Protocol Deviations]
-    P27 --> P28[Phase 9.0.28: Closed-Loop eMAR & Barcode BCMA]
-    P28 --> P29[Phase 9.0.29: DICOM PACS Viewer & Real-Time Waveforms]
+    P25[Phase 9.0.25: Federated Interoperability & EMPI - RELEASED] --> P26[Phase 9.0.26: CDS Rules Engine, PGx & Order Sets - COMPLETED]
+    P26 --> P27[Phase 9.0.27: Multi-Center Trials & Protocol Deviations - COMPLETED]
+    P27 --> P28[Phase 9.0.28: Closed-Loop eMAR & Barcode BCMA - COMPLETED]
+    P28 --> P29[Phase 9.0.29: DICOM PACS Viewer & Real-Time Waveforms - NEXT]
     P29 --> P30[Phase 9.0.30: Production Hardening, HA & Final Release]
 ```
 
 ---
 
-## 3. Detailed Remaining Phases & Milestones
+## 3. Detailed Phase Progress & Milestones
 
 ### Phase 9.0.26: Enterprise Clinical Decision Support (CDS) Rules Engine, Pharmacogenomics (PGx) & Order Sets
-- **Priority**: `P0 / P1` (High Clinical Impact)
-- **Estimated Complexity**: High
-- **Dependencies**: Phase 9.0.25 Interoperability, Phase 9.0.24 Governance
-- **Milestones**:
-  - **M26.1 (Backend & PGx)**: CPIC/PharmGKB Pharmacogenomics rules engine evaluating patient genomic biomarkers (`CYP2D6`, `CYP2C19`, `TPMT`, `DPYD`, `HLA-B*5701`) against active and ordered medications (e.g. Clopidogrel, Codeine, Warfarin, Azathioprine, Abacavir) with gene-drug risk severity scoring (`contraindicated`, `dose_adjustment`, `monitor`).
-  - **M26.2 (Backend & Order Sets)**: Multidisciplinary Clinical Order Sets engine (Sepsis Resuscitation Bundle, Inpatient Diabetic Ketoacidosis, Acute Coronary Syndrome, Acute Stroke Protocol) with dependency hierarchies and automatic CPOE batch creation.
-  - **M26.3 (Backend CDS 2.0)**: Real-time CDS hook evaluator emitting FHIR CDS cards with `system-actions`, override logging, and clinician rationale recording.
-  - **M26.4 (Frontend CDS & Order Sets)**: Interactive Order Set execution panel, PGx risk badge and advisor in CPOE modal, and CDS override dialog.
-  - **M26.5 (Database & Tests)**: Alembic migration `0026_cds_pgx_order_sets.py`, $\ge 12$ unit/integration tests, full regression pass.
+- **Status**: `COMPLETED & VERIFIED` (Commit `022db65`)
+- **Key Deliverables**: CPIC PGx rules engine, Sepsis/DKA/Stroke order sets, CPOE integration, CDS override logging, Alembic migration `0026_cds_pgx_order_sets.py`.
 
 ---
 
 ### Phase 9.0.27: Enterprise Clinical Trial Auto-Enrollment, Protocol Deviations & Multi-Center Regulatory Auditing
-- **Priority**: `P1` (Research & Precision Medicine)
-- **Estimated Complexity**: Medium-High
-- **Dependencies**: Phase 9.0.26 PGx Rules, Phase 9.0.25 EMPI
-- **Milestones**:
-  - **M27.1 (Backend Trial Matching)**: Automated real-time patient prescreening against active trial inclusion/exclusion criteria (genomics, lab ranges, staging, prior lines of therapy).
-  - **M27.2 (Backend Protocol Tracking)**: Protocol deviation engine tracking deviations (`minor`, `major`, `critical`), root cause categorization, IRB notification generation, and CAPA (Corrective and Preventive Action) tracking.
-  - **M27.3 (Frontend Trial Coordinator Workspace)**: Trial portfolio dashboard, eligibility match scoring breakdown, protocol deviation logger, and subject visit retention schedule.
-  - **M27.4 (Database & Tests)**: Alembic migration `0027_clinical_trials_governance.py`, $\ge 10$ unit/integration tests.
+- **Status**: `COMPLETED & VERIFIED` (Commit `5b2f99a`)
+- **Key Deliverables**: Real-time biomarker eligibility prescreening, GCP protocol deviation tracker, 5-Whys CAPA board, FDA/IRB notification filings, multi-site network accrual dashboard, Alembic migration `0027_clinical_trials_governance.py`.
 
 ---
 
 ### Phase 9.0.28: Closed-Loop Medication Administration (eMAR) & Barcode Verification (BCMA)
-- **Priority**: `P1` (Patient Safety & Nursing Workflow)
-- **Estimated Complexity**: High
-- **Dependencies**: Phase 9.0.26 Order Sets & Medications
-- **Milestones**:
-  - **M28.1 (Backend eMAR & 5-Rights)**: 5-Rights verification engine (Right Patient, Right Drug, Right Dose, Right Route, Right Time) with barcode checksum validation (GS1-128 / NDC).
-  - **M28.2 (Backend Dual-Signoff)**: Dual-clinician witness signoff protocol for High-Alert medications (Insulin, Heparin, Chemotherapy, Narcotics).
-  - **M28.3 (Frontend eMAR Schedule)**: Interactive timeline-based nurse eMAR grid, barcode scanner emulator/modal, late-dose reason prompt, and dual-signoff modal.
-  - **M28.4 (Database & Tests)**: Alembic migration `0028_emar_bcma_administration.py`, $\ge 10$ tests.
+- **Status**: `COMPLETED & VERIFIED` (Commit pending)
+- **Key Deliverables**:
+  - Bedside BCMA optical scanner simulator & 5-rights verification engine (Right Patient, Right Drug, Right Dose, Right Route, Right Time).
+  - ISMP High-Alert dual-clinician witness authentication protocol with independent password credentials.
+  - Inpatient eMAR nursing timeline grid with administration, hold, and refusal documentation.
+  - Pharmacy NDC & GS1 barcode catalog.
+  - Alembic migration `0028_emar_bcma_administration.py`, 7 integration tests, 3 frontend tests.
 
 ---
 
 ### Phase 9.0.29: Advanced Multi-Modal Medical Vision, DICOM PACS Viewer & Real-Time Waveforms
+- **Status**: `NEXT UP`
 - **Priority**: `P1` (Diagnostic Imaging & ICU Care)
 - **Estimated Complexity**: High
 - **Dependencies**: Phase 9.0.23 WebSockets & Telemetry, Phase 9.0.20 Imaging AI
@@ -82,6 +72,7 @@ graph TD
 ---
 
 ### Phase 9.0.30: Production Hardening, High Availability, Disaster Recovery & Final Platform Release
+- **Status**: `PLANNED`
 - **Priority**: `P0 / P1` (Enterprise Production Readiness)
 - **Estimated Complexity**: Medium
 - **Dependencies**: Phases 9.0.25 - 9.0.29
@@ -109,6 +100,7 @@ Each milestone must satisfy:
 
 ---
 
-## 5. Immediate Next Step: Phase 9.0.26 Execution
+## 5. Immediate Next Step: Phase 9.0.29 Execution
 
-We proceed immediately with **Phase 9.0.26: Enterprise Clinical Decision Support (CDS) Rules Engine, Pharmacogenomics (PGx) & Order Sets**.
+Following Phase 9.0.28 verification, we proceed immediately with **Phase 9.0.29: Advanced Multi-Modal Medical Vision, DICOM PACS Viewer & Real-Time Waveforms**.
+
