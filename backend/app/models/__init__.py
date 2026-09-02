@@ -89,6 +89,13 @@ from app.models.pathway import (
     PathwayStage,
     RegionalClinicalPathway,
 )
+from app.models.cds_pgx import (
+    CDSRuleEvaluationAudit,
+    ClinicalOrderSet,
+    ClinicalOrderSetItem,
+    OrderSetExecution,
+    PGxRuleDefinition,
+)
 
 __all__ = [
     "User",
@@ -165,5 +172,11 @@ __all__ = [
     "PathwayMilestone",
     "PatientPathwayEnrollment",
     "PatientPathwayStageEvent",
+    "PGxRuleDefinition",
+    "ClinicalOrderSet",
+    "ClinicalOrderSetItem",
+    "OrderSetExecution",
+    "CDSRuleEvaluationAudit",
 ]
+
 

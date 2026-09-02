@@ -2489,3 +2489,146 @@ export interface PatientPathwayEnrollment {
   pathway?: RegionalPathway;
   events?: PathwayStageEvent[];
 }
+
+// ==============================================================================
+// Phase 9.0.26: Enterprise CDS Rules, Pharmacogenomics (PGx) & Order Sets
+// ==============================================================================
+
+export type CPICLevel = 'A' | 'B' | 'C' | 'D';
+export type PGxRiskSeverity = 'critical' | 'high_risk' | 'moderate' | 'informational';
+export type OrderSetCategory =
+  | 'emergency_trauma'
+  | 'critical_care'
+  | 'inpatient_admission'
+  | 'oncology_precision'
+  | 'surgical_perioperative'
+  | 'cardiovascular'
+  | 'antimicrobial_stewardship'
+  | 'neurology';
+
+export type OrderSetItemType =
+  | 'medication'
+  | 'laboratory'
+  | 'imaging'
+  | 'nursing_vital'
+  | 'dietary'
+  | 'consult';
+
+export type OrderSetExecutionStatus = 'executed' | 'partially_executed' | 'cancelled';
+
+export type CDSRuleTriggerEvent =
+  | 'order_select'
+  | 'order_sign'
+  | 'patient_view'
+  | 'encounter_discharge';
+
+export interface PGxRuleDefinition {
+  id: number;
+  rule_id: string;
+  cpic_level: CPICLevel;
+  gene_symbol: string;
+  phenotype: string;
+  drug_code: string;
+  drug_name: string;
+  risk_severity: PGxRiskSeverity;
+  clinical_implication: string;
+  recommendation_text: string;
+  alternative_drugs: string[];
+  evidence_source?: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ClinicalOrderSetItem {
+  id: number;
+  item_id: string;
+  order_set_id: string;
+  item_type: OrderSetItemType;
+  code: string;
+  name: string;
+  default_dosage?: string;
+  default_route?: string;
+  default_frequency?: string;
+  clinical_instructions?: string;
+  is_required: boolean;
+  sequence_order: number;
+  created_at: string;
+}
+
+export interface ClinicalOrderSet {
+  id: number;
+  order_set_id: string;
+  code: string;
+  title: string;
+  description?: string;
+  category: OrderSetCategory;
+  target_icd10?: string;
+  facility_id?: string;
+  version: string;
+  is_active: boolean;
+  items: ClinicalOrderSetItem[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CDSPGxAlertCard {
+  card_id: string;
+  summary: string;
+  detail: string;
+  indicator: 'info' | 'warning' | 'critical';
+  rule_type: string;
+  gene_symbol?: string;
+  cpic_level?: CPICLevel;
+  phenotype?: string;
+  current_drug?: string;
+  alternative_drugs: string[];
+  links: Array<{ label: string; url: string }>;
+}
+
+export interface CDSEvaluationResponse {
+  patient_id: string;
+  trigger_event: CDSRuleTriggerEvent;
+  has_alerts: boolean;
+  highest_severity: 'info' | 'warning' | 'critical';
+  cards: CDSPGxAlertCard[];
+  patient_genotype_summary: Record<string, string>;
+  evaluated_at: string;
+}
+
+export interface OrderSetExecuteResponse {
+  execution_id: string;
+  order_set_id: string;
+  patient_id: string;
+  facility_id: string;
+  status: OrderSetExecutionStatus;
+  executed_items_count: number;
+  generated_order_ids: string[];
+  message: string;
+  created_at: string;
+}
+
+export interface CDSRuleOverrideResponse {
+  audit_id: string;
+  patient_id: string;
+  is_overridden: boolean;
+  override_reason: string;
+  message: string;
+  created_at: string;
+}
+
+export interface CDSRuleEvaluationAudit {
+  id: number;
+  audit_id: string;
+  patient_id: string;
+  facility_id?: string;
+  rule_type: string;
+  trigger_event: CDSRuleTriggerEvent;
+  severity: string;
+  card_summary: string;
+  card_detail: string;
+  is_overridden: boolean;
+  override_reason?: string;
+  clinician_id?: number;
+  created_at: string;
+}

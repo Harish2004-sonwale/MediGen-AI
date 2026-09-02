@@ -191,6 +191,14 @@ import {
   CCDADocumentExchange,
   RegionalPathway,
   PatientPathwayEnrollment,
+  PGxRuleDefinition,
+  ClinicalOrderSet,
+  CDSEvaluationResponse,
+  OrderSetExecuteResponse,
+  CDSRuleOverrideResponse,
+  CDSRuleEvaluationAudit,
+  OrderSetCategory,
+  CDSRuleTriggerEvent,
 } from '../types';
 
 const API_BASE_URL = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_URL) || '/api/v1';
@@ -2849,5 +2857,89 @@ export const pathwaysApi = {
 
   getPatientEnrollments: async (patientId: string): Promise<PatientPathwayEnrollment[]> => {
     return apiRequest<PatientPathwayEnrollment[]>(`/pathways/patient/${encodeURIComponent(patientId)}`);
+  },
+};
+
+// =============================================================================
+// 34. Phase 9.0.26: CDS Rules, PGx & Multidisciplinary Order Sets APIs
+// =============================================================================
+export const cdsPgxApi = {
+  listRules: async (filters?: {
+    gene_symbol?: string;
+    drug_code?: string;
+    cpic_level?: string;
+    risk_severity?: string;
+  }): Promise<{ total: number; rules: PGxRuleDefinition[] }> => {
+    const params = new URLSearchParams();
+    if (filters?.gene_symbol) params.append('gene_symbol', filters.gene_symbol);
+    if (filters?.drug_code) params.append('drug_code', filters.drug_code);
+    if (filters?.cpic_level) params.append('cpic_level', filters.cpic_level);
+    if (filters?.risk_severity) params.append('risk_severity', filters.risk_severity);
+    const qs = params.toString() ? `?${params.toString()}` : '';
+    return apiRequest<{ total: number; rules: PGxRuleDefinition[] }>(`/cds-pgx/rules${qs}`);
+  },
+
+  listOrderSets: async (filters?: {
+    category?: OrderSetCategory;
+    facility_id?: string;
+  }): Promise<{ total: number; order_sets: ClinicalOrderSet[] }> => {
+    const params = new URLSearchParams();
+    if (filters?.category) params.append('category', filters.category);
+    if (filters?.facility_id) params.append('facility_id', filters.facility_id);
+    const qs = params.toString() ? `?${params.toString()}` : '';
+    return apiRequest<{ total: number; order_sets: ClinicalOrderSet[] }>(`/cds-pgx/order-sets${qs}`);
+  },
+
+  getOrderSet: async (orderSetId: string): Promise<ClinicalOrderSet> => {
+    return apiRequest<ClinicalOrderSet>(`/cds-pgx/order-sets/${encodeURIComponent(orderSetId)}`);
+  },
+
+  executeOrderSet: async (
+    orderSetId: string,
+    data: {
+      patient_id: string;
+      selected_item_ids?: string[];
+      notes?: string;
+    }
+  ): Promise<OrderSetExecuteResponse> => {
+    return apiRequest<OrderSetExecuteResponse>(
+      `/cds-pgx/order-sets/${encodeURIComponent(orderSetId)}/execute`,
+      {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }
+    );
+  },
+
+  evaluateCDS: async (data: {
+    patient_id: string;
+    trigger_event?: CDSRuleTriggerEvent;
+    proposed_drug_code?: string;
+    proposed_drug_name?: string;
+  }): Promise<CDSEvaluationResponse> => {
+    return apiRequest<CDSEvaluationResponse>('/cds-pgx/evaluate', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  recordOverride: async (data: {
+    patient_id: string;
+    rule_type: string;
+    trigger_event?: CDSRuleTriggerEvent;
+    severity: string;
+    card_summary: string;
+    card_detail: string;
+    override_reason: string;
+  }): Promise<CDSRuleOverrideResponse> => {
+    return apiRequest<CDSRuleOverrideResponse>('/cds-pgx/override', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  listAudits: async (patientId?: string): Promise<{ total: number; audits: CDSRuleEvaluationAudit[] }> => {
+    const qs = patientId ? `?patient_id=${encodeURIComponent(patientId)}` : '';
+    return apiRequest<{ total: number; audits: CDSRuleEvaluationAudit[] }>(`/cds-pgx/audits${qs}`);
   },
 };

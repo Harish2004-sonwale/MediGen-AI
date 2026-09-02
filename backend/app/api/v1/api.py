@@ -8,6 +8,7 @@ from app.api.v1.endpoints import (
     care_plans,
     ccda,
     cds,
+    cds_pgx,
     chat,
     cohorts,
     doctors,
@@ -75,6 +76,7 @@ api_router.include_router(rag.router)
 api_router.include_router(empi.router)
 api_router.include_router(ccda.router)
 api_router.include_router(pathways.router)
+api_router.include_router(cds_pgx.router)
 
 api_router.include_router(chat.router)
 api_router.include_router(timeline.router)

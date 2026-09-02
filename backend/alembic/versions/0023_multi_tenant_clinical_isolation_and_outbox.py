@@ -39,41 +39,50 @@ def upgrade() -> None:
     # -------------------------------------------------------------------------
     # 2. Add facility_id, version, and escalation columns (Nullable initially)
     # -------------------------------------------------------------------------
+    dialect = op.get_context().dialect.name
+
     # users
     op.add_column("users", sa.Column("default_facility_id", sa.String(length=64), nullable=True))
-    op.create_foreign_key("fk_users_default_facility_id", "users", "clinical_facilities", ["default_facility_id"], ["facility_id"], ondelete="SET NULL")
+    if dialect != "sqlite":
+        op.create_foreign_key("fk_users_default_facility_id", "users", "clinical_facilities", ["default_facility_id"], ["facility_id"], ondelete="SET NULL")
 
     # patients
     op.add_column("patients", sa.Column("facility_id", sa.String(length=64), nullable=True))
     op.create_index(op.f("ix_patients_facility_id"), "patients", ["facility_id"], unique=False)
-    op.create_foreign_key("fk_patients_facility_id", "patients", "clinical_facilities", ["facility_id"], ["facility_id"], ondelete="RESTRICT")
+    if dialect != "sqlite":
+        op.create_foreign_key("fk_patients_facility_id", "patients", "clinical_facilities", ["facility_id"], ["facility_id"], ondelete="RESTRICT")
 
     # encounters
     op.add_column("encounters", sa.Column("facility_id", sa.String(length=64), nullable=True))
     op.create_index(op.f("ix_encounters_facility_id"), "encounters", ["facility_id"], unique=False)
-    op.create_foreign_key("fk_encounters_facility_id", "encounters", "clinical_facilities", ["facility_id"], ["facility_id"], ondelete="RESTRICT")
+    if dialect != "sqlite":
+        op.create_foreign_key("fk_encounters_facility_id", "encounters", "clinical_facilities", ["facility_id"], ["facility_id"], ondelete="RESTRICT")
 
     # clinical_orders (facility_id + optimistic locking version)
     op.add_column("clinical_orders", sa.Column("facility_id", sa.String(length=64), nullable=True))
     op.add_column("clinical_orders", sa.Column("version", sa.Integer(), server_default="1", nullable=False))
     op.create_index(op.f("ix_clinical_orders_facility_id"), "clinical_orders", ["facility_id"], unique=False)
-    op.create_foreign_key("fk_clinical_orders_facility_id", "clinical_orders", "clinical_facilities", ["facility_id"], ["facility_id"], ondelete="RESTRICT")
+    if dialect != "sqlite":
+        op.create_foreign_key("fk_clinical_orders_facility_id", "clinical_orders", "clinical_facilities", ["facility_id"], ["facility_id"], ondelete="RESTRICT")
 
     # clinical_notes
     op.add_column("clinical_notes", sa.Column("facility_id", sa.String(length=64), nullable=True))
     op.create_index(op.f("ix_clinical_notes_facility_id"), "clinical_notes", ["facility_id"], unique=False)
-    op.create_foreign_key("fk_clinical_notes_facility_id", "clinical_notes", "clinical_facilities", ["facility_id"], ["facility_id"], ondelete="RESTRICT")
+    if dialect != "sqlite":
+        op.create_foreign_key("fk_clinical_notes_facility_id", "clinical_notes", "clinical_facilities", ["facility_id"], ["facility_id"], ondelete="RESTRICT")
 
     # medical_documents
     op.add_column("medical_documents", sa.Column("facility_id", sa.String(length=64), nullable=True))
     op.create_index(op.f("ix_medical_documents_facility_id"), "medical_documents", ["facility_id"], unique=False)
-    op.create_foreign_key("fk_medical_documents_facility_id", "medical_documents", "clinical_facilities", ["facility_id"], ["facility_id"], ondelete="RESTRICT")
+    if dialect != "sqlite":
+        op.create_foreign_key("fk_medical_documents_facility_id", "medical_documents", "clinical_facilities", ["facility_id"], ["facility_id"], ondelete="RESTRICT")
 
     # care_plans (facility_id + optimistic locking version)
     op.add_column("care_plans", sa.Column("facility_id", sa.String(length=64), nullable=True))
     op.add_column("care_plans", sa.Column("version", sa.Integer(), server_default="1", nullable=False))
     op.create_index(op.f("ix_care_plans_facility_id"), "care_plans", ["facility_id"], unique=False)
-    op.create_foreign_key("fk_care_plans_facility_id", "care_plans", "clinical_facilities", ["facility_id"], ["facility_id"], ondelete="RESTRICT")
+    if dialect != "sqlite":
+        op.create_foreign_key("fk_care_plans_facility_id", "care_plans", "clinical_facilities", ["facility_id"], ["facility_id"], ondelete="RESTRICT")
 
     # discharge_protocols (optimistic locking version)
     op.add_column("discharge_protocols", sa.Column("version", sa.Integer(), server_default="1", nullable=False))
@@ -81,12 +90,14 @@ def upgrade() -> None:
     # imaging_studies
     op.add_column("imaging_studies", sa.Column("facility_id", sa.String(length=64), nullable=True))
     op.create_index(op.f("ix_imaging_studies_facility_id"), "imaging_studies", ["facility_id"], unique=False)
-    op.create_foreign_key("fk_imaging_studies_facility_id", "imaging_studies", "clinical_facilities", ["facility_id"], ["facility_id"], ondelete="RESTRICT")
+    if dialect != "sqlite":
+        op.create_foreign_key("fk_imaging_studies_facility_id", "imaging_studies", "clinical_facilities", ["facility_id"], ["facility_id"], ondelete="RESTRICT")
 
     # diagnostic_media
     op.add_column("diagnostic_media", sa.Column("facility_id", sa.String(length=64), nullable=True))
     op.create_index(op.f("ix_diagnostic_media_facility_id"), "diagnostic_media", ["facility_id"], unique=False)
-    op.create_foreign_key("fk_diagnostic_media_facility_id", "diagnostic_media", "clinical_facilities", ["facility_id"], ["facility_id"], ondelete="RESTRICT")
+    if dialect != "sqlite":
+        op.create_foreign_key("fk_diagnostic_media_facility_id", "diagnostic_media", "clinical_facilities", ["facility_id"], ["facility_id"], ondelete="RESTRICT")
 
     # clinical_alerts (facility_id + escalation metadata)
     op.add_column("clinical_alerts", sa.Column("facility_id", sa.String(length=64), nullable=True))
@@ -94,7 +105,8 @@ def upgrade() -> None:
     op.add_column("clinical_alerts", sa.Column("escalated_at", sa.DateTime(timezone=True), nullable=True))
     op.add_column("clinical_alerts", sa.Column("escalation_notes", sa.Text(), nullable=True))
     op.create_index(op.f("ix_clinical_alerts_facility_id"), "clinical_alerts", ["facility_id"], unique=False)
-    op.create_foreign_key("fk_clinical_alerts_facility_id", "clinical_alerts", "clinical_facilities", ["facility_id"], ["facility_id"], ondelete="RESTRICT")
+    if dialect != "sqlite":
+        op.create_foreign_key("fk_clinical_alerts_facility_id", "clinical_alerts", "clinical_facilities", ["facility_id"], ["facility_id"], ondelete="RESTRICT")
 
     # -------------------------------------------------------------------------
     # 3. Relationship-Driven Data Backfill
