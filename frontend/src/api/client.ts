@@ -299,6 +299,14 @@ export async function apiRequest<T>(
   });
 
   if (response.status === 401) {
+    if (endpoint.startsWith('/auth/login') || endpoint.startsWith('/auth/register')) {
+      let errorDetail = 'Invalid email or password';
+      try {
+        const errorData = await response.json();
+        errorDetail = errorData.detail || errorData.message || errorDetail;
+      } catch {}
+      throw new Error(errorDetail);
+    }
     // Token expired or invalid
     clearStoredToken();
     window.dispatchEvent(new Event('medigen:unauthorized'));
@@ -369,7 +377,11 @@ export const patientsApi = {
     if (search) params.append('search', search);
     if (status) params.append('status', status);
     const query = params.toString() ? `?${params.toString()}` : '';
-    return apiRequest<Patient[]>(`/patients${query}`, { method: 'GET' });
+    const res = await apiRequest<any>(`/patients${query}`, { method: 'GET' });
+    if (Array.isArray(res)) return res;
+    if (res && Array.isArray(res.items)) return res.items;
+    if (res && Array.isArray(res.patients)) return res.patients;
+    return [];
   },
 
   get: async (patientId: string): Promise<Patient> => {

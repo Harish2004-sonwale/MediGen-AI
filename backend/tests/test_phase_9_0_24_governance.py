@@ -603,7 +603,12 @@ def test_audit_chain_beat_schedule_registered():
 # P2-2: SMART ON FHIR V2 FINE-GRAINED SCOPE ENFORCEMENT TESTS
 # ==============================================================================
 
-def _create_smart_token(client: any, scope: str, patient_id: str = "PAT-FHIR-TEST-0001") -> str:
+def _create_smart_token(
+    client: any,
+    scope: str,
+    patient_id: str = "PAT-FHIR-TEST-0001",
+    user_id: int | None = None,
+) -> str:
     """Helper to perform standard PKCE auth flow and obtain SMART token with given scope."""
     import base64
     import hashlib
@@ -613,19 +618,23 @@ def _create_smart_token(client: any, scope: str, patient_id: str = "PAT-FHIR-TES
     digest = hashlib.sha256(code_verifier.encode("ascii")).digest()
     code_challenge = base64.urlsafe_b64encode(digest).decode("ascii").rstrip("=")
 
+    params: dict[str, any] = {
+        "client_id": "smart-v2-test-client",
+        "redirect_uri": "https://app.medigen.ai/smart/callback",
+        "response_type": "code",
+        "scope": scope,
+        "state": "smart-state-xyz",
+        "code_challenge": code_challenge,
+        "code_challenge_method": "S256",
+        "patient": patient_id,
+        "encounter": "ENC-001",
+    }
+    if user_id is not None:
+        params["user_id"] = user_id
+
     auth_resp = client.get(
         "/api/v1/smart/authorize",
-        params={
-            "client_id": "smart-v2-test-client",
-            "redirect_uri": "https://app.medigen.ai/smart/callback",
-            "response_type": "code",
-            "scope": scope,
-            "state": "smart-state-xyz",
-            "code_challenge": code_challenge,
-            "code_challenge_method": "S256",
-            "patient": patient_id,
-            "encounter": "ENC-001",
-        },
+        params=params,
     )
     assert auth_resp.status_code == 200, auth_resp.text
     auth_code = auth_resp.json()["code"]
@@ -644,9 +653,32 @@ def _create_smart_token(client: any, scope: str, patient_id: str = "PAT-FHIR-TES
     return token_resp.json()["access_token"]
 
 
-def test_smart_v2_scope_enforcement_allowed(client: any, test_patient: Patient):
+def test_smart_v2_scope_enforcement_allowed(
+    client: any, db_session: Session, test_doctor_user: User, test_patient: Patient
+):
     """Verify SMART client with specific patient/Observation.read scope successfully accesses Observation."""
-    token = _create_smart_token(client, scope="launch/patient patient/Observation.read openid fhirUser")
+    enc = (
+        db_session.query(Encounter)
+        .filter(Encounter.attending_user_id == test_doctor_user.id, Encounter.patient_id == test_patient.id)
+        .first()
+    )
+    if not enc:
+        enc = Encounter(
+            encounter_id=f"ENC-SMART-{test_patient.patient_id}",
+            patient_id=test_patient.id,
+            attending_user_id=test_doctor_user.id,
+            chief_complaint="Routine evaluation",
+            facility_id="FAC-001",
+        )
+        db_session.add(enc)
+        db_session.commit()
+
+    token = _create_smart_token(
+        client,
+        scope="launch/patient patient/Observation.read openid fhirUser",
+        patient_id=test_patient.patient_id,
+        user_id=test_doctor_user.id,
+    )
     headers = {"Authorization": f"Bearer {token}"}
 
     res = client.get(
@@ -658,9 +690,16 @@ def test_smart_v2_scope_enforcement_allowed(client: any, test_patient: Patient):
     assert data["resourceType"] == "Observation"
 
 
-def test_smart_v2_scope_enforcement_denied(client: any, test_patient: Patient):
+def test_smart_v2_scope_enforcement_denied(
+    client: any, test_doctor_user: User, test_patient: Patient
+):
     """Verify SMART client with only patient/Observation.read is denied access to Condition with 403 insufficient_scope."""
-    token = _create_smart_token(client, scope="launch/patient patient/Observation.read openid fhirUser")
+    token = _create_smart_token(
+        client,
+        scope="launch/patient patient/Observation.read openid fhirUser",
+        patient_id=test_patient.patient_id,
+        user_id=test_doctor_user.id,
+    )
     headers = {"Authorization": f"Bearer {token}"}
 
     res = client.get(
@@ -674,9 +713,32 @@ def test_smart_v2_scope_enforcement_denied(client: any, test_patient: Patient):
     assert 'scope="patient/Condition.read"' in auth_header
 
 
-def test_smart_v2_wildcard_scope(client: any, test_patient: Patient):
+def test_smart_v2_wildcard_scope(
+    client: any, db_session: Session, test_doctor_user: User, test_patient: Patient
+):
     """Verify SMART client with patient/*.read wildcard scope can access all supported patient resources."""
-    token = _create_smart_token(client, scope="launch/patient patient/*.read openid fhirUser")
+    enc = (
+        db_session.query(Encounter)
+        .filter(Encounter.attending_user_id == test_doctor_user.id, Encounter.patient_id == test_patient.id)
+        .first()
+    )
+    if not enc:
+        enc = Encounter(
+            encounter_id=f"ENC-SMART-WILD-{test_patient.patient_id}",
+            patient_id=test_patient.id,
+            attending_user_id=test_doctor_user.id,
+            chief_complaint="Routine evaluation",
+            facility_id="FAC-001",
+        )
+        db_session.add(enc)
+        db_session.commit()
+
+    token = _create_smart_token(
+        client,
+        scope="launch/patient patient/*.read openid fhirUser",
+        patient_id=test_patient.patient_id,
+        user_id=test_doctor_user.id,
+    )
     headers = {"Authorization": f"Bearer {token}"}
 
     # Observation
@@ -737,10 +799,15 @@ def test_internal_clinician_jwt_unaffected(
 
 
 def test_smart_insufficient_scope_audit(
-    client: any, db_session: Session, test_patient: Patient
+    client: any, db_session: Session, test_doctor_user: User, test_patient: Patient
 ):
     """Verify insufficient scope denial emits an audit event with DENIED_FORBIDDEN and error metadata."""
-    token = _create_smart_token(client, scope="launch/patient patient/Observation.read openid fhirUser")
+    token = _create_smart_token(
+        client,
+        scope="launch/patient patient/Observation.read openid fhirUser",
+        patient_id=test_patient.patient_id,
+        user_id=test_doctor_user.id,
+    )
     headers = {"Authorization": f"Bearer {token}"}
 
     # Clear prior audit events
@@ -768,12 +835,33 @@ def test_smart_insufficient_scope_audit(
 
 
 def test_smart_existing_authentication_regression(
-    client: any, db_session: Session, test_patient: Patient
+    client: any, db_session: Session, test_doctor_user: User, test_patient: Patient
 ):
     """Verify SMART token revocation immediately invalidates access on subsequent FHIR calls."""
     from app.services.smart_service import smart_service
 
-    token = _create_smart_token(client, scope="launch/patient patient/Observation.read openid fhirUser")
+    enc = (
+        db_session.query(Encounter)
+        .filter(Encounter.attending_user_id == test_doctor_user.id, Encounter.patient_id == test_patient.id)
+        .first()
+    )
+    if not enc:
+        enc = Encounter(
+            encounter_id=f"ENC-SMART-REVOKE-{test_patient.patient_id}",
+            patient_id=test_patient.id,
+            attending_user_id=test_doctor_user.id,
+            chief_complaint="Routine evaluation",
+            facility_id="FAC-001",
+        )
+        db_session.add(enc)
+        db_session.commit()
+
+    token = _create_smart_token(
+        client,
+        scope="launch/patient patient/Observation.read openid fhirUser",
+        patient_id=test_patient.patient_id,
+        user_id=test_doctor_user.id,
+    )
     headers = {"Authorization": f"Bearer {token}"}
 
     # 1. Valid call before revocation

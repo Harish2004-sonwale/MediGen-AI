@@ -51,6 +51,7 @@ def smart_authorize(
     patient: Optional[str] = Query(None, description="Explicit patient launch context"),
     encounter: Optional[str] = Query(None, description="Explicit encounter launch context"),
     facility_id: Optional[str] = Query("FAC-001", description="Tenant facility context"),
+    user_id: Optional[int] = Query(None, description="Explicit user launch context"),
     db: Session = Depends(get_db),
 ) -> SmartAuthorizeResponse:
     """Issues an authorization code containing the requested launch context and scopes."""
@@ -65,7 +66,7 @@ def smart_authorize(
     return smart_service.create_authorization_code(
         db=db,
         client_id=client_id,
-        user_id=1,
+        user_id=user_id or 1,
         patient_id=patient_context,
         encounter_id=encounter or "ENC-001",
         facility_id=facility_id or "FAC-001",

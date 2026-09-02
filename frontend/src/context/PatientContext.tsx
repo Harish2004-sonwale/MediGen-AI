@@ -37,11 +37,12 @@ export const PatientProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setError(null);
     try {
       const data = await patientsApi.list();
-      setPatients(data);
+      const list = Array.isArray(data) ? data : (data as any)?.items || (data as any)?.patients || [];
+      setPatients(list);
 
       // Auto-select first patient if none is selected
-      if (data.length > 0 && !selectedPatient) {
-        setSelectedPatient(data[0]);
+      if (list.length > 0 && !selectedPatient) {
+        setSelectedPatient(list[0]);
       }
     } catch (err: any) {
       setError(err.message || 'Failed to load patients.');

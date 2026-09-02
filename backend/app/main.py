@@ -60,6 +60,15 @@ async def lifespan(app: FastAPI):
         type(worker_provider).__name__,
     )
 
+    # Auto-seed default demo users if needed
+    try:
+        from app.database.connection import SessionLocal
+        from app.services.user_service import seed_default_users_if_needed
+        with SessionLocal() as db_session:
+            seed_default_users_if_needed(db_session)
+    except Exception as exc:
+        logger.debug("Default demo user auto-seed skipped: %s", exc)
+
     yield
 
     # 2. Shutdown phase: Gracefully drain background tasks
