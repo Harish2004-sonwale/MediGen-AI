@@ -265,8 +265,10 @@ def update_patient_details(
                 detail="Access denied: You may only edit your own personal information.",
             )
         # Prevent patient from changing status or doctor assignment
-        patient_in.assigned_doctor_id = None
-        patient_in.status = None
+        update_dict = patient_in.model_dump(exclude_unset=True)
+        update_dict.pop("status", None)
+        update_dict.pop("assigned_doctor_id", None)
+        patient_in = PatientUpdate(**update_dict)
 
     updated = update_patient(db, patient=patient, patient_in=patient_in)
     return _format_patient_response(updated)

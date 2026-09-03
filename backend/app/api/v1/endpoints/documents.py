@@ -245,16 +245,17 @@ def delete_document(
             detail=f"Medical document '{document_id}' was not found.",
         )
 
-    if current_user.role == UserRole.PATIENT:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Patients cannot delete medical documents.",
-        )
-
     if not has_patient_clinical_access(db, current_user, doc.patient):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You do not have permission to delete this medical document.",
+        )
+
+    # Patients can only delete documents that they personally uploaded
+    if current_user.role == UserRole.PATIENT and doc.uploader_user_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Patients can only delete documents that they personally uploaded.",
         )
 
     delete_medical_document(db, doc)

@@ -225,6 +225,10 @@ def update_patient(
     update_data = patient_in.model_dump(exclude_unset=True)
 
     for field, value in update_data.items():
+        if field == "status" and value is None:
+            continue
+        if field == "assigned_doctor_id" and value is None:
+            continue
         if value is not None and isinstance(value, str):
             value = value.strip()
         setattr(patient, field, value)

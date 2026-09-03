@@ -80,7 +80,7 @@ export const PatientDashboard: React.FC = () => {
         // 4. Fetch Recent Vitals
         try {
           const token = localStorage.getItem('medigen_token') || sessionStorage.getItem('medigen_token');
-          const vitRes = await fetch(`/api/v1/vitals?patient_id=${encodeURIComponent(profile.patient_id)}`, {
+          const vitRes = await fetch(`/api/v1/patients/${encodeURIComponent(profile.patient_id)}/vitals`, {
             headers: { Authorization: `Bearer ${token}` },
           });
           if (vitRes.ok) {
@@ -94,7 +94,7 @@ export const PatientDashboard: React.FC = () => {
         // 5. Fetch Active Medicines / Orders
         try {
           const token = localStorage.getItem('medigen_token') || sessionStorage.getItem('medigen_token');
-          const ordRes = await fetch(`/api/v1/orders?patient_id=${encodeURIComponent(profile.patient_id)}`, {
+          const ordRes = await fetch(`/api/v1/patients/${encodeURIComponent(profile.patient_id)}/orders`, {
             headers: { Authorization: `Bearer ${token}` },
           });
           if (ordRes.ok) {
