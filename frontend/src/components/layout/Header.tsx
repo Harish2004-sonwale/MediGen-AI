@@ -141,7 +141,9 @@ export const Header: React.FC<HeaderProps> = ({
         {user && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', borderLeft: '1px solid var(--border-color)', paddingLeft: '14px' }}>
             <div style={{ textAlign: 'right' }}>
-              <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)' }}>{user.name}</div>
+              <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                {user.name || (user.first_name ? `${user.first_name} ${user.last_name || ''}`.trim() : '') || 'Clinician'}
+              </div>
               <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '2px' }}>
                 <span className={`badge ${getRoleBadgeClass(user.role)}`} style={{ fontSize: '0.65rem' }}>
                   {user.role.replace('_', ' ')}

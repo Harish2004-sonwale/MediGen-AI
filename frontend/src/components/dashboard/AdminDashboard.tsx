@@ -1,11 +1,11 @@
 // ==============================================================================
 // MediGen AI - Dedicated System Administrator Control Center & Patient Intake
-// New Patient Review, Doctor Assignment & Multi-Tenant Clinical Governance
+// Hospital Operations, Patient Intake, Doctor Assignments, Facilities & Governance
 // ==============================================================================
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { Header } from '../layout/Header';
+import { AppShell } from '../layout/AppShell';
 import { HealthSystemTenantWorkspace } from '../tenants/HealthSystemTenantWorkspace';
 import { SystemDiagnosticsWorkspace } from '../operations/SystemDiagnosticsWorkspace';
 import { SecurityComplianceWorkspace } from '../security/SecurityComplianceWorkspace';
@@ -15,17 +15,16 @@ import { SmartFhirEhrWorkspace } from '../interop/SmartFhirEhrWorkspace';
 import { ClinicalAgentsWorkspace } from '../agents/ClinicalAgentsWorkspace';
 import { QualityMeasuresWorkspace } from '../quality/QualityMeasuresWorkspace';
 import { ErrorBoundary } from '../common/ErrorBoundary';
-import { doctorsApi, patientsApi } from '../../api/client';
-import { Doctor, Patient } from '../../types';
+import { appointmentsApi, doctorsApi, patientsApi } from '../../api/client';
+import { Appointment, Doctor, Patient } from '../../types';
 
 export const AdminDashboard: React.FC = () => {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<
-    'patients' | 'tenants' | 'diagnostics' | 'security' | 'trials_gov' | 'regional_interop' | 'smart_ehr' | 'agents' | 'quality'
-  >('patients');
+  const [activeSection, setActiveSection] = useState<string>('overview');
 
   const [patientsList, setPatientsList] = useState<Patient[]>([]);
   const [doctorsList, setDoctorsList] = useState<Doctor[]>([]);
+  const [appointmentsList, setAppointmentsList] = useState<Appointment[]>([]);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -46,15 +45,17 @@ export const AdminDashboard: React.FC = () => {
   const [editAllergies, setEditAllergies] = useState<string>('');
   const [editStatus, setEditStatus] = useState<string>('active');
 
-  const loadPatientsAndDoctors = async () => {
+  const loadAllAdminData = async () => {
     setIsLoading(true);
     try {
-      const [patientsRes, doctorsRes] = await Promise.all([
+      const [patientsRes, doctorsRes, aptsRes] = await Promise.all([
         patientsApi.list(searchQuery || undefined, statusFilter || undefined).catch(() => []),
         doctorsApi.list().catch(() => []),
+        appointmentsApi.list().catch(() => []),
       ]);
       setPatientsList(Array.isArray(patientsRes) ? patientsRes : []);
       setDoctorsList(Array.isArray(doctorsRes) ? doctorsRes : []);
+      setAppointmentsList(Array.isArray(aptsRes) ? aptsRes : ((aptsRes as any)?.items || []));
       if (Array.isArray(doctorsRes) && doctorsRes.length > 0) {
         setSelectedDoctorId(doctorsRes[0].id);
       }
@@ -66,7 +67,7 @@ export const AdminDashboard: React.FC = () => {
   };
 
   useEffect(() => {
-    loadPatientsAndDoctors();
+    loadAllAdminData();
   }, [searchQuery, statusFilter]);
 
   const handleAssignDoctor = async (e: React.FormEvent) => {
@@ -79,7 +80,7 @@ export const AdminDashboard: React.FC = () => {
       setTimeout(() => setActionAlert(null), 4000);
       setAssignModalPatient(null);
       setAssignNotes('');
-      loadPatientsAndDoctors();
+      loadAllAdminData();
     } catch (err: any) {
       alert(err.message || 'Failed to assign doctor');
     } finally {
@@ -102,7 +103,7 @@ export const AdminDashboard: React.FC = () => {
       setActionAlert(`Patient profile for ${editFirstName} ${editLastName} updated.`);
       setTimeout(() => setActionAlert(null), 4000);
       setEditModalPatient(null);
-      loadPatientsAndDoctors();
+      loadAllAdminData();
     } catch (err: any) {
       alert(err.message || 'Failed to update patient profile');
     }
@@ -114,448 +115,586 @@ export const AdminDashboard: React.FC = () => {
       await patientsApi.deactivate(patient.patient_id);
       setActionAlert(`Patient ${patient.first_name} ${patient.last_name} has been deactivated.`);
       setTimeout(() => setActionAlert(null), 4000);
-      loadPatientsAndDoctors();
+      loadAllAdminData();
     } catch (err: any) {
       alert(err.message || 'Failed to deactivate patient');
     }
   };
 
   const pendingPatients = patientsList.filter((p) => p.status === 'pending_review');
+  const activePatients = patientsList.filter((p) => p.status !== 'inactive' && p.status !== 'pending_review');
+
+  const getSectionTitle = () => {
+    switch (activeSection) {
+      case 'overview': return 'Hospital Administration Overview';
+      case 'patients': return 'Patient Intake & Directory';
+      case 'doctors': return 'Clinical Staff & Specialists';
+      case 'appointments': return 'Hospital-Wide Appointments';
+      case 'tenants': return 'Facilities & Tenant Organizations';
+      case 'smart_ehr': return 'SMART on FHIR Gateway';
+      case 'regional_interop': return 'Regional Health Exchange & EMPI';
+      case 'security': return 'Security & Audit Logging';
+      case 'trials_gov': return 'Clinical Trials Governance';
+      case 'agents': return 'Autonomous AI Clinical Agents';
+      case 'quality': return 'Quality Measures & Analytics';
+      case 'diagnostics': return 'System Health & Metrics';
+      default: return 'Administration Center';
+    }
+  };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden', background: '#0b0f19', color: '#f8fafc' }}>
-      {/* Top Header */}
-      <Header
-        onOpenSafetyModal={() => {}}
-        onOpenTasksModal={() => {}}
-        activeTaskCount={0}
-      />
-
-      {/* Admin Subheader & System Status Ribbon */}
-      <div
-        style={{
-          background: 'linear-gradient(90deg, rgba(220, 38, 38, 0.15) 0%, rgba(15, 23, 42, 0.95) 100%)',
-          borderBottom: '1px solid rgba(255,255,255,0.1)',
-          padding: '10px 24px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: '12px',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <span style={{ fontSize: '1.25rem' }}>🛡️</span>
-          <div>
-            <span style={{ fontWeight: 700, color: '#ffffff', fontSize: '0.95rem' }}>
-              Hospital Administrator Control Center
-            </span>
-            <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
-              Logged in as: <strong style={{ color: '#ffffff' }}>{user?.name}</strong> ({user?.email}) &bull; Facility: <strong style={{ color: '#38bdf8' }}>Metro Main Hospital (FAC-001)</strong>
-            </div>
-          </div>
-        </div>
-
-        {/* Live System Health Badges */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.75rem' }}>
-          <span className="badge badge-success" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#22c55e' }}></span>
-            FastAPI Backend: Online
-          </span>
-          <span className="badge badge-info" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#38bdf8' }}></span>
-            FHIR R4 / SMART v2: Ready
-          </span>
-          {pendingPatients.length > 0 && (
-            <span className="badge badge-warning" style={{ display: 'flex', alignItems: 'center', gap: '4px', background: '#f59e0b', color: '#000', fontWeight: 700 }}>
-              ⚠️ {pendingPatients.length} New Patient(s) Pending Review
-            </span>
-          )}
-        </div>
-      </div>
-
-      {/* Admin Navigation Tabs */}
-      <div
-        style={{
-          display: 'flex',
-          gap: '8px',
-          padding: '10px 24px',
-          background: 'rgba(15, 23, 42, 0.7)',
-          borderBottom: '1px solid rgba(255,255,255,0.1)',
-          flexWrap: 'wrap',
-        }}
-      >
-        <button
-          className={`btn btn-sm ${activeTab === 'patients' ? 'btn-primary' : 'btn-secondary'}`}
-          onClick={() => setActiveTab('patients')}
-        >
-          👥 Patient Intake & Review {pendingPatients.length > 0 && `(${pendingPatients.length})`}
-        </button>
-        <button
-          data-testid="tab-btn-tenants"
-          className={`btn btn-sm ${activeTab === 'tenants' ? 'btn-primary' : 'btn-secondary'}`}
-          onClick={() => setActiveTab('tenants')}
-        >
-          🏥 Health Systems & Facilities
-        </button>
-        <button
-          data-testid="tab-btn-diagnostics"
-          className={`btn btn-sm ${activeTab === 'diagnostics' ? 'btn-primary' : 'btn-secondary'}`}
-          onClick={() => setActiveTab('diagnostics')}
-        >
-          ⚙️ Infrastructure & Diagnostics
-        </button>
-        <button
-          data-testid="tab-btn-security"
-          className={`btn btn-sm ${activeTab === 'security' ? 'btn-primary' : 'btn-secondary'}`}
-          onClick={() => setActiveTab('security')}
-        >
-          🔒 Security & Compliance
-        </button>
-        <button
-          data-testid="tab-btn-regional-interop"
-          className={`btn btn-sm ${activeTab === 'regional_interop' ? 'btn-primary' : 'btn-secondary'}`}
-          onClick={() => setActiveTab('regional_interop')}
-        >
-          🌐 Regional Interoperability & EMPI
-        </button>
-        <button
-          data-testid="tab-btn-smart-ehr"
-          className={`btn btn-sm ${activeTab === 'smart_ehr' ? 'btn-primary' : 'btn-secondary'}`}
-          onClick={() => setActiveTab('smart_ehr')}
-        >
-          🔌 SMART on FHIR
-        </button>
-        <button
-          data-testid="tab-btn-trials-gov"
-          className={`btn btn-sm ${activeTab === 'trials_gov' ? 'btn-primary' : 'btn-secondary'}`}
-          onClick={() => setActiveTab('trials_gov')}
-        >
-          📑 Trials Governance
-        </button>
-        <button
-          data-testid="tab-btn-agents"
-          className={`btn btn-sm ${activeTab === 'agents' ? 'btn-primary' : 'btn-secondary'}`}
-          onClick={() => setActiveTab('agents')}
-        >
-          🤖 Clinical AI Agents
-        </button>
-        <button
-          data-testid="tab-btn-quality"
-          className={`btn btn-sm ${activeTab === 'quality' ? 'btn-primary' : 'btn-secondary'}`}
-          onClick={() => setActiveTab('quality')}
-        >
-          📊 Quality Measures
-        </button>
-      </div>
-
+    <AppShell
+      activeSection={activeSection}
+      activeSectionTitle={getSectionTitle()}
+      onSelectSection={setActiveSection}
+      pendingReviewsCount={pendingPatients.length}
+    >
+      {/* Action Notification Alert Banner */}
       {actionAlert && (
-        <div style={{ background: '#065f46', color: '#a7f3d0', padding: '10px 24px', textAlign: 'center', fontSize: '0.875rem' }}>
-          ✅ {actionAlert}
+        <div
+          style={{
+            background: 'rgba(16, 185, 129, 0.15)',
+            border: '1px solid #10b981',
+            color: '#34d399',
+            padding: '10px 16px',
+            borderRadius: '8px',
+            fontSize: '0.85rem',
+            fontWeight: 500,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
+          <span>✅ {actionAlert}</span>
+          <button onClick={() => setActionAlert(null)} style={{ background: 'none', border: 'none', color: '#34d399', cursor: 'pointer' }}>✕</button>
         </div>
       )}
 
-      {/* Main Administrative Workspace */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '24px' }}>
-        <ErrorBoundary fallbackTitle="Admin Workspace Panel">
-          {activeTab === 'patients' && (
-            <div style={{ maxWidth: '1380px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '24px' }}>
-              
-              {/* 1. Pending Review Registrations Section */}
-              {pendingPatients.length > 0 && (
-                <div className="glass-panel" style={{ padding: '20px', borderRadius: '10px', border: '1px solid #f59e0b' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                    <div>
-                      <h3 style={{ fontSize: '1.15rem', fontWeight: 800, margin: 0, color: '#f59e0b', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span>⏳</span> New Patient Registrations ({pendingPatients.length} Pending Review)
-                      </h3>
-                      <p style={{ fontSize: '0.8rem', color: '#94a3b8', margin: '4px 0 0' }}>
-                        Review patient-reported symptoms and assign attending doctors to activate clinical workflows.
-                      </p>
-                    </div>
-                  </div>
+      {/* 1. OVERVIEW SECTION */}
+      {activeSection === 'overview' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          {/* Welcome Header */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+            <div>
+              <h1 style={{ fontSize: '1.4rem', fontWeight: 800, color: '#ffffff' }}>Hospital Operations & Governance</h1>
+              <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                Real-time operational intelligence, patient intake queue, and clinical multi-facility management.
+              </p>
+            </div>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button
+                onClick={() => setActiveSection('patients')}
+                className="btn btn-primary"
+                style={{ fontSize: '0.8rem' }}
+              >
+                👥 Review Intake ({pendingPatients.length})
+              </button>
+              <button
+                onClick={() => loadAllAdminData()}
+                className="btn btn-secondary"
+                style={{ fontSize: '0.8rem' }}
+              >
+                🔄 Refresh
+              </button>
+            </div>
+          </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))', gap: '16px' }}>
-                    {pendingPatients.map((pat) => (
-                      <div
-                        key={pat.patient_id}
-                        style={{
-                          padding: '16px',
-                          background: 'rgba(255,255,255,0.03)',
-                          borderRadius: '8px',
-                          border: '1px solid rgba(255,255,255,0.1)',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          justifyContent: 'space-between',
-                          gap: '12px',
-                        }}
-                      >
-                        <div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                            <div>
-                              <h4 style={{ fontSize: '1.05rem', fontWeight: 700, margin: 0, color: '#ffffff' }}>
-                                {pat.first_name} {pat.last_name}
-                              </h4>
-                              <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '2px' }}>
-                                ID: <strong style={{ color: '#38bdf8' }}>{pat.patient_id}</strong> &bull; DOB: {pat.date_of_birth} &bull; Gender: {pat.gender}
-                              </div>
-                            </div>
-                            <span className="badge badge-warning" style={{ fontSize: '0.65rem' }}>Pending Review</span>
-                          </div>
+          {/* KPI Stat Cards Grid */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px' }}>
+            <div className="stat-card">
+              <span className="stat-card-title">Total Registered Patients</span>
+              <span className="stat-card-value">{patientsList.length}</span>
+              <span className="stat-card-subtitle">{activePatients.length} Active Clinical Records</span>
+            </div>
 
-                          <div style={{ fontSize: '0.8125rem', color: '#cbd5e1', marginTop: '10px', display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-                            <span>📞 {pat.phone || 'N/A'}</span>
-                            <span>🩸 Blood: <strong>{pat.blood_group || 'O+'}</strong></span>
-                            <span>⚠️ Allergies: <strong>{pat.allergies || 'None'}</strong></span>
-                          </div>
+            <div className="stat-card" style={{ borderLeft: '3px solid #f59e0b' }}>
+              <span className="stat-card-title">Pending Intake Reviews</span>
+              <span className="stat-card-value" style={{ color: '#fbbf24' }}>{pendingPatients.length}</span>
+              <span className="stat-card-subtitle">Awaiting Specialist Assignment</span>
+            </div>
 
-                          <div style={{ marginTop: '10px', padding: '10px', background: 'rgba(0,0,0,0.25)', borderRadius: '6px', borderLeft: '3px solid #f59e0b' }}>
-                            <div style={{ fontSize: '0.7rem', color: '#f59e0b', fontWeight: 600, textTransform: 'uppercase' }}>Reported Problem:</div>
-                            <div style={{ fontSize: '0.85rem', color: '#e2e8f0', marginTop: '2px', fontStyle: 'italic' }}>
-                              "{pat.health_problem || 'No description provided.'}"
-                            </div>
-                          </div>
-                        </div>
+            <div className="stat-card" style={{ borderLeft: '3px solid #38bdf8' }}>
+              <span className="stat-card-title">Specialist Physicians</span>
+              <span className="stat-card-value" style={{ color: '#38bdf8' }}>{doctorsList.length}</span>
+              <span className="stat-card-subtitle">Across 6 Clinical Departments</span>
+            </div>
 
-                        <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
-                          <button
-                            type="button"
-                            className="btn btn-primary btn-sm"
-                            style={{ flex: 1 }}
-                            onClick={() => {
-                              setAssignModalPatient(pat);
-                            }}
-                          >
-                            🩺 Assign Doctor & Approve
-                          </button>
-                          <button
-                            type="button"
-                            className="btn btn-secondary btn-sm"
-                            onClick={() => {
-                              setEditModalPatient(pat);
-                              setEditFirstName(pat.first_name);
-                              setEditLastName(pat.last_name);
-                              setEditPhone(pat.phone || '');
-                              setEditBloodGroup(pat.blood_group || 'O+');
-                              setEditAllergies(pat.allergies || 'None');
-                              setEditStatus(pat.status || 'active');
-                            }}
-                          >
-                            Edit
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+            <div className="stat-card" style={{ borderLeft: '3px solid #10b981' }}>
+              <span className="stat-card-title">Consultations Scheduled</span>
+              <span className="stat-card-value" style={{ color: '#34d399' }}>{appointmentsList.length}</span>
+              <span className="stat-card-subtitle">In-Person & Telehealth Slots</span>
+            </div>
 
-              {/* 2. All Patients Management & Search Table */}
-              <div className="glass-panel" style={{ padding: '20px', borderRadius: '10px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
-                  <h3 style={{ fontSize: '1.15rem', fontWeight: 700, margin: 0, color: '#ffffff' }}>
-                    Hospital Patients Directory ({patientsList.length} Total)
-                  </h3>
+            <div className="stat-card">
+              <span className="stat-card-title">System Status</span>
+              <span className="stat-card-value" style={{ color: '#34d399', fontSize: '1.3rem' }}>Healthy 🟢</span>
+              <span className="stat-card-subtitle">FHIR R4 & Audit Logging Active</span>
+            </div>
+          </div>
 
-                  <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                    <input
-                      type="text"
-                      className="form-input"
-                      placeholder="Search name, ID, phone..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      style={{ width: '220px', padding: '6px 10px', fontSize: '0.8125rem' }}
-                    />
-                    <select
-                      className="form-input"
-                      value={statusFilter}
-                      onChange={(e) => setStatusFilter(e.target.value)}
-                      style={{ padding: '6px 10px', fontSize: '0.8125rem' }}
-                    >
-                      <option value="">All Statuses</option>
-                      <option value="pending_review">Pending Review</option>
-                      <option value="active">Active</option>
-                      <option value="under_care">Under Care</option>
-                      <option value="inactive">Inactive</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div style={{ overflowX: 'auto' }}>
-                  <table className="table" style={{ width: '100%', fontSize: '0.85rem' }}>
-                    <thead>
-                      <tr>
-                        <th>Patient ID</th>
-                        <th>Name</th>
-                        <th>Age / Gender</th>
-                        <th>Phone</th>
-                        <th>Assigned Doctor</th>
-                        <th>Status</th>
-                        <th style={{ textAlign: 'right' }}>Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {patientsList.map((pat) => (
-                        <tr key={pat.patient_id}>
-                          <td>
-                            <strong style={{ color: '#38bdf8' }}>{pat.patient_id}</strong>
-                          </td>
-                          <td>
-                            <div style={{ fontWeight: 600 }}>{pat.first_name} {pat.last_name}</div>
-                            <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{pat.email || 'No email'}</div>
-                          </td>
-                          <td>
-                            {pat.date_of_birth} &bull; <span style={{ textTransform: 'capitalize' }}>{pat.gender}</span>
-                          </td>
-                          <td>{pat.phone || 'N/A'}</td>
-                          <td>
-                            {pat.assigned_doctor_name ? (
-                              <span style={{ color: '#ffffff', fontWeight: 500 }}>
-                                🩺 {pat.assigned_doctor_name}
-                              </span>
-                            ) : (
-                              <span style={{ color: '#f59e0b', fontSize: '0.75rem' }}>Not Assigned</span>
-                            )}
-                          </td>
-                          <td>
-                            <span
-                              className={`badge ${
-                                pat.status === 'active'
-                                  ? 'badge-success'
-                                  : pat.status === 'pending_review'
-                                  ? 'badge-warning'
-                                  : 'badge-secondary'
-                              }`}
-                              style={{ fontSize: '0.7rem', textTransform: 'capitalize' }}
-                            >
-                              {pat.status?.replace('_', ' ')}
-                            </span>
-                          </td>
-                          <td style={{ textAlign: 'right' }}>
-                            <div style={{ display: 'inline-flex', gap: '6px' }}>
-                              <button
-                                type="button"
-                                className="btn btn-secondary btn-sm"
-                                onClick={() => setAssignModalPatient(pat)}
-                                style={{ fontSize: '0.75rem', padding: '4px 8px' }}
-                              >
-                                {pat.assigned_doctor_name ? 'Change Doctor' : 'Assign Doctor'}
-                              </button>
-                              <button
-                                type="button"
-                                className="btn btn-secondary btn-sm"
-                                onClick={() => {
-                                  setEditModalPatient(pat);
-                                  setEditFirstName(pat.first_name);
-                                  setEditLastName(pat.last_name);
-                                  setEditPhone(pat.phone || '');
-                                  setEditBloodGroup(pat.blood_group || 'O+');
-                                  setEditAllergies(pat.allergies || 'None');
-                                  setEditStatus(pat.status || 'active');
-                                }}
-                                style={{ fontSize: '0.75rem', padding: '4px 8px' }}
-                              >
-                                Edit
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleDeactivatePatient(pat)}
-                                style={{ background: 'none', border: 'none', color: '#f87171', cursor: 'pointer', fontSize: '0.75rem', padding: '4px 6px' }}
-                              >
-                                Deactivate
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+          {/* Pending Patients Quick Review Banner */}
+          {pendingPatients.length > 0 && (
+            <div
+              style={{
+                background: 'rgba(245, 158, 11, 0.08)',
+                border: '1px solid rgba(245, 158, 11, 0.3)',
+                borderRadius: '12px',
+                padding: '16px 20px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: '12px',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <span style={{ fontSize: '1.5rem' }}>⏳</span>
+                <div>
+                  <h4 style={{ fontSize: '0.95rem', fontWeight: 700, color: '#fbbf24', margin: 0 }}>
+                    {pendingPatients.length} New Patient Registration{pendingPatients.length > 1 ? 's' : ''} Pending Review
+                  </h4>
+                  <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: '2px 0 0 0' }}>
+                    Patients have self-registered and submitted health complaints. Assign available specialist doctors to enable care.
+                  </p>
                 </div>
               </div>
-
+              <button
+                onClick={() => setActiveSection('patients')}
+                className="btn btn-primary btn-sm"
+                style={{ background: '#f59e0b', color: '#000000', fontWeight: 700 }}
+              >
+                Open Review Queue →
+              </button>
             </div>
           )}
 
-          {activeTab === 'tenants' && <HealthSystemTenantWorkspace />}
-          {activeTab === 'diagnostics' && <SystemDiagnosticsWorkspace />}
-          {activeTab === 'security' && (
-            <SecurityComplianceWorkspace
-              patients={patientsList}
-              selectedPatient={patientsList[0]}
-              onSelectPatient={() => {}}
-            />
-          )}
-          {activeTab === 'regional_interop' && <RegionalInteroperabilityWorkspace />}
-          {activeTab === 'smart_ehr' && <SmartFhirEhrWorkspace />}
-          {activeTab === 'trials_gov' && <TrialsGovernanceWorkspace />}
-          {activeTab === 'agents' && <ClinicalAgentsWorkspace />}
-          {activeTab === 'quality' && <QualityMeasuresWorkspace />}
-        </ErrorBoundary>
-      </div>
+          {/* Quick Administration Modules Grid */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
+            <div
+              className="glass-panel"
+              style={{ padding: '18px', cursor: 'pointer' }}
+              onClick={() => setActiveSection('patients')}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+                <span style={{ fontSize: '1.3rem' }}>👥</span>
+                <h3 style={{ fontSize: '1rem', fontWeight: 700, color: '#ffffff' }}>Patient Intake & Directory</h3>
+              </div>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                Search, filter, review intake requests, assign doctors, and manage patient profiles.
+              </p>
+            </div>
 
-      {/* Assign Doctor Modal */}
+            <div
+              className="glass-panel"
+              style={{ padding: '18px', cursor: 'pointer' }}
+              onClick={() => setActiveSection('doctors')}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+                <span style={{ fontSize: '1.3rem' }}>🩺</span>
+                <h3 style={{ fontSize: '1rem', fontWeight: 700, color: '#ffffff' }}>Doctors & Staff</h3>
+              </div>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                View licensed clinical specialists, medical registration numbers, and departments.
+              </p>
+            </div>
+
+            <div
+              className="glass-panel"
+              style={{ padding: '18px', cursor: 'pointer' }}
+              onClick={() => setActiveSection('tenants')}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+                <span style={{ fontSize: '1.3rem' }}>🏥</span>
+                <h3 style={{ fontSize: '1rem', fontWeight: 700, color: '#ffffff' }}>Multi-Tenant Facilities</h3>
+              </div>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                Configure health system campuses, EHR connectors, and department routing.
+              </p>
+            </div>
+
+            <div
+              className="glass-panel"
+              style={{ padding: '18px', cursor: 'pointer' }}
+              onClick={() => setActiveSection('security')}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+                <span style={{ fontSize: '1.3rem' }}>🛡️</span>
+                <h3 style={{ fontSize: '1rem', fontWeight: 700, color: '#ffffff' }}>Security & Audit Logs</h3>
+              </div>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                HIPAA audit logs, cryptographic signatures, emergency break-glass access, and access control policies.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 2. PATIENTS INTAKE & DIRECTORY SECTION */}
+      {activeSection === 'patients' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          {/* Header & Filter Controls */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+            <div>
+              <h2 style={{ fontSize: '1.2rem', fontWeight: 700, color: '#ffffff' }}>Patient Intake & Directory</h2>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Review pending registrations and manage master patient records.</p>
+            </div>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              <input
+                type="text"
+                placeholder="Search patient name, ID, phone..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="form-input"
+                style={{ width: '240px', padding: '6px 12px', fontSize: '0.8rem' }}
+              />
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="form-select"
+                style={{ width: '160px', padding: '6px 12px', fontSize: '0.8rem' }}
+              >
+                <option value="">All Statuses</option>
+                <option value="pending_review">Pending Review</option>
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Pending Reviews Section */}
+          {pendingPatients.length > 0 && (
+            <div className="glass-panel" style={{ padding: '16px', borderColor: 'rgba(245, 158, 11, 0.4)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+                <span style={{ fontSize: '1.1rem' }}>⏳</span>
+                <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: '#fbbf24' }}>
+                  New Patient Registrations Requiring Review ({pendingPatients.length})
+                </h3>
+              </div>
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8125rem' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)', textAlign: 'left' }}>
+                      <th style={{ padding: '8px' }}>Patient ID</th>
+                      <th style={{ padding: '8px' }}>Name</th>
+                      <th style={{ padding: '8px' }}>Age / Gender</th>
+                      <th style={{ padding: '8px' }}>Reported Health Problem</th>
+                      <th style={{ padding: '8px' }}>Contact</th>
+                      <th style={{ padding: '8px', textAlign: 'right' }}>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pendingPatients.map((p) => (
+                      <tr key={p.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                        <td style={{ padding: '10px 8px', fontFamily: 'monospace', color: '#38bdf8', fontWeight: 600 }}>{p.patient_id}</td>
+                        <td style={{ padding: '10px 8px', fontWeight: 600, color: '#ffffff' }}>{p.first_name} {p.last_name}</td>
+                        <td style={{ padding: '10px 8px', color: 'var(--text-secondary)' }}>{p.date_of_birth} ({p.gender})</td>
+                        <td style={{ padding: '10px 8px', color: '#fbbf24', maxWidth: '300px' }}>
+                          <span style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                            {p.health_problem || 'General intake request'}
+                          </span>
+                        </td>
+                        <td style={{ padding: '10px 8px', color: 'var(--text-muted)' }}>{p.phone || p.email}</td>
+                        <td style={{ padding: '10px 8px', textAlign: 'right' }}>
+                          <button
+                            onClick={() => { setAssignModalPatient(p); }}
+                            className="btn btn-primary btn-sm"
+                            style={{ fontSize: '0.75rem', padding: '4px 10px' }}
+                          >
+                            🩺 Assign Doctor & Approve
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* Master Patients Table */}
+          <div className="glass-panel" style={{ padding: '16px' }}>
+            <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: '#ffffff', marginBottom: '12px' }}>
+              All Hospital Patients ({patientsList.length})
+            </h3>
+            {isLoading ? (
+              <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)' }}>Loading patient records...</div>
+            ) : patientsList.length === 0 ? (
+              <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)' }}>No patients found matching query.</div>
+            ) : (
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8125rem' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)', textAlign: 'left' }}>
+                      <th style={{ padding: '8px' }}>Patient ID</th>
+                      <th style={{ padding: '8px' }}>Name</th>
+                      <th style={{ padding: '8px' }}>DOB / Gender</th>
+                      <th style={{ padding: '8px' }}>Blood / Allergies</th>
+                      <th style={{ padding: '8px' }}>Assigned Specialist</th>
+                      <th style={{ padding: '8px' }}>Status</th>
+                      <th style={{ padding: '8px', textAlign: 'right' }}>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {patientsList.map((p) => (
+                      <tr key={p.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                        <td style={{ padding: '10px 8px', fontFamily: 'monospace', color: '#38bdf8', fontWeight: 600 }}>{p.patient_id}</td>
+                        <td style={{ padding: '10px 8px', fontWeight: 600, color: '#ffffff' }}>{p.first_name} {p.last_name}</td>
+                        <td style={{ padding: '10px 8px', color: 'var(--text-secondary)' }}>{p.date_of_birth} ({p.gender})</td>
+                        <td style={{ padding: '10px 8px', color: 'var(--text-muted)' }}>{p.blood_group || 'O+'} • {p.allergies || 'None'}</td>
+                        <td style={{ padding: '10px 8px', color: p.assigned_doctor_name ? '#34d399' : '#fbbf24' }}>
+                          {p.assigned_doctor_name || 'Unassigned'}
+                        </td>
+                        <td style={{ padding: '10px 8px' }}>
+                          <span className={`badge ${p.status === 'active' ? 'badge-success' : p.status === 'pending_review' ? 'badge-warning' : 'badge-info'}`}>
+                            {p.status || 'Active'}
+                          </span>
+                        </td>
+                        <td style={{ padding: '10px 8px', textAlign: 'right' }}>
+                          <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
+                            <button
+                              onClick={() => {
+                                setEditModalPatient(p);
+                                setEditFirstName(p.first_name);
+                                setEditLastName(p.last_name);
+                                setEditPhone(p.phone || '');
+                                setEditBloodGroup(p.blood_group || 'O+');
+                                setEditAllergies(p.allergies || '');
+                                setEditStatus(p.status || 'active');
+                              }}
+                              className="btn btn-secondary btn-sm"
+                              style={{ fontSize: '0.7rem', padding: '3px 8px' }}
+                            >
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => { setAssignModalPatient(p); }}
+                              className="btn btn-secondary btn-sm"
+                              style={{ fontSize: '0.7rem', padding: '3px 8px' }}
+                            >
+                              Assign Dr
+                            </button>
+                            {p.status !== 'inactive' && (
+                              <button
+                                onClick={() => handleDeactivatePatient(p)}
+                                className="btn btn-danger btn-sm"
+                                style={{ fontSize: '0.7rem', padding: '3px 8px' }}
+                              >
+                                Deactivate
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* 3. DOCTORS & CLINICAL STAFF SECTION */}
+      {activeSection === 'doctors' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div>
+            <h2 style={{ fontSize: '1.2rem', fontWeight: 700, color: '#ffffff' }}>Doctors & Clinical Staff</h2>
+            <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Verified specialist doctors, license numbers, and clinical departments.</p>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '16px' }}>
+            {doctorsList.map((doc) => (
+              <div key={doc.id} className="glass-panel" style={{ padding: '18px', display: 'flex', gap: '14px' }}>
+                <div
+                  style={{
+                    width: '48px',
+                    height: '48px',
+                    borderRadius: '50%',
+                    background: 'rgba(2, 132, 199, 0.2)',
+                    color: '#38bdf8',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '1.3rem',
+                    flexShrink: 0,
+                  }}
+                >
+                  🩺
+                </div>
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: '#ffffff' }}>{doc.full_name}</h3>
+                    <span className="badge badge-success">Verified</span>
+                  </div>
+                  <span style={{ fontSize: '0.8rem', color: '#38bdf8', fontWeight: 600 }}>{doc.specialization}</span>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Department: {doc.department}</span>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '6px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                    <span>License: <code style={{ color: '#f8fafc' }}>{doc.medical_registration_number}</code></span>
+                    <span>Experience: {doc.years_of_experience} Years</span>
+                    <span>Email: {doc.email}</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* 4. HOSPITAL APPOINTMENTS SECTION */}
+      {activeSection === 'appointments' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div>
+            <h2 style={{ fontSize: '1.2rem', fontWeight: 700, color: '#ffffff' }}>Hospital-Wide Appointments</h2>
+            <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>All scheduled patient consultations and telehealth visits across departments.</p>
+          </div>
+
+          <div className="glass-panel" style={{ padding: '16px' }}>
+            {appointmentsList.length === 0 ? (
+              <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)' }}>No appointments recorded in the system.</div>
+            ) : (
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8125rem' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)', textAlign: 'left' }}>
+                      <th style={{ padding: '8px' }}>Date & Time</th>
+                      <th style={{ padding: '8px' }}>Patient</th>
+                      <th style={{ padding: '8px' }}>Doctor</th>
+                      <th style={{ padding: '8px' }}>Mode</th>
+                      <th style={{ padding: '8px' }}>Reason for Visit</th>
+                      <th style={{ padding: '8px' }}>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {appointmentsList.map((apt) => (
+                      <tr key={apt.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                        <td style={{ padding: '10px 8px', fontWeight: 600, color: '#ffffff' }}>
+                          {new Date(apt.appointment_date).toLocaleString()}
+                        </td>
+                        <td style={{ padding: '10px 8px', color: '#38bdf8' }}>
+                          {apt.patient ? `${apt.patient.first_name} ${apt.patient.last_name}` : `Patient #${apt.patient_id}`}
+                        </td>
+                        <td style={{ padding: '10px 8px', color: '#f8fafc' }}>
+                          {apt.doctor ? apt.doctor.full_name : `Doctor #${apt.doctor_id}`}
+                        </td>
+                        <td style={{ padding: '10px 8px', textTransform: 'capitalize', color: 'var(--text-muted)' }}>
+                          {apt.consultation_mode}
+                        </td>
+                        <td style={{ padding: '10px 8px', color: 'var(--text-secondary)' }}>{apt.reason_for_visit}</td>
+                        <td style={{ padding: '10px 8px' }}>
+                          <span className={`badge ${apt.status === 'scheduled' ? 'badge-info' : 'badge-success'}`}>
+                            {apt.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* 5. MULTI-TENANT FACILITIES */}
+      {activeSection === 'tenants' && <HealthSystemTenantWorkspace />}
+
+      {/* 6. SMART ON FHIR HUB */}
+      {activeSection === 'smart_ehr' && <SmartFhirEhrWorkspace />}
+
+      {/* 7. REGIONAL INTEROPERABILITY */}
+      {activeSection === 'regional_interop' && <RegionalInteroperabilityWorkspace />}
+
+      {/* 8. SECURITY & COMPLIANCE */}
+      {activeSection === 'security' && (
+        <SecurityComplianceWorkspace
+          patients={patientsList}
+          selectedPatient={patientsList[0] || null}
+          onSelectPatient={() => {}}
+        />
+      )}
+
+      {/* 9. TRIALS GOVERNANCE */}
+      {activeSection === 'trials_gov' && <TrialsGovernanceWorkspace />}
+
+      {/* 10. CLINICAL AI AGENTS */}
+      {activeSection === 'agents' && <ClinicalAgentsWorkspace />}
+
+      {/* 11. QUALITY MEASURES */}
+      {activeSection === 'quality' && <QualityMeasuresWorkspace />}
+
+      {/* 12. SYSTEM DIAGNOSTICS */}
+      {activeSection === 'diagnostics' && <SystemDiagnosticsWorkspace />}
+
+      {/* ASSIGN DOCTOR MODAL */}
       {assignModalPatient && (
         <div
           style={{
             position: 'fixed',
             inset: 0,
-            zIndex: 9999,
-            background: 'rgba(5, 10, 20, 0.85)',
-            backdropFilter: 'blur(8px)',
+            background: 'rgba(0,0,0,0.75)',
+            backdropFilter: 'blur(4px)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
+            zIndex: 9999,
             padding: '20px',
           }}
         >
-          <div className="glass-panel" style={{ width: '100%', maxWidth: '520px', padding: '24px', borderRadius: '12px', background: '#0f172a' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-              <h3 style={{ fontSize: '1.15rem', fontWeight: 700, margin: 0, color: '#38bdf8' }}>
-                Assign Attending Physician
-              </h3>
-              <button type="button" className="btn btn-secondary btn-sm" onClick={() => setAssignModalPatient(null)}>✕</button>
-            </div>
+          <div className="glass-panel" style={{ width: '100%', maxWidth: '480px', padding: '24px', background: '#0f172a' }}>
+            <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#ffffff', marginBottom: '6px' }}>
+              Assign Attending Doctor & Approve Intake
+            </h3>
+            <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '16px' }}>
+              Patient: <strong style={{ color: '#ffffff' }}>{assignModalPatient.first_name} {assignModalPatient.last_name}</strong> ({assignModalPatient.patient_id})
+            </p>
 
-            <div style={{ padding: '12px', background: 'rgba(255,255,255,0.03)', borderRadius: '6px', marginBottom: '16px' }}>
-              <div style={{ fontWeight: 600, color: '#ffffff', fontSize: '0.9rem' }}>
-                Patient: {assignModalPatient.first_name} {assignModalPatient.last_name} ({assignModalPatient.patient_id})
+            {assignModalPatient.health_problem && (
+              <div style={{ background: 'rgba(245, 158, 11, 0.1)', border: '1px solid rgba(245, 158, 11, 0.3)', padding: '10px 12px', borderRadius: '6px', fontSize: '0.78rem', color: '#fbbf24', marginBottom: '16px' }}>
+                <strong>Reported Problem:</strong> {assignModalPatient.health_problem}
               </div>
-              <div style={{ fontSize: '0.8rem', color: '#94a3b8', marginTop: '4px' }}>
-                Problem: "{assignModalPatient.health_problem || 'Routine clinical intake'}"
-              </div>
-            </div>
+            )}
 
-            <form onSubmit={handleAssignDoctor} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            <form onSubmit={handleAssignDoctor}>
               <div className="form-group">
-                <label className="form-label" style={{ color: '#cbd5e1' }}>Select Doctor / Specialist *</label>
+                <label className="form-label">Select Specialist Doctor</label>
                 <select
-                  className="form-input"
                   value={selectedDoctorId}
                   onChange={(e) => setSelectedDoctorId(Number(e.target.value))}
+                  className="form-select"
                   required
                 >
                   {doctorsList.map((doc) => (
                     <option key={doc.id} value={doc.id}>
-                      {doc.professional_title} {doc.full_name} &bull; {doc.department} ({doc.specialization})
+                      {doc.full_name} ({doc.specialization} - {doc.department})
                     </option>
                   ))}
                 </select>
               </div>
 
               <div className="form-group">
-                <label className="form-label" style={{ color: '#cbd5e1' }}>Assignment Notes (Optional)</label>
+                <label className="form-label">Clinical Intake Notes (Optional)</label>
                 <textarea
-                  className="form-input"
-                  rows={2}
-                  placeholder="e.g. Assigned for cardiovascular evaluation and ECG workup"
+                  rows={3}
                   value={assignNotes}
                   onChange={(e) => setAssignNotes(e.target.value)}
+                  placeholder="e.g. Assigned for specialized cardiology evaluation and baseline ECG workup..."
+                  className="form-textarea"
                 />
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
-                <button type="button" className="btn btn-secondary" onClick={() => setAssignModalPatient(null)}>Cancel</button>
-                <button type="submit" className="btn btn-primary" disabled={isAssigning}>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '20px' }}>
+                <button
+                  type="button"
+                  onClick={() => setAssignModalPatient(null)}
+                  className="btn btn-secondary"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isAssigning}
+                  className="btn btn-primary"
+                >
                   {isAssigning ? 'Assigning...' : 'Confirm Assignment'}
                 </button>
               </div>
@@ -564,85 +703,117 @@ export const AdminDashboard: React.FC = () => {
         </div>
       )}
 
-      {/* Edit Patient Modal */}
+      {/* EDIT PATIENT MODAL */}
       {editModalPatient && (
         <div
           style={{
             position: 'fixed',
             inset: 0,
-            zIndex: 9999,
-            background: 'rgba(5, 10, 20, 0.85)',
-            backdropFilter: 'blur(8px)',
+            background: 'rgba(0,0,0,0.75)',
+            backdropFilter: 'blur(4px)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
+            zIndex: 9999,
             padding: '20px',
           }}
         >
-          <div className="glass-panel" style={{ width: '100%', maxWidth: '520px', padding: '24px', borderRadius: '12px', background: '#0f172a' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-              <h3 style={{ fontSize: '1.15rem', fontWeight: 700, margin: 0, color: '#38bdf8' }}>
-                Edit Patient Record ({editModalPatient.patient_id})
-              </h3>
-              <button type="button" className="btn btn-secondary btn-sm" onClick={() => setEditModalPatient(null)}>✕</button>
-            </div>
-
-            <form onSubmit={handleSavePatientEdit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          <div className="glass-panel" style={{ width: '100%', maxWidth: '500px', padding: '24px', background: '#0f172a' }}>
+            <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#ffffff', marginBottom: '16px' }}>
+              Edit Patient Record ({editModalPatient.patient_id})
+            </h3>
+            <form onSubmit={handleSavePatientEdit}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div className="form-group">
                   <label className="form-label">First Name</label>
-                  <input type="text" className="form-input" value={editFirstName} onChange={(e) => setEditFirstName(e.target.value)} required />
+                  <input
+                    type="text"
+                    value={editFirstName}
+                    onChange={(e) => setEditFirstName(e.target.value)}
+                    className="form-input"
+                    required
+                  />
                 </div>
                 <div className="form-group">
                   <label className="form-label">Last Name</label>
-                  <input type="text" className="form-input" value={editLastName} onChange={(e) => setEditLastName(e.target.value)} required />
+                  <input
+                    type="text"
+                    value={editLastName}
+                    onChange={(e) => setEditLastName(e.target.value)}
+                    className="form-input"
+                    required
+                  />
                 </div>
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div className="form-group">
                   <label className="form-label">Phone</label>
-                  <input type="text" className="form-input" value={editPhone} onChange={(e) => setEditPhone(e.target.value)} />
+                  <input
+                    type="text"
+                    value={editPhone}
+                    onChange={(e) => setEditPhone(e.target.value)}
+                    className="form-input"
+                  />
                 </div>
                 <div className="form-group">
                   <label className="form-label">Blood Group</label>
-                  <select className="form-input" value={editBloodGroup} onChange={(e) => setEditBloodGroup(e.target.value)}>
-                    <option value="O+">O+</option>
-                    <option value="O-">O-</option>
+                  <select
+                    value={editBloodGroup}
+                    onChange={(e) => setEditBloodGroup(e.target.value)}
+                    className="form-select"
+                  >
                     <option value="A+">A+</option>
                     <option value="A-">A-</option>
                     <option value="B+">B+</option>
                     <option value="B-">B-</option>
                     <option value="AB+">AB+</option>
                     <option value="AB-">AB-</option>
+                    <option value="O+">O+</option>
+                    <option value="O-">O-</option>
                   </select>
                 </div>
               </div>
 
               <div className="form-group">
-                <label className="form-label">Known Allergies</label>
-                <input type="text" className="form-input" value={editAllergies} onChange={(e) => setEditAllergies(e.target.value)} />
+                <label className="form-label">Allergies</label>
+                <input
+                  type="text"
+                  value={editAllergies}
+                  onChange={(e) => setEditAllergies(e.target.value)}
+                  className="form-input"
+                />
               </div>
 
               <div className="form-group">
-                <label className="form-label">Patient Status</label>
-                <select className="form-input" value={editStatus} onChange={(e) => setEditStatus(e.target.value)}>
-                  <option value="pending_review">Pending Review</option>
+                <label className="form-label">Status</label>
+                <select
+                  value={editStatus}
+                  onChange={(e) => setEditStatus(e.target.value)}
+                  className="form-select"
+                >
                   <option value="active">Active</option>
-                  <option value="under_care">Under Care</option>
-                  <option value="discharged">Discharged</option>
+                  <option value="pending_review">Pending Review</option>
                   <option value="inactive">Inactive</option>
                 </select>
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
-                <button type="button" className="btn btn-secondary" onClick={() => setEditModalPatient(null)}>Cancel</button>
-                <button type="submit" className="btn btn-primary">Save Changes</button>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '20px' }}>
+                <button
+                  type="button"
+                  onClick={() => setEditModalPatient(null)}
+                  className="btn btn-secondary"
+                >
+                  Cancel
+                </button>
+                <button type="submit" className="btn btn-primary">
+                  Save Changes
+                </button>
               </div>
             </form>
           </div>
         </div>
       )}
-    </div>
+    </AppShell>
   );
 };

@@ -1,13 +1,13 @@
 // ==============================================================================
 // MediGen AI - Doctor & Clinical Staff Intelligence Dashboard
+// Clinician Workspace, EHR Patient Workspace, Diagnostic Hubs, AI Copilot & PACS
 // ==============================================================================
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { usePatient } from '../../context/PatientContext';
 import { useTasks } from '../../hooks/useTasks';
-import { Header } from '../layout/Header';
-import { PatientRibbon } from '../layout/PatientRibbon';
+import { AppShell } from '../layout/AppShell';
 import { PatientDirectory } from '../patients/PatientDirectory';
 import { ClinicalChat } from '../chat/ClinicalChat';
 import { TimelineView } from '../timeline/TimelineView';
@@ -37,43 +37,13 @@ import { DICOMPACSViewerWorkspace } from '../pacs/DICOMPACSViewerWorkspace';
 import { SafetyPrescriberModal } from '../safety/SafetyPrescriberModal';
 import { TaskMonitor } from '../tasks/TaskMonitor';
 import { ErrorBoundary } from '../common/ErrorBoundary';
-import { CarePlanCategory, NoteType } from '../../types';
+import { CarePlanCategory, NoteType, Appointment } from '../../types';
 import { mediaApi, notesApi, carePlansApi, appointmentsApi } from '../../api/client';
-
-type TabType =
-  | 'chat'
-  | 'timeline'
-  | 'documents'
-  | 'media'
-  | 'notes'
-  | 'vitals'
-  | 'care_plans'
-  | 'cohorts'
-  | 'transitions'
-  | 'orders'
-  | 'quality'
-  | 'rpm'
-  | 'trials'
-  | 'agents'
-  | 'imaging'
-  | 'security'
-  | 'diagnostics'
-  | 'smart_ehr'
-  | 'collaboration'
-  | 'tenants'
-  | 'regional_interop'
-  | 'cds_pgx'
-  | 'trials_governance'
-  | 'emar'
-  | 'pacs_waveforms';
-
-type CategoryType = 'all' | 'clinical' | 'medications' | 'diagnostics' | 'ai_cds' | 'telehealth' | 'interop';
 
 export const DoctorDashboard: React.FC = () => {
   const { user } = useAuth();
   const { selectedPatient, patients, selectPatientById } = usePatient();
-  const [activeTab, setActiveTab] = useState<TabType>('chat');
-  const [activeCategory, setActiveCategory] = useState<CategoryType>('all');
+  const [activeSection, setActiveSection] = useState<string>('overview');
   const [isSafetyModalOpen, setIsSafetyModalOpen] = useState(false);
   const [isTasksModalOpen, setIsTasksModalOpen] = useState(false);
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
@@ -85,10 +55,24 @@ export const DoctorDashboard: React.FC = () => {
   const [reasonForVisit, setReasonForVisit] = useState('Cardiology Clinical Follow-up');
   const [isScheduling, setIsScheduling] = useState(false);
   const [scheduleSuccess, setScheduleSuccess] = useState<string | null>(null);
+  const [doctorAppointments, setDoctorAppointments] = useState<Appointment[]>([]);
 
   const { tasks, loadTasks, retryTask, cancelTask, triggerDocumentOCR } = useTasks(
     selectedPatient?.patient_id
   );
+
+  const loadAppointments = async () => {
+    try {
+      const res = await appointmentsApi.list();
+      setDoctorAppointments(Array.isArray(res) ? res : ((res as any)?.items || []));
+    } catch {
+      setDoctorAppointments([]);
+    }
+  };
+
+  useEffect(() => {
+    loadAppointments();
+  }, []);
 
   const triggerMediaAnalysis = async (mediaId: string) => {
     await mediaApi.enqueueAnalysis(mediaId);
@@ -118,563 +102,447 @@ export const DoctorDashboard: React.FC = () => {
         appointment_date: new Date(appointmentDate).toISOString(),
         duration_minutes: durationMins,
         consultation_mode: consultMode,
-        reason_for_visit: reasonForVisit.trim() || 'Clinical Follow-up',
+        reason_for_visit: reasonForVisit.trim(),
       });
-      setScheduleSuccess(`Appointment scheduled for ${selectedPatient.first_name} ${selectedPatient.last_name} on ${new Date(appointmentDate).toLocaleDateString()}.`);
-      setTimeout(() => setScheduleSuccess(null), 5000);
+      setScheduleSuccess(`Appointment scheduled successfully for ${selectedPatient.first_name} ${selectedPatient.last_name}.`);
       setIsScheduleModalOpen(false);
+      loadAppointments();
+      setTimeout(() => setScheduleSuccess(null), 5000);
     } catch (err: any) {
-      alert(err.message || 'Failed to schedule appointment');
+      alert(err.message || 'Failed to schedule appointment. Please check for scheduling conflicts.');
     } finally {
       setIsScheduling(false);
     }
   };
 
-  const activeTaskCount = tasks.filter(
-    (t) => t.status === 'queued' || t.status === 'running' || t.status === 'retrying'
-  ).length;
+  const activeTaskCount = tasks.filter((t) => t.status === 'running' || t.status === 'queued' || t.status === 'retrying').length;
+
+  const getSectionTitle = () => {
+    switch (activeSection) {
+      case 'overview': return 'Clinician Workspace & Overview';
+      case 'chat': return 'AI Clinical Copilot & AI Scribe';
+      case 'timeline': return 'Longitudinal Patient Timeline';
+      case 'notes': return 'Clinical Notes & Documentation';
+      case 'vitals': return 'Vital Signs & Telemetry Alerts';
+      case 'care_plans': return 'Care Plans & Interventions';
+      case 'transitions': return 'Care Transitions & Discharge';
+      case 'orders': return 'Orders & Prescriptions';
+      case 'emar': return 'Closed-Loop eMAR & BCMA';
+      case 'cds_pgx': return 'CDS Rules, Pharmacogenomics & Order Sets';
+      case 'documents': return 'Medical Document Hub & OCR';
+      case 'media': return 'Diagnostics & Clinical Media';
+      case 'imaging': return 'Radiology AI & Grad-CAM Heatmaps';
+      case 'pacs_waveforms': return 'DICOM PACS & ECG Waveforms';
+      case 'collaboration': return 'Live Telehealth Consultation';
+      case 'cohorts': return 'Population & Cohort Analytics';
+      case 'trials': return 'Precision Oncology & Clinical Trials';
+      case 'agents': return 'Autonomous AI Clinical Agents';
+      case 'quality': return 'Quality Measures & CQM Performance';
+      case 'smart_ehr': return 'SMART on FHIR Gateway';
+      default: return 'Clinical Workspace';
+    }
+  };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden', background: 'var(--bg-primary, #0b0f19)' }}>
-      {/* Top Application Header */}
-      <Header
-        onOpenSafetyModal={() => setIsSafetyModalOpen(true)}
-        onOpenTasksModal={() => setIsTasksModalOpen(true)}
-        activeTaskCount={activeTaskCount}
-      />
-
-      {/* Active Patient Context Ribbon */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)' }}>
-        <div style={{ flex: 1 }}>
-          <PatientRibbon />
-        </div>
-        <div style={{ padding: '0 16px', display: 'flex', gap: '8px' }}>
-          <button
-            type="button"
-            className="btn btn-primary btn-sm"
-            onClick={() => setIsScheduleModalOpen(true)}
-            style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem' }}
-          >
-            📅 Schedule Consultation
-          </button>
-        </div>
-      </div>
-
+    <AppShell
+      activeSection={activeSection}
+      activeSectionTitle={getSectionTitle()}
+      onSelectSection={setActiveSection}
+      onOpenSafetyModal={() => setIsSafetyModalOpen(true)}
+      onOpenTasksModal={() => setIsTasksModalOpen(true)}
+      activeTaskCount={activeTaskCount}
+    >
+      {/* Schedule Success Toast */}
       {scheduleSuccess && (
-        <div style={{ background: '#065f46', color: '#a7f3d0', padding: '8px 24px', textAlign: 'center', fontSize: '0.85rem' }}>
-          ✅ {scheduleSuccess}
+        <div
+          style={{
+            background: 'rgba(16, 185, 129, 0.15)',
+            border: '1px solid #10b981',
+            color: '#34d399',
+            padding: '10px 16px',
+            borderRadius: '8px',
+            fontSize: '0.85rem',
+            fontWeight: 500,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
+          <span>✅ {scheduleSuccess}</span>
+          <button onClick={() => setScheduleSuccess(null)} style={{ background: 'none', border: 'none', color: '#34d399', cursor: 'pointer' }}>✕</button>
         </div>
       )}
 
-      {/* Main Clinical Dashboard Grid */}
-      <main className="dashboard-grid" style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
-        {/* Left Column: Patient Directory */}
-        <section style={{ height: '100%', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
-          <ErrorBoundary fallbackTitle="Patient Directory">
-            <PatientDirectory />
-          </ErrorBoundary>
-        </section>
-
-        {/* Center Column: Interactive Workspaces */}
-        <section style={{ height: '100%', display: 'flex', flexDirection: 'column', gap: '8px', minHeight: 0, overflow: 'hidden' }}>
-          {/* Primary Navigation Category Bar */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '4px 0',
-              borderBottom: '1px solid rgba(255,255,255,0.08)',
-              overflowX: 'auto',
-              flexShrink: 0,
-            }}
-          >
-            <span style={{ fontSize: '0.7rem', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 700, paddingRight: '4px' }}>
-              View:
-            </span>
-            <button
-              className={`btn btn-xs ${activeCategory === 'all' ? 'btn-primary' : 'btn-secondary'}`}
-              onClick={() => setActiveCategory('all')}
-              style={{ padding: '3px 10px', fontSize: '0.75rem' }}
-            >
-              ⭐ All Modules
-            </button>
-            <button
-              className={`btn btn-xs ${activeCategory === 'clinical' ? 'btn-primary' : 'btn-secondary'}`}
-              onClick={() => setActiveCategory('clinical')}
-              style={{ padding: '3px 10px', fontSize: '0.75rem' }}
-            >
-              📋 Clinical Care
-            </button>
-            <button
-              className={`btn btn-xs ${activeCategory === 'medications' ? 'btn-primary' : 'btn-secondary'}`}
-              onClick={() => setActiveCategory('medications')}
-              style={{ padding: '3px 10px', fontSize: '0.75rem' }}
-            >
-              💊 Medications & Orders
-            </button>
-            <button
-              className={`btn btn-xs ${activeCategory === 'diagnostics' ? 'btn-primary' : 'btn-secondary'}`}
-              onClick={() => setActiveCategory('diagnostics')}
-              style={{ padding: '3px 10px', fontSize: '0.75rem' }}
-            >
-              🔬 Diagnostics & PACS
-            </button>
-            <button
-              className={`btn btn-xs ${activeCategory === 'ai_cds' ? 'btn-primary' : 'btn-secondary'}`}
-              onClick={() => setActiveCategory('ai_cds')}
-              style={{ padding: '3px 10px', fontSize: '0.75rem' }}
-            >
-              🤖 AI Copilot & CDS
-            </button>
-            <button
-              className={`btn btn-xs ${activeCategory === 'telehealth' ? 'btn-primary' : 'btn-secondary'}`}
-              onClick={() => setActiveCategory('telehealth')}
-              style={{ padding: '3px 10px', fontSize: '0.75rem' }}
-            >
-              📡 Telehealth
-            </button>
-            <button
-              className={`btn btn-xs ${activeCategory === 'interop' ? 'btn-primary' : 'btn-secondary'}`}
-              onClick={() => setActiveCategory('interop')}
-              style={{ padding: '3px 10px', fontSize: '0.75rem' }}
-            >
-              🌐 Interoperability
-            </button>
-          </div>
-
-          {/* Module Action Subtabs (Dynamic & Scrollable with all data-testids) */}
-          <div
-            style={{
-              display: 'flex',
-              gap: '6px',
-              paddingBottom: '6px',
-              borderBottom: '1px solid var(--border-color)',
-              overflowX: 'auto',
-              flexWrap: 'wrap',
-              flexShrink: 0,
-            }}
-          >
-            {/* Clinical Workspaces */}
-            {(activeCategory === 'all' || activeCategory === 'clinical') && (
-              <>
-                <button
-                  className={`btn btn-sm ${activeTab === 'chat' ? 'btn-primary' : 'btn-secondary'}`}
-                  onClick={() => setActiveTab('chat')}
-                >
-                  💬 AI Copilot & Chat
-                </button>
-                <button
-                  className={`btn btn-sm ${activeTab === 'timeline' ? 'btn-primary' : 'btn-secondary'}`}
-                  onClick={() => setActiveTab('timeline')}
-                >
-                  📅 Longitudinal Timeline
-                </button>
-                <button
-                  className={`btn btn-sm ${activeTab === 'vitals' ? 'btn-primary' : 'btn-secondary'}`}
-                  onClick={() => setActiveTab('vitals')}
-                >
-                  💓 Vitals & CDS Alerts
-                </button>
-                <button
-                  className={`btn btn-sm ${activeTab === 'notes' ? 'btn-primary' : 'btn-secondary'}`}
-                  onClick={() => setActiveTab('notes')}
-                >
-                  📝 Clinical Notes
-                </button>
-                <button
-                  className={`btn btn-sm ${activeTab === 'care_plans' ? 'btn-primary' : 'btn-secondary'}`}
-                  onClick={() => setActiveTab('care_plans')}
-                >
-                  📋 Care Plans & Tasks
-                </button>
-                <button
-                  className={`btn btn-sm ${activeTab === 'transitions' ? 'btn-primary' : 'btn-secondary'}`}
-                  onClick={() => setActiveTab('transitions')}
-                >
-                  🔄 Transitions & Discharge
-                </button>
-              </>
-            )}
-
-            {/* Medications Workspaces */}
-            {(activeCategory === 'all' || activeCategory === 'medications') && (
-              <>
-                <button
-                  className={`btn btn-sm ${activeTab === 'orders' ? 'btn-primary' : 'btn-secondary'}`}
-                  onClick={() => setActiveTab('orders')}
-                >
-                  📦 Orders & Prescriptions
-                </button>
-                <button
-                  data-testid="tab-btn-emar"
-                  className={`btn btn-sm ${activeTab === 'emar' ? 'btn-primary' : 'btn-secondary'}`}
-                  onClick={() => setActiveTab('emar')}
-                >
-                  💊 Closed-Loop eMAR & BCMA
-                </button>
-              </>
-            )}
-
-            {/* Diagnostics & Imaging Workspaces */}
-            {(activeCategory === 'all' || activeCategory === 'diagnostics') && (
-              <>
-                <button
-                  className={`btn btn-sm ${activeTab === 'documents' ? 'btn-primary' : 'btn-secondary'}`}
-                  onClick={() => setActiveTab('documents')}
-                >
-                  📁 Medical Documents
-                </button>
-                <button
-                  className={`btn btn-sm ${activeTab === 'media' ? 'btn-primary' : 'btn-secondary'}`}
-                  onClick={() => setActiveTab('media')}
-                >
-                  🖼️ Diagnostics & Media
-                </button>
-                <button
-                  data-testid="tab-btn-imaging"
-                  className={`btn btn-sm ${activeTab === 'imaging' ? 'btn-primary' : 'btn-secondary'}`}
-                  onClick={() => setActiveTab('imaging')}
-                >
-                  🩻 Radiology & AI Heatmaps
-                </button>
-                <button
-                  data-testid="tab-btn-pacs-waveforms"
-                  className={`btn btn-sm ${activeTab === 'pacs_waveforms' ? 'btn-primary' : 'btn-secondary'}`}
-                  onClick={() => setActiveTab('pacs_waveforms')}
-                >
-                  🖼️ DICOM PACS & Waveforms
-                </button>
-              </>
-            )}
-
-            {/* AI & Decision Support */}
-            {(activeCategory === 'all' || activeCategory === 'ai_cds') && (
-              <>
-                <button
-                  data-testid="tab-btn-agents"
-                  className={`btn btn-sm ${activeTab === 'agents' ? 'btn-primary' : 'btn-secondary'}`}
-                  onClick={() => setActiveTab('agents')}
-                >
-                  🤖 Clinical AI Agents
-                </button>
-                <button
-                  data-testid="tab-btn-cds-pgx"
-                  className={`btn btn-sm ${activeTab === 'cds_pgx' ? 'btn-primary' : 'btn-secondary'}`}
-                  onClick={() => setActiveTab('cds_pgx')}
-                >
-                  🧬 CDS Rules, PGx & Order Sets
-                </button>
-                <button
-                  data-testid="tab-btn-trials"
-                  className={`btn btn-sm ${activeTab === 'trials' ? 'btn-primary' : 'btn-secondary'}`}
-                  onClick={() => setActiveTab('trials')}
-                >
-                  🧬 Precision Oncology & Trials
-                </button>
-              </>
-            )}
-
-            {/* Telehealth & Coordination */}
-            {(activeCategory === 'all' || activeCategory === 'telehealth') && (
-              <>
-                <button
-                  className={`btn btn-sm ${activeTab === 'rpm' ? 'btn-primary' : 'btn-secondary'}`}
-                  onClick={() => setActiveTab('rpm')}
-                >
-                  📡 Remote Monitoring & RPM
-                </button>
-                <button
-                  className={`btn btn-sm ${activeTab === 'cohorts' ? 'btn-primary' : 'btn-secondary'}`}
-                  onClick={() => setActiveTab('cohorts')}
-                >
-                  👥 Population Analytics
-                </button>
-                <button
-                  data-testid="tab-btn-collaboration"
-                  className={`btn btn-sm ${activeTab === 'collaboration' ? 'btn-primary' : 'btn-secondary'}`}
-                  onClick={() => setActiveTab('collaboration')}
-                >
-                  🔴 Live Telemetry & Collaboration
-                </button>
-              </>
-            )}
-
-            {/* Interoperability & Governance */}
-            {(activeCategory === 'all' || activeCategory === 'interop') && (
-              <>
-                <button
-                  data-testid="tab-btn-smart-ehr"
-                  className={`btn btn-sm ${activeTab === 'smart_ehr' ? 'btn-primary' : 'btn-secondary'}`}
-                  onClick={() => setActiveTab('smart_ehr')}
-                >
-                  🔌 SMART on FHIR & CDS Hooks
-                </button>
-                <button
-                  data-testid="tab-btn-regional-interop"
-                  className={`btn btn-sm ${activeTab === 'regional_interop' ? 'btn-primary' : 'btn-secondary'}`}
-                  onClick={() => setActiveTab('regional_interop')}
-                >
-                  🌐 Regional Interoperability & EMPI
-                </button>
-                <button
-                  className={`btn btn-sm ${activeTab === 'quality' ? 'btn-primary' : 'btn-secondary'}`}
-                  onClick={() => setActiveTab('quality')}
-                >
-                  📊 Quality & CQM Measures
-                </button>
-                <button
-                  data-testid="tab-btn-trials-governance"
-                  className={`btn btn-sm ${activeTab === 'trials_governance' ? 'btn-primary' : 'btn-secondary'}`}
-                  onClick={() => setActiveTab('trials_governance')}
-                >
-                  🏛️ Trials Governance & GCP
-                </button>
-                <button
-                  data-testid="tab-btn-security"
-                  className={`btn btn-sm ${activeTab === 'security' ? 'btn-primary' : 'btn-secondary'}`}
-                  onClick={() => setActiveTab('security')}
-                >
-                  🛡️ Security & Compliance
-                </button>
-                <button
-                  data-testid="tab-btn-diagnostics"
-                  className={`btn btn-sm ${activeTab === 'diagnostics' ? 'btn-primary' : 'btn-secondary'}`}
-                  onClick={() => setActiveTab('diagnostics')}
-                >
-                  ⚙️ System Diagnostics
-                </button>
-                <button
-                  data-testid="tab-btn-tenants"
-                  className={`btn btn-sm ${activeTab === 'tenants' ? 'btn-primary' : 'btn-secondary'}`}
-                  onClick={() => setActiveTab('tenants')}
-                >
-                  🏥 Facilities & Tenants
-                </button>
-              </>
-            )}
-          </div>
-
-          {/* Active Workspace View (Scrollable & Wrapped in ErrorBoundary) */}
-          <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
-            <ErrorBoundary fallbackTitle={`Workspace Error: ${activeTab}`}>
-              {activeTab === 'chat' && <ClinicalChat patientId={selectedPatient?.patient_id} />}
-              {activeTab === 'timeline' && <TimelineView patientId={selectedPatient?.patient_id} />}
-              {activeTab === 'documents' && (
-                <DocumentHub
-                  patientId={selectedPatient?.patient_id}
-                  onTriggerOCR={triggerDocumentOCR}
-                />
-              )}
-              {activeTab === 'media' && (
-                <MediaDiagnosticsHub
-                  patientId={selectedPatient?.patient_id}
-                  onTriggerAnalysis={triggerMediaAnalysis}
-                />
-              )}
-              {activeTab === 'notes' && (
-                <ClinicalNoteWorkspace
-                  patientId={selectedPatient?.patient_id}
-                  onTriggerSynthesis={triggerNoteSynthesis}
-                />
-              )}
-              {activeTab === 'vitals' && (
-                <VitalTelemetryWorkspace
-                  patientId={selectedPatient?.patient_id}
-                />
-              )}
-              {activeTab === 'care_plans' && (
-                <CarePlanWorkspace
-                  patientId={selectedPatient?.patient_id}
-                  onTriggerSynthesis={triggerCarePlanSynthesis}
-                />
-              )}
-              {activeTab === 'cohorts' && (
-                <CohortWorkspace
-                  currentUser={user}
-                  currentPatientId={selectedPatient?.patient_id}
-                  onSelectPatient={(pid) => selectPatientById(pid)}
-                />
-              )}
-              {activeTab === 'transitions' && (
-                <TransitionsWorkspace
-                  patientId={selectedPatient?.patient_id}
-                  currentUser={user}
-                />
-              )}
-              {activeTab === 'orders' && <OrdersWorkspace />}
-              {activeTab === 'quality' && <QualityMeasuresWorkspace />}
-              {activeTab === 'rpm' && (
-                <RPMWorkspace
-                  currentUser={user}
-                  activePatient={selectedPatient}
-                />
-              )}
-              {activeTab === 'trials' && (
-                <TrialsPrecisionWorkspace
-                  initialPatientId={selectedPatient?.patient_id}
-                />
-              )}
-              {activeTab === 'agents' && (
-                <ClinicalAgentsWorkspace />
-              )}
-              {activeTab === 'imaging' && (
-                <ImagingRadiologyWorkspace
-                  currentUser={user}
-                  selectedPatientId={selectedPatient?.patient_id}
-                />
-              )}
-              {activeTab === 'security' && (
-                <SecurityComplianceWorkspace
-                  patients={patients}
-                  selectedPatient={selectedPatient}
-                  onSelectPatient={(p) => selectPatientById(p.patient_id)}
-                />
-              )}
-              {activeTab === 'diagnostics' && (
-                <SystemDiagnosticsWorkspace />
-              )}
-              {activeTab === 'smart_ehr' && (
-                <SmartFhirEhrWorkspace selectedPatientId={selectedPatient?.patient_id} />
-              )}
-              {activeTab === 'collaboration' && (
-                <LiveCollaborationWorkspace selectedPatientId={selectedPatient?.patient_id} />
-              )}
-              {activeTab === 'tenants' && (
-                <HealthSystemTenantWorkspace />
-              )}
-              {activeTab === 'regional_interop' && (
-                <RegionalInteroperabilityWorkspace />
-              )}
-              {activeTab === 'cds_pgx' && (
-                <CDSPGxOrderSetWorkspace />
-              )}
-              {activeTab === 'trials_governance' && (
-                <TrialsGovernanceWorkspace />
-              )}
-              {activeTab === 'emar' && (
-                <EMARClosedLoopWorkspace />
-              )}
-              {activeTab === 'pacs_waveforms' && (
-                <DICOMPACSViewerWorkspace patientId={selectedPatient?.patient_id || 'PAT-00101'} />
-              )}
-            </ErrorBoundary>
-          </div>
-        </section>
-
-        {/* Right Column: Longitudinal Timeline Mini-Feed */}
-        <section className="right-sidebar" style={{ height: '100%', minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <ErrorBoundary fallbackTitle="Timeline Stream">
-            <div style={{ flex: 1, minHeight: 0 }}>
-              <TimelineView patientId={selectedPatient?.patient_id} />
+      {/* 1. CLINICAL OVERVIEW SECTION */}
+      {activeSection === 'overview' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          {/* Welcome & Quick Action Banner */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+            <div>
+              <h1 style={{ fontSize: '1.4rem', fontWeight: 800, color: '#ffffff' }}>
+                Clinical Intelligence Center
+              </h1>
+              <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                Department of Cardiology & Internal Medicine • Metro General Hospital
+              </p>
             </div>
-          </ErrorBoundary>
-        </section>
-      </main>
+            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+              <button
+                onClick={() => setIsScheduleModalOpen(true)}
+                className="btn btn-primary"
+                style={{ fontSize: '0.8125rem' }}
+              >
+                📅 Schedule Consultation
+              </button>
+              <button
+                onClick={() => setActiveSection('chat')}
+                className="btn btn-secondary"
+                style={{ fontSize: '0.8125rem' }}
+              >
+                💬 Ask AI Copilot
+              </button>
+              <button
+                onClick={() => setActiveSection('pacs_waveforms')}
+                className="btn btn-secondary"
+                style={{ fontSize: '0.8125rem' }}
+              >
+                🫀 DICOM / ECG Viewer
+              </button>
+            </div>
+          </div>
 
-      {/* Safety Decision Support Modal */}
-      <SafetyPrescriberModal
-        patientId={selectedPatient?.patient_id}
-        isOpen={isSafetyModalOpen}
-        onClose={() => setIsSafetyModalOpen(false)}
-      />
+          {/* Clinician Stat KPIs */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px' }}>
+            <div className="stat-card" style={{ borderLeft: '3px solid #38bdf8' }}>
+              <span className="stat-card-title">Assigned Patients</span>
+              <span className="stat-card-value" style={{ color: '#38bdf8' }}>{patients.length}</span>
+              <span className="stat-card-subtitle">Active Inpatient & Ambulatory</span>
+            </div>
 
-      {/* Task Monitor Modal */}
-      <TaskMonitor
-        tasks={tasks}
-        isOpen={isTasksModalOpen}
-        onClose={() => setIsTasksModalOpen(false)}
-        onRetry={retryTask}
-        onCancel={cancelTask}
-        onRefresh={loadTasks}
-      />
+            <div className="stat-card" style={{ borderLeft: '3px solid #34d399' }}>
+              <span className="stat-card-title">Today's Appointments</span>
+              <span className="stat-card-value" style={{ color: '#34d399' }}>{doctorAppointments.length}</span>
+              <span className="stat-card-subtitle">Consultations Scheduled</span>
+            </div>
 
-      {/* Schedule Consultation Modal */}
+            <div className="stat-card" style={{ borderLeft: '3px solid #fbbf24' }}>
+              <span className="stat-card-title">CDS Alerts & Flags</span>
+              <span className="stat-card-value" style={{ color: '#fbbf24' }}>2 Active</span>
+              <span className="stat-card-subtitle">Safety & Drug Interaction Alerts</span>
+            </div>
+
+            <div className="stat-card" style={{ borderLeft: '3px solid #a855f7' }}>
+              <span className="stat-card-title">AI Scribe & OCR Tasks</span>
+              <span className="stat-card-value" style={{ color: '#c084fc' }}>{activeTaskCount} Running</span>
+              <span className="stat-card-subtitle">Background Intelligence Queue</span>
+            </div>
+          </div>
+
+          {/* Active Patient EHR Preview Card */}
+          {selectedPatient && (
+            <div
+              className="glass-panel"
+              style={{
+                padding: '18px 20px',
+                border: '1px solid rgba(2, 132, 199, 0.35)',
+                background: 'linear-gradient(135deg, rgba(2, 132, 199, 0.08) 0%, rgba(17, 24, 39, 0.95) 100%)',
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px' }}>
+                <div>
+                  <span style={{ fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#38bdf8', fontWeight: 700 }}>
+                    Selected Patient Record
+                  </span>
+                  <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#ffffff', margin: '4px 0 2px 0' }}>
+                    {selectedPatient.first_name} {selectedPatient.last_name}
+                  </h2>
+                  <div style={{ display: 'flex', gap: '12px', fontSize: '0.8rem', color: 'var(--text-secondary)', flexWrap: 'wrap' }}>
+                    <span>MRN: <code style={{ color: '#38bdf8' }}>{selectedPatient.patient_id}</code></span>
+                    <span>DOB: {selectedPatient.date_of_birth}</span>
+                    <span>Gender: {selectedPatient.gender}</span>
+                    <span>Blood Group: <strong style={{ color: '#f87171' }}>{selectedPatient.blood_group || 'O+'}</strong></span>
+                    <span>Allergies: <strong style={{ color: '#fbbf24' }}>{selectedPatient.allergies || 'None Reported'}</strong></span>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                  <button
+                    onClick={() => setActiveSection('timeline')}
+                    className="btn btn-primary btn-sm"
+                    style={{ fontSize: '0.75rem' }}
+                  >
+                    📅 Timeline
+                  </button>
+                  <button
+                    onClick={() => setActiveSection('notes')}
+                    className="btn btn-secondary btn-sm"
+                    style={{ fontSize: '0.75rem' }}
+                  >
+                    📝 Notes
+                  </button>
+                  <button
+                    onClick={() => setActiveSection('orders')}
+                    className="btn btn-secondary btn-sm"
+                    style={{ fontSize: '0.75rem' }}
+                  >
+                    📦 Orders
+                  </button>
+                  <button
+                    onClick={() => setActiveSection('emar')}
+                    className="btn btn-secondary btn-sm"
+                    style={{ fontSize: '0.75rem' }}
+                  >
+                    💊 eMAR
+                  </button>
+                  <button
+                    onClick={() => setActiveSection('imaging')}
+                    className="btn btn-secondary btn-sm"
+                    style={{ fontSize: '0.75rem' }}
+                  >
+                    🩻 Imaging
+                  </button>
+                </div>
+              </div>
+
+              {selectedPatient.health_problem && (
+                <div style={{ marginTop: '12px', padding: '10px 14px', background: 'rgba(0,0,0,0.3)', borderRadius: '6px', fontSize: '0.8125rem' }}>
+                  <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>Reported Complaint: </span>
+                  <span style={{ color: '#fbbf24' }}>{selectedPatient.health_problem}</span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Split View: Patient Directory & Upcoming Appointments */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(300px, 1fr) 1fr', gap: '20px' }}>
+            {/* Patient Directory */}
+            <div className="glass-panel" style={{ padding: '16px', display: 'flex', flexDirection: 'column', height: '420px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: '#ffffff' }}>Hospital Patients Directory</h3>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{patients.length} Total</span>
+              </div>
+              <div style={{ flex: 1, overflowY: 'auto' }}>
+                <PatientDirectory />
+              </div>
+            </div>
+
+            {/* Upcoming Appointments Table */}
+            <div className="glass-panel" style={{ padding: '16px', display: 'flex', flexDirection: 'column', height: '420px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: '#ffffff' }}>Upcoming Consultations</h3>
+                <button
+                  onClick={() => setIsScheduleModalOpen(true)}
+                  className="btn btn-secondary btn-sm"
+                  style={{ fontSize: '0.7rem' }}
+                >
+                  + Book Slot
+                </button>
+              </div>
+
+              <div style={{ flex: 1, overflowY: 'auto' }}>
+                {doctorAppointments.length === 0 ? (
+                  <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                    No consultations scheduled for today.
+                  </div>
+                ) : (
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
+                    <thead>
+                      <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)', textAlign: 'left' }}>
+                        <th style={{ padding: '6px 8px' }}>Time</th>
+                        <th style={{ padding: '6px 8px' }}>Patient</th>
+                        <th style={{ padding: '6px 8px' }}>Reason</th>
+                        <th style={{ padding: '6px 8px' }}>Mode</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {doctorAppointments.map((apt) => (
+                        <tr key={apt.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                          <td style={{ padding: '8px', color: '#38bdf8', fontWeight: 600 }}>
+                            {new Date(apt.appointment_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </td>
+                          <td style={{ padding: '8px', color: '#ffffff', fontWeight: 600 }}>
+                            {apt.patient ? `${apt.patient.first_name} ${apt.patient.last_name}` : `Patient #${apt.patient_id}`}
+                          </td>
+                          <td style={{ padding: '8px', color: 'var(--text-secondary)' }}>
+                            {apt.reason_for_visit}
+                          </td>
+                          <td style={{ padding: '8px', textTransform: 'capitalize', color: 'var(--text-muted)' }}>
+                            {apt.consultation_mode}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 2. CLINICAL WORKSPACE MODULES */}
+      {activeSection === 'chat' && <ClinicalChat patientId={selectedPatient?.patient_id} />}
+      {activeSection === 'timeline' && <TimelineView patientId={selectedPatient?.patient_id} />}
+      {activeSection === 'notes' && (
+        <ClinicalNoteWorkspace
+          patientId={selectedPatient?.patient_id}
+          onTriggerSynthesis={triggerNoteSynthesis}
+        />
+      )}
+      {activeSection === 'vitals' && <VitalTelemetryWorkspace patientId={selectedPatient?.patient_id} />}
+      {activeSection === 'care_plans' && (
+        <CarePlanWorkspace
+          patientId={selectedPatient?.patient_id}
+          onTriggerSynthesis={triggerCarePlanSynthesis}
+        />
+      )}
+      {activeSection === 'transitions' && (
+        <TransitionsWorkspace
+          patientId={selectedPatient?.patient_id}
+          currentUser={user}
+        />
+      )}
+      {activeSection === 'orders' && <OrdersWorkspace />}
+      {activeSection === 'emar' && <EMARClosedLoopWorkspace />}
+      {activeSection === 'cds_pgx' && <CDSPGxOrderSetWorkspace />}
+      {activeSection === 'documents' && (
+        <DocumentHub
+          patientId={selectedPatient?.patient_id}
+          onTriggerOCR={triggerDocumentOCR}
+        />
+      )}
+      {activeSection === 'media' && (
+        <MediaDiagnosticsHub
+          patientId={selectedPatient?.patient_id}
+          onTriggerAnalysis={triggerMediaAnalysis}
+        />
+      )}
+      {activeSection === 'imaging' && (
+        <ImagingRadiologyWorkspace
+          currentUser={user}
+          selectedPatientId={selectedPatient?.patient_id}
+        />
+      )}
+      {activeSection === 'pacs_waveforms' && <DICOMPACSViewerWorkspace patientId={selectedPatient?.patient_id || 'PAT-00101'} />}
+      {activeSection === 'collaboration' && <LiveCollaborationWorkspace selectedPatientId={selectedPatient?.patient_id} />}
+      {activeSection === 'cohorts' && (
+        <CohortWorkspace
+          currentUser={user}
+          currentPatientId={selectedPatient?.patient_id}
+          onSelectPatient={(pid) => selectPatientById(pid)}
+        />
+      )}
+      {activeSection === 'trials' && <TrialsPrecisionWorkspace initialPatientId={selectedPatient?.patient_id} />}
+      {activeSection === 'agents' && <ClinicalAgentsWorkspace />}
+      {activeSection === 'quality' && <QualityMeasuresWorkspace />}
+      {activeSection === 'smart_ehr' && <SmartFhirEhrWorkspace selectedPatientId={selectedPatient?.patient_id} />}
+      {activeSection === 'regional_interop' && <RegionalInteroperabilityWorkspace />}
+      {activeSection === 'trials_governance' && <TrialsGovernanceWorkspace />}
+      {activeSection === 'rpm' && <RPMWorkspace currentUser={user} activePatient={selectedPatient} />}
+      {activeSection === 'security' && (
+        <SecurityComplianceWorkspace
+          patients={patients}
+          selectedPatient={selectedPatient}
+          onSelectPatient={(p) => selectPatientById(p.patient_id)}
+        />
+      )}
+      {activeSection === 'diagnostics' && <SystemDiagnosticsWorkspace />}
+      {activeSection === 'tenants' && <HealthSystemTenantWorkspace />}
+
+      {/* SCHEDULE CONSULTATION MODAL */}
       {isScheduleModalOpen && (
         <div
           style={{
             position: 'fixed',
             inset: 0,
-            zIndex: 9999,
-            background: 'rgba(5, 10, 20, 0.85)',
-            backdropFilter: 'blur(8px)',
+            background: 'rgba(0,0,0,0.75)',
+            backdropFilter: 'blur(4px)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
+            zIndex: 9999,
             padding: '20px',
           }}
         >
-          <div className="glass-panel" style={{ width: '100%', maxWidth: '520px', padding: '24px', borderRadius: '12px', background: '#0f172a' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-              <h3 style={{ fontSize: '1.15rem', fontWeight: 700, margin: 0, color: '#38bdf8' }}>
-                Schedule Clinical Consultation
-              </h3>
-              <button type="button" className="btn btn-secondary btn-sm" onClick={() => setIsScheduleModalOpen(false)}>✕</button>
-            </div>
+          <div className="glass-panel" style={{ width: '100%', maxWidth: '500px', padding: '24px', background: '#0f172a' }}>
+            <h3 style={{ fontSize: '1.15rem', fontWeight: 700, color: '#ffffff', marginBottom: '8px' }}>
+              Schedule Clinical Consultation
+            </h3>
+            {selectedPatient ? (
+              <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '16px' }}>
+                Booking appointment for <strong style={{ color: '#ffffff' }}>{selectedPatient.first_name} {selectedPatient.last_name}</strong> ({selectedPatient.patient_id})
+              </p>
+            ) : (
+              <p style={{ fontSize: '0.85rem', color: '#fbbf24', marginBottom: '16px' }}>
+                ⚠️ Please select a patient from the directory first before booking a consultation.
+              </p>
+            )}
 
-            <div style={{ padding: '12px', background: 'rgba(255,255,255,0.03)', borderRadius: '6px', marginBottom: '16px' }}>
-              <div style={{ fontWeight: 600, color: '#ffffff', fontSize: '0.9rem' }}>
-                Patient: {selectedPatient?.first_name} {selectedPatient?.last_name} ({selectedPatient?.patient_id})
-              </div>
-              <div style={{ fontSize: '0.8rem', color: '#94a3b8', marginTop: '4px' }}>
-                Attending: Dr. Amit Kulkarni &bull; Cardiology & Internal Medicine
-              </div>
-            </div>
-
-            <form onSubmit={handleCreateAppointment} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            <form onSubmit={handleCreateAppointment}>
               <div className="form-group">
-                <label className="form-label" style={{ color: '#cbd5e1' }}>Appointment Date & Time *</label>
+                <label className="form-label">Consultation Date & Time</label>
                 <input
                   type="datetime-local"
-                  className="form-input"
                   value={appointmentDate}
                   onChange={(e) => setAppointmentDate(e.target.value)}
+                  className="form-input"
                   required
                 />
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div className="form-group">
-                  <label className="form-label" style={{ color: '#cbd5e1' }}>Consultation Mode</label>
+                  <label className="form-label">Consultation Mode</label>
                   <select
-                    className="form-input"
                     value={consultMode}
                     onChange={(e) => setConsultMode(e.target.value)}
+                    className="form-select"
                   >
-                    <option value="in_person">In-Person Consultation</option>
-                    <option value="telehealth">Telehealth / Video Call</option>
+                    <option value="in_person">In-Person Clinic Visit</option>
+                    <option value="telehealth">Telehealth Video Room</option>
                   </select>
                 </div>
+
                 <div className="form-group">
-                  <label className="form-label" style={{ color: '#cbd5e1' }}>Duration (Minutes)</label>
+                  <label className="form-label">Duration (Minutes)</label>
                   <select
-                    className="form-input"
                     value={durationMins}
                     onChange={(e) => setDurationMins(Number(e.target.value))}
+                    className="form-select"
                   >
-                    <option value={15}>15 Minutes (Follow-up)</option>
+                    <option value={15}>15 Minutes (Brief)</option>
                     <option value={30}>30 Minutes (Standard)</option>
-                    <option value={45}>45 Minutes (Comprehensive)</option>
-                    <option value={60}>60 Minutes (Initial Intake)</option>
+                    <option value={45}>45 Minutes (Extended)</option>
+                    <option value={60}>60 Minutes (Comprehensive)</option>
                   </select>
                 </div>
               </div>
 
               <div className="form-group">
-                <label className="form-label" style={{ color: '#cbd5e1' }}>Reason for Consultation *</label>
+                <label className="form-label">Reason for Visit / Clinical Objective</label>
                 <input
                   type="text"
-                  className="form-input"
-                  placeholder="e.g. Follow-up for chest tightness and ECG review"
                   value={reasonForVisit}
                   onChange={(e) => setReasonForVisit(e.target.value)}
+                  className="form-input"
+                  placeholder="e.g. Cardiology follow-up & hypertension assessment"
                   required
                 />
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
-                <button type="button" className="btn btn-secondary" onClick={() => setIsScheduleModalOpen(false)}>Cancel</button>
-                <button type="submit" className="btn btn-primary" disabled={isScheduling}>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '20px' }}>
+                <button
+                  type="button"
+                  onClick={() => setIsScheduleModalOpen(false)}
+                  className="btn btn-secondary"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isScheduling || !selectedPatient}
+                  className="btn btn-primary"
+                >
                   {isScheduling ? 'Scheduling...' : 'Confirm Appointment'}
                 </button>
               </div>
@@ -682,7 +550,23 @@ export const DoctorDashboard: React.FC = () => {
           </div>
         </div>
       )}
-    </div>
+
+      {/* Safety Prescriber Modal */}
+      <SafetyPrescriberModal
+        isOpen={isSafetyModalOpen}
+        onClose={() => setIsSafetyModalOpen(false)}
+        patientId={selectedPatient?.patient_id}
+      />
+
+      {/* Task Queue Monitor */}
+      <TaskMonitor
+        isOpen={isTasksModalOpen}
+        onClose={() => setIsTasksModalOpen(false)}
+        tasks={tasks}
+        onRetry={retryTask}
+        onCancel={cancelTask}
+        onRefresh={loadTasks}
+      />
+    </AppShell>
   );
 };
-
