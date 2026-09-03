@@ -45,10 +45,13 @@ def _check_appointment_access(appointment: Appointment, current_user: User, db: 
             detail="You do not have permission to access appointments for another doctor.",
         )
 
-    # Patient role or regular user matching patient email
+    # Patient role or regular user matching patient record
     if current_user.role == UserRole.PATIENT or current_user.email:
         patient = appointment.patient
-        if patient and patient.email and patient.email.lower() == current_user.email.lower():
+        if patient and (
+            (patient.user_id == current_user.id)
+            or (patient.email and patient.email.lower() == current_user.email.lower())
+        ):
             return
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -107,7 +110,9 @@ def get_appointments_list(
         else:
             return AppointmentListResponse.create(items=[], total=0, page=page, size=size)
     elif current_user.role == UserRole.PATIENT:
-        patient = db.scalars(select(Patient).where(Patient.email == current_user.email)).first()
+        patient = db.scalars(
+            select(Patient).where((Patient.user_id == current_user.id) | (Patient.email == current_user.email))
+        ).first()
         if patient:
             target_patient_id = patient.id
         else:

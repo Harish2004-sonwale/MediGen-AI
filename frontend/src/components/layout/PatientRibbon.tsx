@@ -16,9 +16,22 @@ export const PatientRibbon: React.FC = () => {
     );
   }
 
+  const calculateAge = (dobString?: string): string => {
+    if (!dobString) return '—';
+    try {
+      const birth = new Date(dobString);
+      const diff = Date.now() - birth.getTime();
+      const ageDate = new Date(diff);
+      const age = Math.abs(ageDate.getUTCFullYear() - 1970);
+      return isNaN(age) ? '—' : `${age} yrs`;
+    } catch {
+      return '—';
+    }
+  };
+
   return (
     <div className="patient-context-ribbon">
-      <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem', textTransform: 'uppercase', fontWeight: 600 }}>
             Active Patient:
@@ -29,9 +42,10 @@ export const PatientRibbon: React.FC = () => {
           <span className="badge badge-info">{selectedPatient.patient_id}</span>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', color: 'var(--text-secondary)', fontSize: '0.8125rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', color: 'var(--text-secondary)', fontSize: '0.8125rem', flexWrap: 'wrap' }}>
+          <span>Age: <strong style={{ color: 'var(--text-primary)' }}>{calculateAge(selectedPatient.date_of_birth)}</strong></span>
           <span>DOB: <strong style={{ color: 'var(--text-primary)' }}>{selectedPatient.date_of_birth}</strong></span>
-          <span>Gender: <strong style={{ color: 'var(--text-primary)' }}>{selectedPatient.gender}</strong></span>
+          <span>Gender: <strong style={{ color: 'var(--text-primary)', textTransform: 'capitalize' }}>{selectedPatient.gender}</strong></span>
           {selectedPatient.blood_group && (
             <span>Blood: <strong style={{ color: 'var(--text-primary)' }}>{selectedPatient.blood_group}</strong></span>
           )}
@@ -63,3 +77,4 @@ export const PatientRibbon: React.FC = () => {
     </div>
   );
 };
+

@@ -372,10 +372,11 @@ export const authApi = {
 
 // 2. Patient Management APIs
 export const patientsApi = {
-  list: async (search?: string, status?: string): Promise<Patient[]> => {
+  list: async (search?: string, status?: string, doctorId?: number): Promise<Patient[]> => {
     const params = new URLSearchParams();
     if (search) params.append('search', search);
     if (status) params.append('status', status);
+    if (doctorId !== undefined && doctorId !== null) params.append('doctor_id', String(doctorId));
     const query = params.toString() ? `?${params.toString()}` : '';
     const res = await apiRequest<any>(`/patients${query}`, { method: 'GET' });
     if (Array.isArray(res)) return res;
@@ -390,13 +391,121 @@ export const patientsApi = {
     });
   },
 
+  getMe: async (): Promise<Patient> => {
+    return apiRequest<Patient>('/patients/me', {
+      method: 'GET',
+    });
+  },
+
+  selfRegister: async (data: {
+    first_name: string;
+    last_name: string;
+    date_of_birth: string;
+    gender: string;
+    phone: string;
+    email: string;
+    password: string;
+    address?: string;
+    emergency_contact_name?: string;
+    emergency_contact_phone?: string;
+    blood_group?: string;
+    allergies?: string;
+    health_problem?: string;
+    previous_diagnoses?: string;
+    current_medications?: string;
+  }): Promise<TokenResponse> => {
+    return apiRequest<TokenResponse>('/patients/register', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
   create: async (data: Partial<Patient>): Promise<Patient> => {
     return apiRequest<Patient>('/patients', {
       method: 'POST',
       body: JSON.stringify(data),
     });
   },
+
+  update: async (patientId: string, data: Partial<Patient>): Promise<Patient> => {
+    return apiRequest<Patient>(`/patients/${encodeURIComponent(patientId)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  },
+
+  assignDoctor: async (patientId: string, doctorId: number, notes?: string): Promise<Patient> => {
+    return apiRequest<Patient>(`/patients/${encodeURIComponent(patientId)}/assign-doctor`, {
+      method: 'POST',
+      body: JSON.stringify({ doctor_id: doctorId, notes }),
+    });
+  },
+
+  deactivate: async (patientId: string): Promise<Patient> => {
+    return apiRequest<Patient>(`/patients/${encodeURIComponent(patientId)}`, {
+      method: 'DELETE',
+    });
+  },
 };
+
+// 2.1 Doctors Directory & Management APIs
+export const doctorsApi = {
+  list: async (search?: string, department?: string): Promise<any[]> => {
+    const params = new URLSearchParams();
+    if (search) params.append('search', search);
+    if (department) params.append('department', department);
+    const query = params.toString() ? `?${params.toString()}` : '';
+    const res = await apiRequest<any>(`/doctors${query}`, { method: 'GET' });
+    if (Array.isArray(res)) return res;
+    if (res && Array.isArray(res.items)) return res.items;
+    if (res && Array.isArray(res.doctors)) return res.doctors;
+    return [];
+  },
+
+  get: async (doctorId: string | number): Promise<any> => {
+    return apiRequest<any>(`/doctors/${encodeURIComponent(String(doctorId))}`, {
+      method: 'GET',
+    });
+  },
+};
+
+// 2.2 Appointments & Scheduling APIs
+export const appointmentsApi = {
+  list: async (patientId?: number, doctorId?: number, status?: string): Promise<any[]> => {
+    const params = new URLSearchParams();
+    if (patientId) params.append('patient_id', String(patientId));
+    if (doctorId) params.append('doctor_id', String(doctorId));
+    if (status) params.append('status', status);
+    const query = params.toString() ? `?${params.toString()}` : '';
+    const res = await apiRequest<any>(`/appointments${query}`, { method: 'GET' });
+    if (Array.isArray(res)) return res;
+    if (res && Array.isArray(res.items)) return res.items;
+    if (res && Array.isArray(res.appointments)) return res.appointments;
+    return [];
+  },
+
+  create: async (data: {
+    patient_id: number;
+    doctor_id: number;
+    appointment_date: string;
+    duration_minutes?: number;
+    consultation_mode?: string;
+    reason_for_visit: string;
+  }): Promise<any> => {
+    return apiRequest<any>('/appointments', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  cancel: async (appointmentId: number, reason: string): Promise<any> => {
+    return apiRequest<any>(`/appointments/${appointmentId}/cancel`, {
+      method: 'POST',
+      body: JSON.stringify({ cancellation_reason: reason }),
+    });
+  },
+};
+
 
 // 3. Clinical Timeline APIs
 export const timelineApi = {

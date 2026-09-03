@@ -88,9 +88,14 @@ export const PatientDirectory: React.FC = () => {
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                   <span>DOB: {patient.date_of_birth}</span>
-                  <span>{patient.gender}</span>
+                  <span style={{ textTransform: 'capitalize' }}>{patient.gender}</span>
                 </div>
-                {patient.allergies && (
+                {patient.health_problem && (
+                  <div style={{ marginTop: '4px', fontSize: '0.72rem', color: '#cbd5e1', fontStyle: 'italic', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    "{patient.health_problem}"
+                  </div>
+                )}
+                {patient.allergies && patient.allergies !== 'None' && (
                   <div style={{ marginTop: '4px', fontSize: '0.7rem', color: '#fb923c' }}>
                     ⚠️ {patient.allergies}
                   </div>

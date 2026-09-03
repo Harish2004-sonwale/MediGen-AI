@@ -37,10 +37,54 @@ export interface Patient {
   emergency_contact_phone?: string;
   blood_group?: string;
   allergies?: string;
-  medical_history?: string;
-  is_active: boolean;
+  health_problem?: string;
+  previous_diagnoses?: string;
+  current_medications?: string;
+  assigned_doctor_id?: number;
+  assigned_doctor_name?: string;
+  user_id?: number;
+  status?: 'pending_review' | 'active' | 'appointment_scheduled' | 'under_care' | 'discharged' | 'inactive' | 'archived';
+  is_active?: boolean;
   created_at: string;
   updated_at?: string;
+}
+
+export interface Doctor {
+  id: number;
+  doctor_id: string;
+  user_id: number;
+  full_name: string;
+  professional_title: string;
+  department: string;
+  specialization: string;
+  qualifications?: string;
+  medical_degree?: string;
+  medical_registration_number: string;
+  years_of_experience: number;
+  email: string;
+  phone?: string;
+  clinic_hospital_name?: string;
+  consultation_location?: string;
+  consultation_mode?: string;
+  verification_status?: string;
+  availability_status?: string;
+}
+
+export interface Appointment {
+  id: number;
+  appointment_id: string;
+  patient_id: number;
+  doctor_id: number;
+  appointment_date: string;
+  duration_minutes: number;
+  consultation_mode: string;
+  reason_for_visit: string;
+  status: string;
+  clinical_notes?: string;
+  cancellation_reason?: string;
+  patient?: Patient;
+  doctor?: Doctor;
+  created_at: string;
 }
 
 export interface TimelineCitation {

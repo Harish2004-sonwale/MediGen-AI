@@ -1,6 +1,6 @@
 from datetime import date, datetime
 from typing import TYPE_CHECKING
-from sqlalchemy import Date, DateTime, Enum, Integer, String, func
+from sqlalchemy import Date, DateTime, Enum, ForeignKey, Integer, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database.base import Base
@@ -8,6 +8,8 @@ from app.schemas.patient import Gender, PatientStatus
 
 if TYPE_CHECKING:
     from app.models.encounter import Encounter
+    from app.models.doctor import Doctor
+    from app.models.user import User
 
 
 class Patient(Base):
@@ -29,6 +31,17 @@ class Patient(Base):
     address: Mapped[str | None] = mapped_column(String(255), nullable=True)
     emergency_contact_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
     emergency_contact_phone: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    blood_group: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    allergies: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    health_problem: Mapped[str | None] = mapped_column(String(1000), nullable=True)
+    previous_diagnoses: Mapped[str | None] = mapped_column(String(1000), nullable=True)
+    current_medications: Mapped[str | None] = mapped_column(String(1000), nullable=True)
+    assigned_doctor_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("doctors.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    user_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
+    )
     status: Mapped[PatientStatus] = mapped_column(
         Enum(PatientStatus, name="patient_status", native_enum=False, values_callable=lambda x: [e.value for e in x]),
         default=PatientStatus.ACTIVE,
@@ -55,6 +68,8 @@ class Patient(Base):
         "Encounter",
         back_populates="patient",
     )
+    assigned_doctor: Mapped["Doctor | None"] = relationship("Doctor", foreign_keys=[assigned_doctor_id])
+    user: Mapped["User | None"] = relationship("User", foreign_keys=[user_id])
 
     def __repr__(self) -> str:
         return f"<Patient id={self.id} patient_id={self.patient_id} name={self.first_name} {self.last_name}>"

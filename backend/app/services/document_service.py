@@ -26,7 +26,7 @@ from app.services.appointment_service import resolve_patient
 from app.services.document_processing_service import process_medical_document
 from app.services.encounter_service import get_encounter_by_encounter_id, get_encounter_by_id
 
-ALLOWED_EXTENSIONS = {".pdf", ".txt", ".docx"}
+ALLOWED_EXTENSIONS = {".pdf", ".txt", ".docx", ".jpg", ".jpeg", ".png"}
 
 ALLOWED_MIME_TYPES = {
     ".pdf": {"application/pdf"},
@@ -37,6 +37,9 @@ ALLOWED_MIME_TYPES = {
         "application/octet-stream",
         "application/zip",
     },
+    ".jpg": {"image/jpeg", "image/jpg", "application/octet-stream"},
+    ".jpeg": {"image/jpeg", "application/octet-stream"},
+    ".png": {"image/png", "application/octet-stream"},
 }
 
 
@@ -58,13 +61,17 @@ def has_patient_clinical_access(db: Session, current_user: User, patient: Patien
         return True
 
     if current_user.role == UserRole.PATIENT:
+        if patient.user_id == current_user.id:
+            return True
         return bool(patient.email and patient.email.strip().lower() == current_user.email.strip().lower())
 
     if current_user.role == UserRole.DOCTOR:
-        # Check if doctor has an encounter or appointment relationship with this patient
         doctor = db.scalars(select(Doctor).where(Doctor.user_id == current_user.id)).first()
         if not doctor:
             return False
+
+        if patient.assigned_doctor_id == doctor.id:
+            return True
 
         has_appointment = db.scalar(
             select(Appointment.id).where(

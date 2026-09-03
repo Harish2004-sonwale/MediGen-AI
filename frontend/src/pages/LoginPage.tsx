@@ -5,10 +5,12 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { UserRole } from '../types';
+import { PatientRegistrationModal } from '../components/auth/PatientRegistrationModal';
 
 export const LoginPage: React.FC = () => {
   const { login, register, isLoading } = useAuth();
   const [isRegisterMode, setIsRegisterMode] = useState<boolean>(false);
+  const [isPatientModalOpen, setIsPatientModalOpen] = useState<boolean>(false);
   const [name, setName] = useState<string>('');
   const [email, setEmail] = useState<string>('doctor@example.com');
   const [password, setPassword] = useState<string>('DoctorPassword123!');
@@ -29,7 +31,7 @@ export const LoginPage: React.FC = () => {
         await login(email.trim(), password);
       }
     } catch (err: any) {
-      setError(err.message || 'Authentication failed. Please verify credentials.');
+      setError(err.message || 'Email or password is incorrect. Please verify your credentials.');
     }
   };
 
@@ -37,6 +39,7 @@ export const LoginPage: React.FC = () => {
     setEmail(defaultEmail);
     setPassword(defaultPass);
     setRole(r);
+    setError(null);
   };
 
   return (
@@ -54,47 +57,48 @@ export const LoginPage: React.FC = () => {
         className="glass-panel"
         style={{
           width: '100%',
-          maxWidth: '440px',
+          maxWidth: '460px',
           padding: '32px',
           boxShadow: 'var(--shadow-lg)',
+          borderRadius: '12px',
         }}
       >
         {/* Brand Banner */}
         <div style={{ textAlign: 'center', marginBottom: '24px' }}>
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--brand-primary)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="var(--brand-primary)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
               <path d="M12 5v14" />
               <path d="M5 12h14" />
             </svg>
-            <h1 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#ffffff' }}>
+            <h1 style={{ fontSize: '1.6rem', fontWeight: 800, color: '#ffffff', margin: 0 }}>
               MediGen <span style={{ color: 'var(--brand-primary)' }}>AI</span>
             </h1>
           </div>
-          <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
-            Clinical Decision Support & Intelligence Platform
+          <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', margin: 0 }}>
+            Hospital Management & Clinical AI Platform
           </p>
         </div>
 
         {/* Quick Demo Role Selector */}
         {!isRegisterMode && (
-          <div style={{ marginBottom: '20px', padding: '10px 12px', background: 'rgba(255,255,255,0.03)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
-            <div style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '6px' }}>
+          <div style={{ marginBottom: '20px', padding: '12px', background: 'rgba(255,255,255,0.03)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
+            <div style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px' }}>
               Quick Demo Login:
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
               <button
                 type="button"
                 className="btn btn-secondary btn-sm"
-                style={{ fontSize: '0.7rem' }}
+                style={{ fontSize: '0.72rem', padding: '6px 4px' }}
                 onClick={() => handleQuickRole('doctor', 'doctor@example.com', 'DoctorPassword123!')}
               >
-                🩺 Doctor
+                🩺 Doctor (Dr. Kulkarni)
               </button>
               <button
                 type="button"
                 className="btn btn-secondary btn-sm"
-                style={{ fontSize: '0.7rem' }}
+                style={{ fontSize: '0.72rem', padding: '6px 4px' }}
                 onClick={() => handleQuickRole('admin', 'admin@example.com', 'AdminPassword123!')}
               >
                 🛡️ Admin
@@ -102,10 +106,10 @@ export const LoginPage: React.FC = () => {
               <button
                 type="button"
                 className="btn btn-secondary btn-sm"
-                style={{ fontSize: '0.7rem' }}
+                style={{ fontSize: '0.72rem', padding: '6px 4px' }}
                 onClick={() => handleQuickRole('patient', 'patient@example.com', 'PatientPassword123!')}
               >
-                👤 Patient
+                👤 Patient (Rahul)
               </button>
             </div>
           </div>
@@ -124,7 +128,7 @@ export const LoginPage: React.FC = () => {
               <input
                 type="text"
                 className="form-input"
-                placeholder="Dr. Alice Smith"
+                placeholder="Dr. Neha Patil"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required
@@ -158,16 +162,16 @@ export const LoginPage: React.FC = () => {
 
           {isRegisterMode && (
             <div className="form-group">
-              <label className="form-label">Assigned Role</label>
+              <label className="form-label">Account Role</label>
               <select
-                className="form-select"
+                className="form-input"
                 value={role}
                 onChange={(e) => setRole(e.target.value as UserRole)}
               >
                 <option value="doctor">Doctor / Clinician</option>
+                <option value="admin">Hospital Administrator</option>
                 <option value="healthcare_staff">Healthcare Staff</option>
                 <option value="patient">Patient</option>
-                <option value="admin">System Administrator</option>
               </select>
             </div>
           )}
@@ -175,33 +179,57 @@ export const LoginPage: React.FC = () => {
           <button
             type="submit"
             className="btn btn-primary"
-            style={{ width: '100%', marginTop: '8px', padding: '12px' }}
+            style={{ width: '100%', marginTop: '16px', padding: '10px' }}
             disabled={isLoading}
           >
-            {isLoading
-              ? 'Authenticating...'
-              : isRegisterMode
-              ? 'Create Healthcare Account'
-              : 'Sign In to Clinical Workspace'}
+            {isLoading ? 'Signing In...' : isRegisterMode ? 'Create Clinician / Admin Account' : 'Sign In to Clinical Workspace'}
           </button>
         </form>
 
-        <div style={{ textAlign: 'center', marginTop: '16px' }}>
+        {/* Patient Registration Trigger */}
+        <div style={{ marginTop: '20px', paddingTop: '16px', borderTop: '1px solid rgba(255,255,255,0.08)', textAlign: 'center' }}>
+          <p style={{ fontSize: '0.8125rem', color: '#94a3b8', margin: '0 0 8px' }}>
+            Are you a new patient visiting our hospital?
+          </p>
           <button
             type="button"
             className="btn btn-secondary btn-sm"
-            style={{ border: 'none', background: 'none', color: 'var(--brand-primary)', textDecoration: 'underline' }}
+            style={{ width: '100%', color: '#38bdf8', borderColor: 'rgba(56,189,248,0.3)', padding: '8px' }}
+            onClick={() => setIsPatientModalOpen(true)}
+          >
+            ➕ Register as New Patient (Simple Onboarding)
+          </button>
+        </div>
+
+        {/* Staff Switch */}
+        <div style={{ marginTop: '12px', textAlign: 'center' }}>
+          <button
+            type="button"
+            style={{
+              background: 'none',
+              border: 'none',
+              color: 'var(--text-secondary)',
+              fontSize: '0.75rem',
+              cursor: 'pointer',
+              textDecoration: 'underline',
+            }}
             onClick={() => {
               setIsRegisterMode(!isRegisterMode);
               setError(null);
             }}
           >
             {isRegisterMode
-              ? 'Already have an account? Sign in'
-              : "Don't have an account? Register new clinician profile"}
+              ? 'Already have an account? Sign In'
+              : 'Register clinical staff / doctor account'}
           </button>
         </div>
       </div>
+
+      {/* Patient Registration Onboarding Modal */}
+      <PatientRegistrationModal
+        isOpen={isPatientModalOpen}
+        onClose={() => setIsPatientModalOpen(false)}
+      />
     </div>
   );
 };
