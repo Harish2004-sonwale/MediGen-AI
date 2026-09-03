@@ -67,6 +67,8 @@ htmlcov/
 *.sqlite
 *.sqlite3
 *.db
+*.db.bak
+backend/*.db.bak
 data/
 backend/data/
 app_data/

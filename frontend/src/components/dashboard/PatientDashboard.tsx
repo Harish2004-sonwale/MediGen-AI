@@ -7,11 +7,11 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { AppShell } from '../layout/AppShell';
 import { ErrorBoundary } from '../common/ErrorBoundary';
-import { appointmentsApi, patientsApi } from '../../api/client';
+import { appointmentsApi, authApi, patientsApi } from '../../api/client';
 import { Patient } from '../../types';
 
 export const PatientDashboard: React.FC = () => {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const [activeSection, setActiveSection] = useState<string>('overview');
   const [patientProfile, setPatientProfile] = useState<Patient | null>(null);
   const [appointments, setAppointments] = useState<any[]>([]);
@@ -24,6 +24,13 @@ export const PatientDashboard: React.FC = () => {
   const [uploadTitle, setUploadTitle] = useState<string>('');
   const [isUploading, setIsUploading] = useState<boolean>(false);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
+
+  // Account Deletion State
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState<boolean>(false);
+  const [deletePassword, setDeletePassword] = useState<string>('');
+  const [deleteConfirmation, setDeleteConfirmation] = useState<string>('');
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState<boolean>(false);
 
   // Edit Personal Information Form State
   const [editPhone, setEditPhone] = useState<string>('');
@@ -189,6 +196,28 @@ export const PatientDashboard: React.FC = () => {
     }
   };
 
+  const handleDeleteAccount = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setDeleteError(null);
+    if (deleteConfirmation.trim().toUpperCase() !== 'DELETE') {
+      setDeleteError("Please type 'DELETE' to confirm.");
+      return;
+    }
+    setIsDeleting(true);
+    try {
+      await authApi.deleteAccount(deletePassword, 'DELETE');
+      setActionMessage('Your account has been deleted successfully.');
+      setIsDeleteModalOpen(false);
+      setTimeout(() => {
+        logout();
+      }, 1200);
+    } catch (err: any) {
+      setDeleteError(err.message || 'Failed to delete account. Please verify your password.');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   const getSectionTitle = () => {
     switch (activeSection) {
       case 'overview': return 'My Health Overview';
@@ -310,9 +339,11 @@ export const PatientDashboard: React.FC = () => {
                 <span style={{ fontSize: '1.5rem' }}>👨‍⚕️</span>
                 <div>
                   <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: '#ffffff' }}>
-                    {patientProfile?.assigned_doctor_name || 'Dr. Amit Kulkarni'}
+                    {patientProfile?.assigned_doctor_name || 'Not assigned'}
                   </h3>
-                  <span style={{ fontSize: '0.75rem', color: '#38bdf8' }}>Cardiology & Internal Medicine</span>
+                  {patientProfile?.assigned_doctor_name && (
+                    <span style={{ fontSize: '0.75rem', color: '#38bdf8' }}>Attending Physician</span>
+                  )}
                 </div>
               </div>
             </div>
@@ -444,7 +475,7 @@ export const PatientDashboard: React.FC = () => {
                           {new Date(apt.appointment_date).toLocaleString()}
                         </td>
                         <td style={{ padding: '12px 8px', color: '#ffffff', fontWeight: 600 }}>
-                          {apt.doctor?.full_name || patientProfile?.assigned_doctor_name || 'Dr. Amit Kulkarni'}
+                          {apt.doctor?.full_name || patientProfile?.assigned_doctor_name || 'Attending Physician'}
                         </td>
                         <td style={{ padding: '12px 8px', textTransform: 'capitalize', color: 'var(--text-secondary)' }}>
                           {apt.consultation_mode === 'in_person' ? '🏥 In-Person Clinic Visit' : '📡 Telehealth Video Call'}
@@ -572,28 +603,23 @@ export const PatientDashboard: React.FC = () => {
             <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Recorded clinical vitals, blood pressure, heart rate, and temperature.</p>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px' }}>
-            <div className="stat-card">
-              <span className="stat-card-title">Blood Pressure</span>
-              <span className="stat-card-value" style={{ color: '#38bdf8' }}>120/80</span>
-              <span className="stat-card-subtitle">mmHg (Normal)</span>
+          {vitals.length === 0 ? (
+            <div className="glass-panel" style={{ padding: '32px', textAlign: 'center', color: 'var(--text-muted)' }}>
+              <span style={{ fontSize: '2rem', display: 'block', marginBottom: '8px' }}>💓</span>
+              <p style={{ fontSize: '0.95rem', fontWeight: 600, color: '#ffffff' }}>No vitals telemetry recorded</p>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Your attending clinician will record clinical observations during your examination.</p>
             </div>
-            <div className="stat-card">
-              <span className="stat-card-title">Heart Rate</span>
-              <span className="stat-card-value" style={{ color: '#34d399' }}>72</span>
-              <span className="stat-card-subtitle">BPM (Resting)</span>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px' }}>
+              {vitals.map((v: any, idx: number) => (
+                <div key={idx} className="stat-card">
+                  <span className="stat-card-title">{v.type || v.vital_type || 'Clinical Vital'}</span>
+                  <span className="stat-card-value" style={{ color: '#38bdf8' }}>{v.value || v.reading}</span>
+                  <span className="stat-card-subtitle">{v.unit || ''} {v.recorded_at ? `(${new Date(v.recorded_at).toLocaleDateString()})` : ''}</span>
+                </div>
+              ))}
             </div>
-            <div className="stat-card">
-              <span className="stat-card-title">Oxygen Saturation (SpO2)</span>
-              <span className="stat-card-value" style={{ color: '#fbbf24' }}>98%</span>
-              <span className="stat-card-subtitle">Room Air</span>
-            </div>
-            <div className="stat-card">
-              <span className="stat-card-title">Body Temperature</span>
-              <span className="stat-card-value" style={{ color: '#f87171' }}>98.6°F</span>
-              <span className="stat-card-subtitle">Oral</span>
-            </div>
-          </div>
+          )}
         </div>
       )}
 
@@ -607,12 +633,12 @@ export const PatientDashboard: React.FC = () => {
 
           <div className="glass-panel" style={{ padding: '18px' }}>
             <h3 style={{ fontSize: '1rem', fontWeight: 700, color: '#38bdf8', marginBottom: '8px' }}>
-              Cardiovascular & General Wellness Care Plan
+              Clinical Wellness & Care Guidelines
             </h3>
             <ul style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', paddingLeft: '20px', lineHeight: 1.8 }}>
               <li>Monitor daily blood pressure readings and record in your portal.</li>
               <li>Maintain regular hydration (2-3 liters daily) and moderate low-sodium diet.</li>
-              <li>Attend scheduled follow-up consultation with Dr. Amit Kulkarni.</li>
+              <li>Attend scheduled follow-up consultation with your attending physician.</li>
               <li>Reach out immediately if symptoms such as acute chest pain or severe dizziness occur.</li>
             </ul>
           </div>
@@ -662,6 +688,41 @@ export const PatientDashboard: React.FC = () => {
               <p style={{ fontSize: '0.95rem', color: '#f8fafc' }}>
                 {patientProfile?.emergency_contact_name ? `${patientProfile.emergency_contact_name} (${patientProfile.emergency_contact_phone})` : 'None specified'}
               </p>
+            </div>
+          </div>
+
+          {/* Danger Zone: Account Deletion */}
+          <div
+            className="glass-panel"
+            style={{
+              padding: '20px',
+              border: '1px solid rgba(239, 68, 68, 0.3)',
+              background: 'rgba(239, 68, 68, 0.04)',
+              borderRadius: '12px',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+              <div>
+                <h3 style={{ fontSize: '1rem', fontWeight: 700, color: '#fca5a5', margin: '0 0 4px' }}>
+                  Account Deletion & Deactivation
+                </h3>
+                <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: 0 }}>
+                  Permanently deactivate your MediGen AI account and revoke active sessions. Protected medical records are retained per healthcare compliance.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setDeletePassword('');
+                  setDeleteConfirmation('');
+                  setDeleteError(null);
+                  setIsDeleteModalOpen(true);
+                }}
+                className="btn btn-danger btn-sm"
+                data-testid="patient-delete-account-btn"
+              >
+                🗑️ Delete Account
+              </button>
             </div>
           </div>
         </div>
@@ -841,6 +902,85 @@ export const PatientDashboard: React.FC = () => {
                   className="btn btn-primary"
                 >
                   {isUploading ? 'Uploading...' : 'Upload Report'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* DELETE ACCOUNT CONFIRMATION MODAL */}
+      {isDeleteModalOpen && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.8)',
+            backdropFilter: 'blur(4px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            padding: '20px',
+          }}
+        >
+          <div className="glass-panel" style={{ width: '100%', maxWidth: '440px', padding: '24px', background: '#0f172a', border: '1px solid rgba(239, 68, 68, 0.4)' }}>
+            <h3 style={{ fontSize: '1.15rem', fontWeight: 700, color: '#ef4444', marginBottom: '8px' }}>
+              ⚠️ Delete Your Account
+            </h3>
+            <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', marginBottom: '16px', lineHeight: 1.5 }}>
+              This action will deactivate your user account, invalidate all active sessions, and revoke login capability.
+            </p>
+
+            {deleteError && (
+              <div style={{ padding: '8px 12px', background: 'rgba(239,68,68,0.15)', border: '1px solid var(--danger-border)', borderRadius: '6px', color: '#fca5a5', fontSize: '0.8rem', marginBottom: '14px' }}>
+                ⚠️ {deleteError}
+              </div>
+            )}
+
+            <form onSubmit={handleDeleteAccount}>
+              <div className="form-group" style={{ marginBottom: '12px' }}>
+                <label className="form-label" style={{ fontSize: '0.8rem' }}>Enter Your Password</label>
+                <input
+                  type="password"
+                  className="form-input"
+                  data-testid="delete-account-password-input"
+                  placeholder="Verify your password"
+                  value={deletePassword}
+                  onChange={(e) => setDeletePassword(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="form-group" style={{ marginBottom: '16px' }}>
+                <label className="form-label" style={{ fontSize: '0.8rem' }}>Type &quot;DELETE&quot; to confirm</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  data-testid="delete-account-confirm-input"
+                  placeholder="DELETE"
+                  value={deleteConfirmation}
+                  onChange={(e) => setDeleteConfirmation(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                <button
+                  type="button"
+                  onClick={() => setIsDeleteModalOpen(false)}
+                  className="btn btn-secondary btn-sm"
+                  disabled={isDeleting}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-danger btn-sm"
+                  data-testid="delete-account-submit-btn"
+                  disabled={isDeleting || deleteConfirmation.trim().toUpperCase() !== 'DELETE' || !deletePassword}
+                >
+                  {isDeleting ? 'Deleting...' : 'Permanently Delete Account'}
                 </button>
               </div>
             </form>

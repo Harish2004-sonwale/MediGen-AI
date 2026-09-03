@@ -419,7 +419,7 @@ export const AdminDashboard: React.FC = () => {
             {isLoading ? (
               <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)' }}>Loading patient records...</div>
             ) : patientsList.length === 0 ? (
-              <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)' }}>No patients found matching query.</div>
+              <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)' }}>No patients found.</div>
             ) : (
               <div style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8125rem' }}>
@@ -502,41 +502,47 @@ export const AdminDashboard: React.FC = () => {
             <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Verified specialist doctors, license numbers, and clinical departments.</p>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '16px' }}>
-            {doctorsList.map((doc) => (
-              <div key={doc.id} className="glass-panel" style={{ padding: '18px', display: 'flex', gap: '14px' }}>
-                <div
-                  style={{
-                    width: '48px',
-                    height: '48px',
-                    borderRadius: '50%',
-                    background: 'rgba(2, 132, 199, 0.2)',
-                    color: '#38bdf8',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '1.3rem',
-                    flexShrink: 0,
-                  }}
-                >
-                  🩺
-                </div>
-                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: '#ffffff' }}>{doc.full_name}</h3>
-                    <span className="badge badge-success">Verified</span>
+          {doctorsList.length === 0 ? (
+            <div className="glass-panel" style={{ padding: '32px', textAlign: 'center', color: 'var(--text-muted)' }}>
+              No doctors found.
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '16px' }}>
+              {doctorsList.map((doc) => (
+                <div key={doc.id} className="glass-panel" style={{ padding: '18px', display: 'flex', gap: '14px' }}>
+                  <div
+                    style={{
+                      width: '48px',
+                      height: '48px',
+                      borderRadius: '50%',
+                      background: 'rgba(2, 132, 199, 0.2)',
+                      color: '#38bdf8',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '1.3rem',
+                      flexShrink: 0,
+                    }}
+                  >
+                    🩺
                   </div>
-                  <span style={{ fontSize: '0.8rem', color: '#38bdf8', fontWeight: 600 }}>{doc.specialization}</span>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Department: {doc.department}</span>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '6px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                    <span>License: <code style={{ color: '#f8fafc' }}>{doc.medical_registration_number}</code></span>
-                    <span>Experience: {doc.years_of_experience} Years</span>
-                    <span>Email: {doc.email}</span>
+                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: '#ffffff' }}>{doc.full_name}</h3>
+                      <span className="badge badge-success">Verified</span>
+                    </div>
+                    <span style={{ fontSize: '0.8rem', color: '#38bdf8', fontWeight: 600 }}>{doc.specialization}</span>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Department: {doc.department}</span>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '6px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                      <span>License: <code style={{ color: '#f8fafc' }}>{doc.medical_registration_number}</code></span>
+                      <span>Experience: {doc.years_of_experience} Years</span>
+                      <span>Email: {doc.email}</span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -550,7 +556,7 @@ export const AdminDashboard: React.FC = () => {
 
           <div className="glass-panel" style={{ padding: '16px' }}>
             {appointmentsList.length === 0 ? (
-              <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)' }}>No appointments recorded in the system.</div>
+              <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)' }}>No appointments scheduled.</div>
             ) : (
               <div style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8125rem' }}>

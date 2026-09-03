@@ -1,5 +1,5 @@
 // ==============================================================================
-// MediGen AI - Login & Role Switching Page
+// MediGen AI - Secure Login & Authentication Portal
 // ==============================================================================
 
 import React, { useState } from 'react';
@@ -12,8 +12,9 @@ export const LoginPage: React.FC = () => {
   const [isRegisterMode, setIsRegisterMode] = useState<boolean>(false);
   const [isPatientModalOpen, setIsPatientModalOpen] = useState<boolean>(false);
   const [name, setName] = useState<string>('');
-  const [email, setEmail] = useState<string>('doctor@example.com');
-  const [password, setPassword] = useState<string>('DoctorPassword123!');
+  const [email, setEmail] = useState<string>('');
+  const [password, setPassword] = useState<string>('');
+  const [showPassword, setShowPassword] = useState<boolean>(false);
   const [role, setRole] = useState<UserRole>('doctor');
   const [error, setError] = useState<string | null>(null);
 
@@ -31,15 +32,8 @@ export const LoginPage: React.FC = () => {
         await login(email.trim(), password);
       }
     } catch (err: any) {
-      setError(err.message || 'Email or password is incorrect. Please verify your credentials.');
+      setError(err.message || 'User not found or invalid email/password.');
     }
-  };
-
-  const handleQuickRole = (r: UserRole, defaultEmail: string, defaultPass: string) => {
-    setEmail(defaultEmail);
-    setPassword(defaultPass);
-    setRole(r);
-    setError(null);
   };
 
   return (
@@ -80,48 +74,29 @@ export const LoginPage: React.FC = () => {
           </p>
         </div>
 
-        {/* Quick Demo Role Selector */}
-        {!isRegisterMode && (
-          <div style={{ marginBottom: '20px', padding: '12px', background: 'rgba(255,255,255,0.03)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
-            <div style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px' }}>
-              Quick Demo Login:
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
-              <button
-                type="button"
-                className="btn btn-secondary btn-sm"
-                style={{ fontSize: '0.72rem', padding: '6px 4px' }}
-                onClick={() => handleQuickRole('doctor', 'doctor@example.com', 'DoctorPassword123!')}
-              >
-                🩺 Doctor (Dr. Kulkarni)
-              </button>
-              <button
-                type="button"
-                className="btn btn-secondary btn-sm"
-                style={{ fontSize: '0.72rem', padding: '6px 4px' }}
-                onClick={() => handleQuickRole('admin', 'admin@example.com', 'AdminPassword123!')}
-              >
-                🛡️ Admin
-              </button>
-              <button
-                type="button"
-                className="btn btn-secondary btn-sm"
-                style={{ fontSize: '0.72rem', padding: '6px 4px' }}
-                onClick={() => handleQuickRole('patient', 'patient@example.com', 'PatientPassword123!')}
-              >
-                👤 Patient (Rahul)
-              </button>
-            </div>
-          </div>
-        )}
-
+        {/* Status Error Alert */}
         {error && (
-          <div style={{ padding: '10px 14px', background: 'rgba(239,68,68,0.15)', border: '1px solid var(--danger-border)', borderRadius: 'var(--radius-sm)', color: '#fca5a5', fontSize: '0.8125rem', marginBottom: '16px' }}>
-            ⚠️ {error}
+          <div
+            data-testid="login-error-alert"
+            style={{
+              padding: '12px 14px',
+              background: 'rgba(239, 68, 68, 0.15)',
+              border: '1px solid var(--danger-border)',
+              borderRadius: 'var(--radius-sm)',
+              color: '#fca5a5',
+              fontSize: '0.8125rem',
+              marginBottom: '16px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+            }}
+          >
+            <span>⚠️</span>
+            <span>{error}</span>
           </div>
         )}
 
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} data-testid="login-form">
           {isRegisterMode && (
             <div className="form-group">
               <label className="form-label">Full Name</label>
@@ -141,6 +116,7 @@ export const LoginPage: React.FC = () => {
             <input
               type="email"
               className="form-input"
+              data-testid="login-email-input"
               placeholder="user@hospital.org"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -149,10 +125,29 @@ export const LoginPage: React.FC = () => {
           </div>
 
           <div className="form-group">
-            <label className="form-label">Password</label>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+              <label className="form-label" style={{ margin: 0 }}>Password</label>
+              <button
+                type="button"
+                data-testid="toggle-password-visibility"
+                onClick={() => setShowPassword(!showPassword)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--text-secondary)',
+                  fontSize: '0.75rem',
+                  cursor: 'pointer',
+                  padding: 0,
+                  textDecoration: 'underline',
+                }}
+              >
+                {showPassword ? 'Hide Password' : 'Show Password'}
+              </button>
+            </div>
             <input
-              type="password"
+              type={showPassword ? 'text' : 'password'}
               className="form-input"
+              data-testid="login-password-input"
               placeholder="••••••••••••"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -179,10 +174,11 @@ export const LoginPage: React.FC = () => {
           <button
             type="submit"
             className="btn btn-primary"
+            data-testid="login-submit-btn"
             style={{ width: '100%', marginTop: '16px', padding: '10px' }}
             disabled={isLoading}
           >
-            {isLoading ? 'Signing In...' : isRegisterMode ? 'Create Clinician / Admin Account' : 'Sign In to Clinical Workspace'}
+            {isLoading ? 'Signing In...' : isRegisterMode ? 'Create Clinician / Admin Account' : 'Sign In'}
           </button>
         </form>
 
@@ -197,7 +193,7 @@ export const LoginPage: React.FC = () => {
             style={{ width: '100%', color: '#38bdf8', borderColor: 'rgba(56,189,248,0.3)', padding: '8px' }}
             onClick={() => setIsPatientModalOpen(true)}
           >
-            ➕ Register as New Patient (Simple Onboarding)
+            ➕ Register as New Patient
           </button>
         </div>
 

@@ -156,7 +156,7 @@ def test_login_invalid_credentials(client: TestClient):
         json={"email": "admin@hospital.org", "password": "WrongPassword123!"},
     )
     assert res_wrong_pw.status_code == status.HTTP_401_UNAUTHORIZED
-    assert res_wrong_pw.json()["detail"] == "Invalid email or password"
+    assert res_wrong_pw.json()["detail"] == "User not found or invalid email/password."
 
     # Non-existent email
     res_no_user = client.post(
@@ -164,7 +164,7 @@ def test_login_invalid_credentials(client: TestClient):
         json={"email": "nonexistent@hospital.org", "password": "AnyPassword123!"},
     )
     assert res_no_user.status_code == status.HTTP_401_UNAUTHORIZED
-    assert res_no_user.json()["detail"] == "Invalid email or password"
+    assert res_no_user.json()["detail"] == "User not found or invalid email/password."
 
 
 def test_get_me_protected_endpoint(client: TestClient):

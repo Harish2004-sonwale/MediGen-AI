@@ -6,10 +6,17 @@ from app.core.security import create_access_token
 from app.database import get_db
 from app.models.user import User
 from app.schemas.token import TokenResponse
-from app.schemas.user import UserLoginRequest, UserRegisterRequest, UserResponse
+from app.schemas.user import (
+    AccountDeletionRequest,
+    AccountDeletionResponse,
+    UserLoginRequest,
+    UserRegisterRequest,
+    UserResponse,
+)
 from app.services.user_service import (
     authenticate_user,
     create_user,
+    delete_user_account,
     get_user_by_email,
 )
 
@@ -51,13 +58,13 @@ def login(
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid email or password",
+            detail="User not found or invalid email/password.",
             headers={"WWW-Authenticate": "Bearer"},
         )
     if not user.is_active:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Inactive user account",
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Your account is inactive. Please contact the hospital administrator.",
         )
 
     access_token = create_access_token(
@@ -69,6 +76,42 @@ def login(
         token_type="bearer",
         user=UserResponse.model_validate(user),
     )
+
+
+@router.post(
+    "/delete-account",
+    response_model=AccountDeletionResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Permanently delete or deactivate user account with password verification",
+)
+def delete_account(
+    deletion_in: AccountDeletionRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+) -> AccountDeletionResponse:
+    """Safely deactivate/delete the current user account requiring password verification and safeguards."""
+    if deletion_in.confirmation.strip().upper() != "DELETE":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Confirmation text must be 'DELETE'.",
+        )
+    try:
+        delete_user_account(db, user=current_user, password=deletion_in.password)
+        return AccountDeletionResponse(
+            message="Your account has been deleted successfully.",
+            status="success",
+        )
+    except ValueError as exc:
+        err_msg = str(exc)
+        if "Invalid password" in err_msg:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail=err_msg,
+            ) from exc
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=err_msg,
+        ) from exc
 
 
 @router.get(

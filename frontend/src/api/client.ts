@@ -300,7 +300,7 @@ export async function apiRequest<T>(
 
   if (response.status === 401) {
     if (endpoint.startsWith('/auth/login') || endpoint.startsWith('/auth/register')) {
-      let errorDetail = 'Invalid email or password';
+      let errorDetail = 'User not found or invalid email/password.';
       try {
         const errorData = await response.json();
         errorDetail = errorData.detail || errorData.message || errorDetail;
@@ -366,6 +366,13 @@ export const authApi = {
   getMe: async (): Promise<User> => {
     return apiRequest<User>('/auth/me', {
       method: 'GET',
+    });
+  },
+
+  deleteAccount: async (password: string, confirmation: string = 'DELETE'): Promise<{ message: string }> => {
+    return apiRequest<{ message: string }>('/auth/delete-account', {
+      method: 'POST',
+      body: JSON.stringify({ password, confirmation }),
     });
   },
 };

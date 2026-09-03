@@ -247,17 +247,19 @@ describe('Full Real-World Application & UI Flow Verification', () => {
     expect(screen.getByText(/MediGen/i)).toBeInTheDocument();
     expect(screen.getByPlaceholderText(/user@hospital.org/i)).toBeInTheDocument();
     expect(screen.getByPlaceholderText(/••••••••••••/i)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Sign In to Clinical Workspace/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Sign In$/i })).toBeInTheDocument();
   });
 
   it('performs real login, mounts clinical dashboard, navigates tabs, and executes Phase 9.0.25 workflows', async () => {
     render(<App />);
 
-    // 1. Click Quick Doctor Demo Login or fill form and submit
-    const doctorDemoBtn = await screen.findByRole('button', { name: /🩺 Doctor/i });
-    fireEvent.click(doctorDemoBtn);
+    // 1. Enter credentials and submit
+    const emailInput = screen.getByPlaceholderText(/user@hospital.org/i);
+    const passwordInput = screen.getByPlaceholderText(/••••••••••••/i);
+    fireEvent.change(emailInput, { target: { value: 'doctor@hospital.org' } });
+    fireEvent.change(passwordInput, { target: { value: 'ValidPassword123!' } });
 
-    const submitBtn = screen.getByRole('button', { name: /Sign In to Clinical Workspace/i });
+    const submitBtn = screen.getByRole('button', { name: /^Sign In$/i });
     fireEvent.click(submitBtn);
 
     // 2. Verify dashboard loads with authenticated doctor

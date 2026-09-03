@@ -49,10 +49,10 @@ export const DoctorDashboard: React.FC = () => {
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
 
   // Appointment Form State
-  const [appointmentDate, setAppointmentDate] = useState('2026-09-20T10:30');
+  const [appointmentDate, setAppointmentDate] = useState('');
   const [consultMode, setConsultMode] = useState('in_person');
   const [durationMins, setDurationMins] = useState(30);
-  const [reasonForVisit, setReasonForVisit] = useState('Cardiology Clinical Follow-up');
+  const [reasonForVisit, setReasonForVisit] = useState('');
   const [isScheduling, setIsScheduling] = useState(false);
   const [scheduleSuccess, setScheduleSuccess] = useState<string | null>(null);
   const [doctorAppointments, setDoctorAppointments] = useState<Appointment[]>([]);
@@ -183,7 +183,7 @@ export const DoctorDashboard: React.FC = () => {
                 Clinical Intelligence Center
               </h1>
               <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                Department of Cardiology & Internal Medicine • Metro General Hospital
+                Clinical Practice & Patient Care Workspace
               </p>
             </div>
             <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
@@ -227,7 +227,7 @@ export const DoctorDashboard: React.FC = () => {
 
             <div className="stat-card" style={{ borderLeft: '3px solid #fbbf24' }}>
               <span className="stat-card-title">CDS Alerts & Flags</span>
-              <span className="stat-card-value" style={{ color: '#fbbf24' }}>2 Active</span>
+              <span className="stat-card-value" style={{ color: '#fbbf24' }}>0 Active</span>
               <span className="stat-card-subtitle">Safety & Drug Interaction Alerts</span>
             </div>
 
@@ -342,7 +342,7 @@ export const DoctorDashboard: React.FC = () => {
               <div style={{ flex: 1, overflowY: 'auto' }}>
                 {doctorAppointments.length === 0 ? (
                   <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-                    No consultations scheduled for today.
+                    No appointments scheduled.
                   </div>
                 ) : (
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}>

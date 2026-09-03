@@ -35,3 +35,13 @@ class UserResponse(BaseModel):
     updated_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class AccountDeletionRequest(BaseModel):
+    password: str = Field(..., min_length=1, description="Account password required for re-authentication")
+    confirmation: str = Field(..., description="Confirmation string, e.g. 'DELETE'")
+
+
+class AccountDeletionResponse(BaseModel):
+    message: str
+    status: str = "success"
