@@ -28,7 +28,8 @@ export const TimelineView: React.FC<TimelineViewProps> = ({ patientId }) => {
     setError(null);
     try {
       const data = await timelineApi.getTimeline(patientId, eventTypeFilter || undefined);
-      setEvents(data);
+      const eventList = Array.isArray(data) ? data : (data?.events || []);
+      setEvents(eventList);
     } catch (err: any) {
       setError(err.message || 'Failed to load timeline events.');
     } finally {
@@ -161,7 +162,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({ patientId }) => {
         )}
 
         <div style={{ overflowY: 'auto', flex: 1, paddingRight: '4px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          {events.length === 0 ? (
+          {(!Array.isArray(events) || events.length === 0) ? (
             <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.8125rem', padding: '32px 0' }}>
               {isLoading ? 'Loading timeline...' : 'No clinical events recorded for this patient.'}
             </div>
@@ -184,12 +185,12 @@ export const TimelineView: React.FC<TimelineViewProps> = ({ patientId }) => {
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     {getEventBadge(evt.event_type)}
                     <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-                      {new Date(evt.event_date).toLocaleDateString()}
+                      {evt.event_date ? new Date(evt.event_date).toLocaleDateString() : 'N/A'}
                     </span>
                   </div>
                 </div>
                 <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', lineHeight: '1.5' }}>
-                  {evt.summary}
+                  {evt.description || evt.summary || 'Clinical record event'}
                 </p>
               </div>
             ))

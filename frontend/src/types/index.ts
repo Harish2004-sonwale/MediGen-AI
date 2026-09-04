@@ -100,17 +100,30 @@ export interface TimelineCitation {
 export interface TimelineEvent {
   event_id: string;
   patient_id: string;
-  event_type: 'encounter' | 'document' | 'appointment';
+  event_type: 'encounter' | 'document' | 'appointment' | string;
   event_date: string;
   title: string;
-  summary: string;
+  summary?: string;
+  description?: string;
+  source_document_id?: string;
+  source_chunk_id?: string;
+  page_number?: number;
+  confidence?: number;
   metadata?: Record<string, any>;
 }
 
+export interface TimelineListResponse {
+  total: number;
+  patient_id: string;
+  events: TimelineEvent[];
+}
+
 export interface TimelineSummary {
+  patient_id?: string;
   summary: string;
   citations: TimelineCitation[];
-  total_events_analyzed: number;
+  event_count?: number;
+  total_events_analyzed?: number;
   generated_at?: string;
 }
 

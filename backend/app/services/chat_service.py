@@ -444,10 +444,19 @@ def stream_chat_message(
             for m in chronological_history
         ]
 
-        # 4. Resolve providers
-        emb_prov = embedding_provider or get_embedding_provider()
-        v_store = vector_store or get_vector_store()
-        l_prov = llm_provider or get_llm_provider()
+        # 4. Resolve providers using existing application configuration
+        emb_prov = embedding_provider or get_embedding_provider(
+            provider=settings.EMBEDDING_PROVIDER,
+            dimension=settings.EMBEDDING_DIMENSION,
+        )
+        v_store = vector_store or get_vector_store(
+            db_path=settings.VECTOR_DB_PATH,
+            collection_name=settings.VECTOR_COLLECTION_NAME,
+        )
+        l_prov = llm_provider or get_llm_provider(
+            provider=settings.LLM_PROVIDER,
+            model=settings.LLM_MODEL,
+        )
 
         # 5. Execute vector search with patient isolation
         query_emb = emb_prov.embed_query(clean_content)

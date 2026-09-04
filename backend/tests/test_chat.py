@@ -500,3 +500,88 @@ def test_openai_llm_provider_mocked_call():
         assert "Lisinopril 10mg" in res.answer
         assert len(res.citations) == 1
         assert res.citations[0].chunk_id == "CHK-001"
+
+
+def test_stream_chat_vector_store_initialization_with_db_path(client: TestClient, chat_env):
+    """Regression test: stream_chat_message initializes vector store with settings.VECTOR_DB_PATH."""
+    from app.services.chat_service import stream_chat_message
+    from app.schemas.chat import ChatMessageCreate
+    from app.database import get_db
+
+    env = chat_env
+    pat_id = env["pat_a_id"]
+    doc_headers = env["doc_headers"]
+
+    # Create session
+    sess_res = client.post(
+        "/api/v1/chat/sessions",
+        json={"patient_id": pat_id, "title": "Streaming QA Test"},
+        headers=doc_headers,
+    )
+    assert sess_res.status_code == status.HTTP_201_CREATED
+    sess_id = sess_res.json()["session_id"]
+
+    # Verify that get_vector_store is called with db_path and does NOT throw missing positional argument
+    with patch("app.ai.vector_store.ChromaVectorStore.similarity_search", return_value=[]):
+        client_gen = client.post(
+            f"/api/v1/chat/sessions/{sess_id}/messages/stream",
+            json={"message": "Are there any duplicate prescriptions or allergy conflicts?"},
+            headers=doc_headers,
+        )
+        assert client_gen.status_code == status.HTTP_200_OK
+        stream_text = client_gen.text
+        assert "missing 1 required positional argument" not in stream_text
+        assert "event: done" in stream_text or "event: delta" in stream_text
+
+
+def test_copilot_clinical_safety_unsupported_queries_return_insufficient(client: TestClient, chat_env):
+    """Clinical Safety: Queries on empty records return exact insufficient information without hallucinations."""
+    env = chat_env
+    doc_headers = env["doc_headers"]
+
+    # Register empty patient
+    admin_headers, _ = get_auth_headers(
+        client, role=UserRole.ADMIN, email="admin_rag_empty@hospital.org", name="Admin RAG"
+    )
+    empty_pat_res = client.post(
+        "/api/v1/patients",
+        json={
+            "first_name": "RAG",
+            "last_name": "Empty",
+            "date_of_birth": "1995-01-01",
+            "gender": "other",
+            "email": "rag_empty@patient.org",
+        },
+        headers=admin_headers,
+    )
+    empty_pat_id = empty_pat_res.json()["patient_id"]
+
+    sess_res = client.post(
+        "/api/v1/chat/sessions",
+        json={"patient_id": empty_pat_id, "title": "Safety Empty Patient"},
+        headers=admin_headers,
+    )
+    sess_id = sess_res.json()["session_id"]
+
+    # Query 1: Duplicate prescriptions or allergy conflicts
+    res1 = client.post(
+        f"/api/v1/chat/sessions/{sess_id}/messages",
+        json={"message": "Are there any duplicate prescriptions or allergy conflicts?"},
+        headers=admin_headers,
+    )
+    assert res1.status_code == status.HTTP_200_OK
+    data1 = res1.json()
+    assert data1["insufficient_information"] is True
+    assert INSUFFICIENT_INFORMATION_MESSAGE in data1["content"]
+
+    # Query 2: Summarize active medications and recent lab findings
+    res2 = client.post(
+        f"/api/v1/chat/sessions/{sess_id}/messages",
+        json={"message": "Summarize active medications and recent lab findings."},
+        headers=admin_headers,
+    )
+    assert res2.status_code == status.HTTP_200_OK
+    data2 = res2.json()
+    assert data2["insufficient_information"] is True
+    assert INSUFFICIENT_INFORMATION_MESSAGE in data2["content"]
+

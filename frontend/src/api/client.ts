@@ -92,6 +92,7 @@ import {
   TaskPriority,
   TimelineCitation,
   TimelineEvent,
+  TimelineListResponse,
   TimelineSummary,
   TokenResponse,
   User,
@@ -592,14 +593,22 @@ export const timelineApi = {
   getTimeline: async (
     patientId: string,
     eventType?: string
-  ): Promise<TimelineEvent[]> => {
+  ): Promise<TimelineListResponse> => {
     const params = new URLSearchParams();
     if (eventType) params.append('event_type', eventType);
     const query = params.toString() ? `?${params.toString()}` : '';
-    return apiRequest<TimelineEvent[]>(
+    const res = await apiRequest<TimelineListResponse | TimelineEvent[]>(
       `/patients/${encodeURIComponent(patientId)}/timeline${query}`,
       { method: 'GET' }
     );
+    if (Array.isArray(res)) {
+      return { total: res.length, patient_id: patientId, events: res };
+    }
+    return {
+      total: typeof res?.total === 'number' ? res.total : (res?.events?.length || 0),
+      patient_id: res?.patient_id || patientId,
+      events: Array.isArray(res?.events) ? res.events : [],
+    };
   },
 
   getSummary: async (
