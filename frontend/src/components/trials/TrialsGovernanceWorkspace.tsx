@@ -49,7 +49,13 @@ export const TrialsGovernanceWorkspace: React.FC = () => {
   const [capaAnalysis, setCapaAnalysis] = useState<string>('');
   const [capaCorrective, setCapaCorrective] = useState<string>('');
   const [capaPreventive, setCapaPreventive] = useState<string>('');
-  const [capaTargetDate, setCapaTargetDate] = useState<string>('2026-09-30');
+
+  const [capaTargetDate, setCapaTargetDate] = useState<string>(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 30);
+    return d.toISOString().split('T')[0];
+  });
+
 
   // IRB Submission State
   const [isSubmittingIRB, setIsSubmittingIRB] = useState<boolean>(false);

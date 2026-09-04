@@ -61,8 +61,9 @@ export const RegionalInteroperabilityWorkspace: React.FC = () => {
     try {
       setLoading(true);
       const patientList = await patientsApi.list();
-      setPatients(patientList || []);
-      const firstPatientId = patientList && patientList.length > 0 ? patientList[0].patient_id : '';
+      const safePatients = Array.isArray(patientList) ? patientList : ((patientList as any)?.items || []);
+      setPatients(safePatients);
+      const firstPatientId = safePatients.length > 0 ? safePatients[0].patient_id : '';
       if (firstPatientId) {
         setSelectedPatientId(firstPatientId);
         await Promise.all([
@@ -73,12 +74,13 @@ export const RegionalInteroperabilityWorkspace: React.FC = () => {
       }
 
       const revRes = await empiApi.listReviews();
-      setReviews(revRes || []);
+      setReviews(Array.isArray(revRes) ? revRes : (revRes?.items || []));
 
       const pathRes = await pathwaysApi.listPathways();
-      setPathways(pathRes.pathways || []);
-      if (pathRes.pathways?.length > 0) {
-        setSelectedPathwayId(pathRes.pathways[0].pathway_id);
+      const pathwayList = pathRes?.items || pathRes?.pathways || (Array.isArray(pathRes) ? pathRes : []);
+      setPathways(pathwayList);
+      if (pathwayList.length > 0) {
+        setSelectedPathwayId(pathwayList[0].pathway_id);
       }
     } catch (err: any) {
       console.error('Failed to load initial interop data:', err);
@@ -91,9 +93,10 @@ export const RegionalInteroperabilityWorkspace: React.FC = () => {
     try {
       setLoading(true);
       const res = await empiApi.findCandidateMatches(patientId, empiThreshold);
-      setCandidates(res.candidates || []);
+      setCandidates(Array.isArray(res) ? res : (res?.candidates || (res as any)?.items || []));
     } catch (err: any) {
       console.error('Failed to load candidate matches:', err);
+      setCandidates([]);
     } finally {
       setLoading(false);
     }
@@ -150,7 +153,7 @@ export const RegionalInteroperabilityWorkspace: React.FC = () => {
       await empiApi.resolveReview(reviewId, action, 'Resolved from Clinical Interop Workspace');
       setStatusMessage({ type: 'success', text: `Review ${reviewId} resolved as ${action}.` });
       const revRes = await empiApi.listReviews();
-      setReviews(revRes);
+      setReviews(Array.isArray(revRes) ? revRes : (revRes?.items || []));
     } catch (err: any) {
       setStatusMessage({ type: 'error', text: err.message || 'Failed to resolve review.' });
     } finally {
@@ -197,9 +200,10 @@ export const RegionalInteroperabilityWorkspace: React.FC = () => {
   const loadCCDADocuments = async (patientId: string) => {
     try {
       const res = await ccdaApi.listDocuments(patientId);
-      setDocExchanges(res.documents || []);
+      setDocExchanges(Array.isArray(res) ? res : (res?.documents || res?.items || []));
     } catch (err: any) {
       console.error('Failed to load C-CDA documents:', err);
+      setDocExchanges([]);
     }
   };
 
@@ -207,9 +211,10 @@ export const RegionalInteroperabilityWorkspace: React.FC = () => {
   const loadPatientPathways = async (patientId: string) => {
     try {
       const res = await pathwaysApi.getPatientEnrollments(patientId);
-      setPatientEnrollments(res || []);
+      setPatientEnrollments(Array.isArray(res) ? res : ((res as any)?.items || []));
     } catch (err: any) {
       console.error('Failed to load patient pathways:', err);
+      setPatientEnrollments([]);
     }
   };
 
@@ -477,13 +482,13 @@ export const RegionalInteroperabilityWorkspace: React.FC = () => {
             <p style={{ margin: '0 0 12px 0', fontSize: '11px', color: '#94a3b8' }}>
               Flagged intermediate confidence pairs (65% - 85%) awaiting clinical data steward validation.
             </p>
-            {reviews.length === 0 ? (
+            {(!reviews || !Array.isArray(reviews) || reviews.length === 0) ? (
               <div style={{ textAlign: 'center', padding: '16px', color: '#64748b', fontSize: '12px' }}>
                 No active candidate pairs pending manual steward review.
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {reviews.map((rev) => (
+                {Array.isArray(reviews) && reviews.map((rev) => (
                   <div
                     key={rev.review_id}
                     style={{

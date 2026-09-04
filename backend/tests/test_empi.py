@@ -221,6 +221,21 @@ def test_empi_api_endpoints(client: TestClient, db_session: Session, empi_test_p
     # 3. Reviews list
     rev_resp = client.get("/api/v1/empi/reviews", headers=headers)
     assert rev_resp.status_code == 200
+    rev_data = rev_resp.json()
+    assert "total" in rev_data
+    assert "items" in rev_data
+    assert isinstance(rev_data["items"], list)
+
+    # 3b. Action & Resolve endpoint aliases
+    if rev_data["items"]:
+        rev_id = rev_data["items"][0]["review_id"]
+        res_action = client.post(
+            f"/api/v1/empi/reviews/{rev_id}/action",
+            headers=headers,
+            json={"action": "confirm_link", "notes": "Approved in test"},
+        )
+        assert res_action.status_code == 200
+        assert res_action.json()["status"] == "success"
 
     # 4. FHIR $match
     fhir_resp = client.post(

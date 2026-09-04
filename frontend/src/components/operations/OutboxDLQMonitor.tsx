@@ -22,7 +22,7 @@ export const OutboxDLQMonitor: React.FC = () => {
         outboxApi.listEvents(statusFilter || undefined),
         outboxApi.getMetrics(),
       ]);
-      setEvents(eventsRes);
+      setEvents(Array.isArray(eventsRes) ? eventsRes : ((eventsRes as any)?.items || []));
       setMetrics(metricsRes);
     } catch (err: any) {
       setError(err.message || 'Failed to load transactional outbox events');
@@ -122,14 +122,14 @@ export const OutboxDLQMonitor: React.FC = () => {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 dark:divide-slate-700/60 font-sans">
-            {events.length === 0 ? (
+            {(!events || !Array.isArray(events) || events.length === 0) ? (
               <tr>
                 <td colSpan={7} className="py-8 text-center text-slate-400">
                   No outbox events matching query.
                 </td>
               </tr>
             ) : (
-              events.map((evt) => (
+              Array.isArray(events) && events.map((evt) => (
                 <tr key={evt.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-700/30 transition">
                   <td className="py-3 px-4 font-mono font-medium text-slate-900 dark:text-white">
                     {evt.event_id}

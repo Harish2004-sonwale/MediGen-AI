@@ -62,6 +62,22 @@ class DoctorCreate(DoctorBase):
     )
 
 
+class DoctorAdminCreate(DoctorBase):
+    email: str = Field(..., min_length=5, max_length=120, description="Doctor's login email address")
+    temporary_password: str | None = Field(
+        default=None,
+        min_length=8,
+        description="Initial temporary password or auto-generated if omitted",
+    )
+
+
+class DoctorAdminProvisionResponse(BaseModel):
+    doctor: "DoctorDetailResponse"
+    temporary_password: str | None = None
+    message: str
+
+
+
 class DoctorUpdate(BaseModel):
     full_name: str | None = Field(default=None, min_length=2, max_length=100)
     professional_title: str | None = Field(default=None, max_length=50)
@@ -154,3 +170,7 @@ class DoctorListResponse(BaseModel):
             size=size,
             total_pages=total_pages,
         )
+
+
+DoctorAdminProvisionResponse.model_rebuild()
+

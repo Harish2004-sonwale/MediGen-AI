@@ -317,7 +317,7 @@ export const SystemDiagnosticsWorkspace: React.FC = () => {
               <div className="flex justify-between">
                 <span className="text-slate-500">Queue Depth:</span>
                 <span className="font-mono text-emerald-400 font-bold">
-                  {metrics?.tasks.queued || 0} queued, {metrics?.tasks.running || 0} running
+                  {metrics?.tasks?.queued || 0} queued, {metrics?.tasks?.running || 0} running
                 </span>
               </div>
             </div>
@@ -386,7 +386,7 @@ export const SystemDiagnosticsWorkspace: React.FC = () => {
                 HTTP Requests by Status
               </div>
               <div className="space-y-2 mt-4">
-                {Object.entries(metrics?.http.requests_by_status || { '200': 0 }).map(([code, count]) => (
+                {Object.entries(metrics?.http?.requests_by_status || { '200': 0 }).map(([code, count]) => (
                   <div key={code} className="flex justify-between items-center text-sm">
                     <span className={`font-mono font-bold ${
                       code.startsWith('2') ? 'text-emerald-400' : code.startsWith('4') ? 'text-amber-400' : 'text-red-400'
@@ -404,10 +404,10 @@ export const SystemDiagnosticsWorkspace: React.FC = () => {
                 Latency Distribution
               </div>
               <div className="text-3xl font-bold text-slate-100 mt-2">
-                {(metrics?.http.avg_duration_ms || 0).toFixed(1)} <span className="text-base font-normal text-slate-400">ms avg</span>
+                {(metrics?.http?.avg_duration_ms || 0).toFixed(1)} <span className="text-base font-normal text-slate-400">ms avg</span>
               </div>
               <p className="text-xs text-slate-400 mt-2">
-                Uptime: {Math.floor((metrics?.http.uptime_seconds || 0) / 60)} minutes
+                Uptime: {Math.floor((metrics?.http?.uptime_seconds || 0) / 60)} minutes
               </p>
             </div>
 
@@ -418,15 +418,15 @@ export const SystemDiagnosticsWorkspace: React.FC = () => {
               <div className="space-y-2 mt-4 text-sm">
                 <div className="flex justify-between">
                   <span className="text-slate-400">Completed Tasks:</span>
-                  <span className="font-mono text-emerald-400 font-bold">{metrics?.tasks.completed || 0}</span>
+                  <span className="font-mono text-emerald-400 font-bold">{metrics?.tasks?.completed || 0}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-400">Failed Tasks:</span>
-                  <span className="font-mono text-red-400 font-bold">{metrics?.tasks.failed || 0}</span>
+                  <span className="font-mono text-red-400 font-bold">{metrics?.tasks?.failed || 0}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-400">Active Queue:</span>
-                  <span className="font-mono text-cyan-400 font-bold">{metrics?.tasks.queued || 0}</span>
+                  <span className="font-mono text-cyan-400 font-bold">{metrics?.tasks?.queued || 0}</span>
                 </div>
               </div>
             </div>
@@ -456,7 +456,7 @@ export const SystemDiagnosticsWorkspace: React.FC = () => {
                 <div className="text-slate-400">
                   Interactions:{' '}
                   <span className="font-mono text-cyan-400">
-                    {res.interaction.map((i) => i.code).join(', ')}
+                    {Array.isArray(res.interaction) ? res.interaction.map((i) => i.code).join(', ') : 'N/A'}
                   </span>
                 </div>
               </div>

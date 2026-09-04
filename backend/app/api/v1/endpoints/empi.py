@@ -170,6 +170,10 @@ def list_reviews(
     "/reviews/{review_id}/action",
     summary="Approve or reject a queued candidate match review",
 )
+@router.post(
+    "/reviews/{review_id}/resolve",
+    summary="Approve or reject a queued candidate match review (alias)",
+)
 def resolve_review(
     review_id: str,
     req: EMPIMatchReviewActionRequest,
@@ -178,14 +182,28 @@ def resolve_review(
 ) -> Dict[str, Any]:
     """Take action (approve_link, approve_merge, reject_distinct) on a manual match review item."""
     try:
+        raw_action = req.action.lower().strip()
+        if raw_action in ("confirm_link", "approve_link", "link"):
+            normalized_action = "approve_link"
+        elif raw_action in ("reject_match", "reject_distinct", "reject"):
+            normalized_action = "reject_distinct"
+        elif raw_action in ("approve_merge", "confirm_merge", "merge"):
+            normalized_action = "approve_merge"
+        else:
+            normalized_action = raw_action
+
         empi_service.resolve_match_review(
             db=db,
             review_id=review_id,
-            action=req.action,
+            action=normalized_action,
             user_id=current_user.id,
             notes=req.notes,
         )
-        return {"status": "success", "message": f"Review '{review_id}' resolved with action '{req.action}'."}
+        return {
+            "status": "success",
+            "success": True,
+            "message": f"Review '{review_id}' resolved with action '{normalized_action}'.",
+        }
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 

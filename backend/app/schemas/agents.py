@@ -208,3 +208,26 @@ class CareCoordinationSynthesisResponse(BaseModel):
     high_recommendations_count: int
     pending_approvals_count: int
     recommendations: list[ClinicalAgentRecommendationResponse] = Field(default_factory=list)
+
+
+# ==============================================================================
+# INTERACTIVE CLINICAL AGENT QUERY SCHEMAS
+# ==============================================================================
+
+class AgentQueryRequest(BaseModel):
+    prompt: str = Field(..., min_length=1, max_length=3000, description="Clinical query or question for the autonomous agent")
+    agent_type: Optional[str] = Field(default="clinical_coordinator", description="Target agent specialization")
+    patient_id: Optional[str] = Field(default=None, description="Optional patient identifier for context-aware queries")
+
+
+class AgentQueryResponse(BaseModel):
+    query_id: str
+    prompt: str
+    answer: str
+    agent_type: str
+    status: str
+    execution_time_ms: float
+    timestamp: str
+    model_used: str
+    citations: list[dict[str, Any]] = Field(default_factory=list)
+

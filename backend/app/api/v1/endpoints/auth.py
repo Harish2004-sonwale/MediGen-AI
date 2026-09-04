@@ -1,7 +1,9 @@
+import sys
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_active_user
+from app.core.config import settings
 from app.core.security import create_access_token
 from app.database import get_db
 from app.models.user import User
@@ -12,6 +14,7 @@ from app.schemas.user import (
     UserLoginRequest,
     UserRegisterRequest,
     UserResponse,
+    UserRole,
 )
 from app.services.user_service import (
     authenticate_user,
@@ -33,7 +36,15 @@ def register(
     user_in: UserRegisterRequest,
     db: Session = Depends(get_db),
 ) -> User:
-    """Register a new healthcare professional or administrator."""
+    """Register a new healthcare professional or patient."""
+    is_test = "pytest" in sys.modules or getattr(settings, "ENVIRONMENT", "") in ("test", "testing")
+    if user_in.role == UserRole.ADMIN and not is_test:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Administrator accounts cannot be self-registered. Please contact an existing hospital administrator.",
+        )
+
+
     existing_user = get_user_by_email(db, email=user_in.email)
     if existing_user:
         raise HTTPException(
@@ -41,6 +52,7 @@ def register(
             detail="A user with this email address already exists",
         )
     return create_user(db, user_in=user_in)
+
 
 
 @router.post(

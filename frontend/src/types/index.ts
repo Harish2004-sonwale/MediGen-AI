@@ -2413,6 +2413,11 @@ export interface EMPIMatchReviewItem {
   updated_at: string;
 }
 
+export interface EMPIMatchReviewListResponse {
+  total: number;
+  items: EMPIMatchReviewItem[];
+}
+
 export interface CCDAClinicalItem {
   display_name: string;
   code?: string;

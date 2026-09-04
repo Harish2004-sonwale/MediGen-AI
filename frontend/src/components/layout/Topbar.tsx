@@ -74,7 +74,7 @@ export const Topbar: React.FC<TopbarProps> = ({
           <span style={{ color: '#ffffff', fontWeight: 600 }}>{activeSectionTitle}</span>
         </div>
 
-        {/* Active Facility Switcher */}
+        {/* Active Facility Context */}
         {user && (
           <div
             data-testid="header-facility-ribbon"
@@ -85,12 +85,23 @@ export const Topbar: React.FC<TopbarProps> = ({
               background: 'rgba(2, 132, 199, 0.1)',
               border: '1px solid rgba(2, 132, 199, 0.25)',
               borderRadius: '6px',
-              padding: '2px 8px',
+              padding: '3px 10px',
               marginLeft: '12px',
             }}
           >
             <span style={{ fontSize: '0.85rem' }}>🏥</span>
             <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <span
+                style={{
+                  fontSize: '0.58rem',
+                  color: 'var(--text-muted)',
+                  fontWeight: 600,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.04em',
+                }}
+              >
+                CURRENT FACILITY
+              </span>
               {availableFacilities.length > 1 ? (
                 <select
                   data-testid="header-facility-selector"
@@ -127,42 +138,8 @@ export const Topbar: React.FC<TopbarProps> = ({
         )}
       </div>
 
-      {/* Right: Quick Action Controls & User Info */}
+      {/* Right: Clean Header Controls & User Info */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-        {/* Safety Engine Trigger (Doctors & Staff) */}
-        {user?.role !== 'patient' && onOpenSafetyModal && (
-          <button
-            onClick={onOpenSafetyModal}
-            className="btn btn-secondary btn-sm"
-            style={{
-              fontSize: '0.75rem',
-              padding: '4px 10px',
-              borderColor: 'rgba(245, 158, 11, 0.3)',
-              background: 'rgba(245, 158, 11, 0.08)',
-              color: '#fbbf24',
-            }}
-            title="Open Clinical Safety & Drug Interaction Verifier"
-          >
-            🛡️ Safety Engine
-          </button>
-        )}
-
-        {/* Active Async Tasks Trigger */}
-        {onOpenTasksModal && (
-          <button
-            onClick={onOpenTasksModal}
-            className="btn btn-secondary btn-sm"
-            style={{
-              fontSize: '0.75rem',
-              padding: '4px 10px',
-              position: 'relative',
-            }}
-            title="View Background Processing Tasks & Async Queue"
-          >
-            ⚡ Tasks {activeTaskCount > 0 && <span style={{ marginLeft: '4px', background: '#0284c7', color: '#fff', padding: '1px 5px', borderRadius: '10px', fontSize: '0.65rem' }}>{activeTaskCount}</span>}
-          </button>
-        )}
-
         {/* MFA Security Status */}
         {user && (
           <button
@@ -170,10 +147,12 @@ export const Topbar: React.FC<TopbarProps> = ({
             className="btn btn-secondary btn-sm"
             style={{ fontSize: '0.75rem', padding: '4px 10px' }}
             title="Manage Multi-Factor Authentication & Cryptographic Keys"
+            data-testid="topbar-mfa-btn"
           >
             🔒 MFA
           </button>
         )}
+
 
         {/* User Profile Name & Role Tag */}
         {user && (

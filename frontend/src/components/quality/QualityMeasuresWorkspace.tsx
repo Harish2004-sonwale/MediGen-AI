@@ -12,6 +12,25 @@ import {
 } from '../../types';
 import { patientsApi, qualityApi } from '../../api/client';
 
+const formatError = (err: any, defaultMsg: string): string => {
+  if (!err) return defaultMsg;
+  if (typeof err === 'string' && err !== '[object Object]') return err;
+  if (typeof err.message === 'string' && err.message !== '[object Object]') return err.message;
+  if (Array.isArray(err.detail)) {
+    return err.detail
+      .map((d: any) => {
+        if (typeof d === 'string') return d;
+        const field = Array.isArray(d.loc) ? d.loc.filter((l: any) => l !== 'body').join('.') : '';
+        return field ? `${field}: ${d.msg || JSON.stringify(d)}` : (d.msg || JSON.stringify(d));
+      })
+      .join('; ');
+  }
+  if (err.detail) {
+    return typeof err.detail === 'string' ? err.detail : (err.detail.message || JSON.stringify(err.detail));
+  }
+  return defaultMsg;
+};
+
 export const QualityMeasuresWorkspace: React.FC = () => {
   const [patients, setPatients] = useState<Patient[]>([]);
   const [selectedPatientId, setSelectedPatientId] = useState<string>('');
@@ -68,12 +87,13 @@ export const QualityMeasuresWorkspace: React.FC = () => {
   const loadPatients = async () => {
     try {
       const res = await patientsApi.list();
-      setPatients(res || []);
+      const safePatients = Array.isArray(res) ? res : ((res as any)?.items || (res as any)?.patients || []);
+      setPatients(safePatients);
     } catch (err: any) {
       console.error('Failed to load patients:', err);
+      setPatients([]);
     }
   };
-
 
   const loadMeasures = async () => {
     setLoading(true);
@@ -84,7 +104,7 @@ export const QualityMeasuresWorkspace: React.FC = () => {
       );
       setMeasures(res.items || []);
     } catch (err: any) {
-      setError(err.message || 'Failed to load quality measures.');
+      setError(formatError(err, 'Failed to load quality measures.'));
     } finally {
       setLoading(false);
     }
@@ -96,6 +116,7 @@ export const QualityMeasuresWorkspace: React.FC = () => {
       setPatientResults(res.items || []);
     } catch (err: any) {
       console.error('Failed to load patient quality results:', err);
+      setPatientResults([]);
     }
   };
 
@@ -109,6 +130,7 @@ export const QualityMeasuresWorkspace: React.FC = () => {
       setGaps(res.items || []);
     } catch (err: any) {
       console.error('Failed to load care gaps:', err);
+      setGaps([]);
     }
   };
 
@@ -118,6 +140,7 @@ export const QualityMeasuresWorkspace: React.FC = () => {
       setReports(res.items || []);
     } catch (err: any) {
       console.error('Failed to load compliance reports:', err);
+      setReports([]);
     }
   };
 
@@ -135,7 +158,7 @@ export const QualityMeasuresWorkspace: React.FC = () => {
       setSuccessMessage(`Successfully evaluated ${res.items.length} quality measures for patient ${selectedPatientId}.`);
       setTimeout(() => setSuccessMessage(null), 4000);
     } catch (err: any) {
-      setError(err.message || 'Quality evaluation failed.');
+      setError(formatError(err, 'Quality evaluation failed.'));
     } finally {
       setEvaluating(false);
     }
@@ -149,7 +172,7 @@ export const QualityMeasuresWorkspace: React.FC = () => {
       setSuccessMessage(`Care task successfully created and linked to Gap ${gapId}. Status moved to remediation.`);
       setTimeout(() => setSuccessMessage(null), 4000);
     } catch (err: any) {
-      setError(err.message || 'Failed to create care task for gap.');
+      setError(formatError(err, 'Failed to create care task for gap.'));
     }
   };
 
@@ -168,7 +191,7 @@ export const QualityMeasuresWorkspace: React.FC = () => {
       setSuccessMessage(`Compliance report ${rep.report_id} synthesized with SHA-256 provenance hash.`);
       setTimeout(() => setSuccessMessage(null), 5000);
     } catch (err: any) {
-      setError(err.message || 'Failed to generate compliance report.');
+      setError(formatError(err, 'Failed to generate compliance report.'));
     } finally {
       setGeneratingReport(false);
     }
@@ -179,7 +202,13 @@ export const QualityMeasuresWorkspace: React.FC = () => {
   const openGapsCount = gaps.filter((g) => g.status === 'open').length;
   const inRemediationGapsCount = gaps.filter((g) => g.status === 'in_remediation').length;
   const latestReport = reports[0];
-  const overallComplianceRate = latestReport ? latestReport.overall_performance_rate : 82.5;
+  const overallComplianceRate = latestReport
+
+    ? latestReport.overall_performance_rate
+    : patientResults.length > 0
+    ? (patientResults.filter((r) => r.is_numerator_compliant).length / patientResults.length) * 100
+    : 0;
+
 
   return (
     <div className="space-y-6 animate-fadeIn">
@@ -210,11 +239,14 @@ export const QualityMeasuresWorkspace: React.FC = () => {
               className="w-full bg-slate-800 border border-slate-700 text-slate-200 text-sm rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all cursor-pointer"
             >
               <option value="">-- All / Population Level --</option>
-              {patients.map((p) => (
-                <option key={p.patient_id} value={p.patient_id}>
-                  {p.patient_id} - {p.first_name} {p.last_name}
-                </option>
-              ))}
+              {Array.isArray(patients) &&
+                patients
+                  .filter((p) => p && p.patient_id)
+                  .map((p) => (
+                    <option key={p.patient_id} value={p.patient_id}>
+                      {p.patient_id} - {p.first_name || ''} {p.last_name || ''}
+                    </option>
+                  ))}
             </select>
           </div>
 
@@ -251,7 +283,7 @@ export const QualityMeasuresWorkspace: React.FC = () => {
         <div className="p-4 bg-rose-500/10 border border-rose-500/30 text-rose-300 rounded-xl text-sm flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span>⚠️</span>
-            <span>{error}</span>
+            <span>{typeof error === 'string' && error !== '[object Object]' ? error : (typeof error === 'object' ? JSON.stringify(error) : 'An error occurred during CQM evaluation.')}</span>
           </div>
           <button onClick={() => setError(null)} className="text-rose-400 hover:text-rose-200 font-bold text-xs">
             ✕

@@ -186,6 +186,7 @@ import {
   EMPILinkResponse,
   EMPIMergeResponse,
   EMPIMatchReviewItem,
+  EMPIMatchReviewListResponse,
   CCDAExportResponse,
   CCDAImportResponse,
   CCDADocumentExchange,
@@ -303,7 +304,13 @@ export async function apiRequest<T>(
       let errorDetail = 'User not found or invalid email/password.';
       try {
         const errorData = await response.json();
-        errorDetail = errorData.detail || errorData.message || errorDetail;
+        if (typeof errorData.detail === 'string') {
+          errorDetail = errorData.detail;
+        } else if (errorData.message && typeof errorData.message === 'string') {
+          errorDetail = errorData.message;
+        } else if (errorData.detail) {
+          errorDetail = typeof errorData.detail === 'object' ? JSON.stringify(errorData.detail) : String(errorData.detail);
+        }
       } catch {}
       throw new Error(errorDetail);
     }
@@ -323,7 +330,11 @@ export async function apiRequest<T>(
     let errorDetail = `Rate limit exceeded. Please wait ${retryAfter}s before retrying.`;
     try {
       const errorData = await response.json();
-      errorDetail = errorData.message || errorDetail;
+      if (typeof errorData.message === 'string') {
+        errorDetail = errorData.message;
+      } else if (typeof errorData.detail === 'string') {
+        errorDetail = errorData.detail;
+      }
     } catch {}
     throw new Error(errorDetail);
   }
@@ -332,7 +343,21 @@ export async function apiRequest<T>(
     let errorDetail = `Request failed with status ${response.status}`;
     try {
       const errorData = await response.json();
-      errorDetail = errorData.detail || errorData.message || errorDetail;
+      if (typeof errorData.detail === 'string') {
+        errorDetail = errorData.detail;
+      } else if (Array.isArray(errorData.detail)) {
+        errorDetail = errorData.detail
+          .map((d: any) => {
+            if (typeof d === 'string') return d;
+            const field = Array.isArray(d.loc) ? d.loc.filter((l: any) => l !== 'body').join('.') : '';
+            return field ? `${field}: ${d.msg || JSON.stringify(d)}` : (d.msg || JSON.stringify(d));
+          })
+          .join('; ');
+      } else if (errorData.detail && typeof errorData.detail === 'object') {
+        errorDetail = errorData.detail.message || JSON.stringify(errorData.detail);
+      } else if (errorData.message) {
+        errorDetail = typeof errorData.message === 'string' ? errorData.message : JSON.stringify(errorData.message);
+      }
     } catch {
       // Non-JSON response
     }
@@ -474,7 +499,55 @@ export const doctorsApi = {
       method: 'GET',
     });
   },
+
+  adminCreate: async (doctorData: {
+    full_name: string;
+    email: string;
+    phone?: string;
+    specialization: string;
+    department: string;
+    medical_registration_number: string;
+    years_of_experience: number;
+    qualifications?: string;
+    medical_degree?: string;
+    consultation_mode?: string;
+    clinic_hospital_name?: string;
+    consultation_location?: string;
+    professional_bio?: string;
+    temporary_password?: string;
+  }): Promise<any> => {
+    return apiRequest<any>('/doctors/admin-provision', {
+      method: 'POST',
+      body: JSON.stringify(doctorData),
+    });
+  },
+
+  update: async (doctorId: string | number, updateData: any): Promise<any> => {
+    return apiRequest<any>(`/doctors/${encodeURIComponent(String(doctorId))}`, {
+      method: 'PATCH',
+      body: JSON.stringify(updateData),
+    });
+  },
+
+  deactivate: async (doctorId: string | number): Promise<any> => {
+    return apiRequest<any>(`/doctors/${encodeURIComponent(String(doctorId))}`, {
+      method: 'DELETE',
+    });
+  },
+
+  activate: async (doctorId: string | number): Promise<any> => {
+    return apiRequest<any>(`/doctors/${encodeURIComponent(String(doctorId))}/activate`, {
+      method: 'POST',
+    });
+  },
+
+  deleteDoctor: async (doctorId: string | number, permanent: boolean = true): Promise<any> => {
+    return apiRequest<any>(`/doctors/${encodeURIComponent(String(doctorId))}?permanent=${permanent}`, {
+      method: 'DELETE',
+    });
+  },
 };
+
 
 // 2.2 Appointments & Scheduling APIs
 export const appointmentsApi = {
@@ -2096,7 +2169,29 @@ export const agentsApi = {
       { method: 'POST' }
     );
   },
+
+  queryAgent: async (data: {
+    prompt: string;
+    agent_type?: string;
+    patient_id?: string;
+  }): Promise<{
+    query_id: string;
+    prompt: string;
+    answer: string;
+    agent_type: string;
+    status: string;
+    execution_time_ms: number;
+    timestamp: string;
+    model_used: string;
+    citations: Array<{ source: string; chunk_id: string }>;
+  }> => {
+    return apiRequest<any>('/agents/query', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
 };
+
 
 // 19. Medical Imaging AI & Radiology Workflow APIs
 export const imagingApi = {
@@ -2910,17 +3005,20 @@ export const empiApi = {
     );
   },
 
-  listReviews: async (status?: string): Promise<EMPIMatchReviewItem[]> => {
+  listReviews: async (status?: string): Promise<EMPIMatchReviewListResponse> => {
     const qs = status ? `?status=${encodeURIComponent(status)}` : '';
-    return apiRequest<EMPIMatchReviewItem[]>(`/empi/reviews${qs}`);
+    const res = await apiRequest<any>(`/empi/reviews${qs}`);
+    if (Array.isArray(res)) return { total: res.length, items: res };
+    if (res && Array.isArray(res.items)) return res;
+    return { total: 0, items: [] };
   },
 
   resolveReview: async (
     reviewId: string,
-    action: 'confirm_link' | 'reject_match',
+    action: 'confirm_link' | 'reject_match' | 'approve_link' | 'reject_distinct' | 'approve_merge',
     notes?: string
   ): Promise<{ success: boolean; message: string }> => {
-    return apiRequest<{ success: boolean; message: string }>(`/empi/reviews/${encodeURIComponent(reviewId)}/resolve`, {
+    return apiRequest<{ success: boolean; message: string }>(`/empi/reviews/${encodeURIComponent(reviewId)}/action`, {
       method: 'POST',
       body: JSON.stringify({ action, notes }),
     });
@@ -2956,9 +3054,11 @@ export const ccdaApi = {
     });
   },
 
-  listDocuments: async (patientId?: string): Promise<{ total: number; documents: CCDADocumentExchange[] }> => {
+  listDocuments: async (patientId?: string): Promise<{ total: number; documents: CCDADocumentExchange[]; items: CCDADocumentExchange[] }> => {
     const qs = patientId ? `?patient_id=${encodeURIComponent(patientId)}` : '';
-    return apiRequest<{ total: number; documents: CCDADocumentExchange[] }>(`/ccda/documents${qs}`);
+    const res = await apiRequest<any>(`/ccda/documents${qs}`);
+    const items = Array.isArray(res) ? res : (res?.documents || res?.items || []);
+    return { total: res?.total ?? items.length, documents: items, items };
   },
 };
 
@@ -2966,8 +3066,10 @@ export const ccdaApi = {
 // 33. Phase 9.0.25: Regional Multi-Hospital Clinical Pathways APIs
 // =============================================================================
 export const pathwaysApi = {
-  listPathways: async (): Promise<{ total: number; pathways: RegionalPathway[] }> => {
-    return apiRequest<{ total: number; pathways: RegionalPathway[] }>('/pathways');
+  listPathways: async (): Promise<{ total: number; pathways: RegionalPathway[]; items: RegionalPathway[] }> => {
+    const res = await apiRequest<any>('/pathways');
+    const items = Array.isArray(res) ? res : (res?.pathways || res?.items || []);
+    return { total: res?.total ?? items.length, pathways: items, items };
   },
 
   getPathway: async (pathwayId: string): Promise<RegionalPathway> => {

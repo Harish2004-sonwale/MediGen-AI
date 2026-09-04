@@ -3,16 +3,23 @@
 Phase 9.0.17: Advanced Clinical AI Agents & Autonomous Care Coordination.
 """
 
+from datetime import datetime
+import time
 from typing import Any, Optional
+import uuid
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_active_user, get_db, require_role
+from app.ai.context_builder import GroundedContextChunk
+from app.ai.llm import get_llm_provider
 from app.ai.task_worker import get_background_task_provider
-
+from app.api.deps import get_current_active_user, get_db, require_role
 from app.models.agents import ClinicalAgentRecommendation, ClinicalAgentRun
 from app.models.user import User, UserRole
 from app.schemas.agents import (
+    AgentQueryRequest,
+    AgentQueryResponse,
     AgentRunStatus,
     AgentType,
     ApprovalStatus,
@@ -27,9 +34,11 @@ from app.schemas.agents import (
     ClinicalAgentRunResponse,
 )
 from app.schemas.task import BackgroundTask, BackgroundTaskType
+from app.services.audit_service import AuditService
 from app.services.clinical_agent_service import clinical_agent_service
 
 router = APIRouter(prefix="/agents", tags=["Clinical AI Agents & Care Coordination"])
+
 
 
 # ==============================================================================
@@ -341,3 +350,132 @@ def enqueue_care_coordination_task(
         return task
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+
+
+# ==============================================================================
+# 5. INTERACTIVE AGENT INQUIRY & REASONING
+# ==============================================================================
+
+@router.post(
+    "/query",
+    response_model=AgentQueryResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Interactive clinical inquiry to autonomous clinical AI agents",
+)
+def query_clinical_agent(
+    req: AgentQueryRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+) -> AgentQueryResponse:
+    """Submit an inquiry or task to an autonomous clinical AI agent."""
+    start_time = time.time()
+    query_id = f"QRY-{uuid.uuid4().hex[:8].upper()}"
+
+    # Verify role permissions for patient-scoped context
+    if current_user.role == UserRole.PATIENT and req.patient_id:
+        patient = clinical_agent_service._resolve_patient(db, req.patient_id)
+        if patient.email != current_user.email:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied to requested patient context.")
+
+    # Context collection
+    context_chunks: list[GroundedContextChunk] = []
+    if req.patient_id:
+        try:
+            patient = clinical_agent_service._resolve_patient(db, req.patient_id)
+            patient_summary = (
+                f"Patient: {patient.first_name} {patient.last_name} ({patient.patient_id}), "
+                f"DOB: {patient.date_of_birth}, Blood: {patient.blood_group or 'Unknown'}, "
+                f"Allergies: {patient.allergies or 'None reported'}, Reported Problem: {patient.health_problem or 'None'}"
+            )
+            context_chunks.append(
+                GroundedContextChunk(
+                    document_id="PATIENT-RECORD",
+                    title="Patient Demographic & Clinical Summary",
+                    page_number=1,
+                    chunk_id=f"CHUNK-{patient.patient_id}",
+                    content=patient_summary,
+                )
+            )
+        except Exception:
+            pass
+
+    # Call AI Provider
+    try:
+        llm = get_llm_provider()
+        prompt_augmented = f"[Specialized Agent: {req.agent_type.replace('_', ' ').title()}]\nQuery: {req.prompt.strip()}"
+        resp = llm.generate_grounded_response(
+            query=prompt_augmented,
+            context_chunks=context_chunks,
+        )
+        answer = resp.answer if resp and resp.answer else "Agent completed evaluation with no actionable findings."
+        model_name = getattr(resp, "model_name", "medigen-clinical-agent-v1")
+    except Exception as exc:
+        err_str = str(exc)
+        if "not configured" in err_str.lower():
+            detail = "AI service is not configured for this environment."
+            code = status.HTTP_501_NOT_IMPLEMENTED
+        elif "Authentication problem" in err_str or "401" in err_str:
+            detail = "AI authentication error: API credentials invalid or unauthorized."
+            code = status.HTTP_401_UNAUTHORIZED
+
+        elif "Quota" in err_str or "429" in err_str or "RESOURCE_EXHAUSTED" in err_str:
+            detail = "AI provider rate limit or quota exceeded. Please retry shortly."
+            code = status.HTTP_429_TOO_MANY_REQUESTS
+        elif "Model problem" in err_str or "404" in err_str:
+            detail = "AI model error: Specified clinical model not available."
+            code = status.HTTP_502_BAD_GATEWAY
+        elif "High-demand" in err_str or "503" in err_str:
+            detail = "AI provider is experiencing temporary high demand. Please try again shortly."
+            code = status.HTTP_503_SERVICE_UNAVAILABLE
+        elif "timed out" in err_str.lower():
+            detail = "AI service request timed out. Please try again."
+            code = status.HTTP_504_GATEWAY_TIMEOUT
+        else:
+            detail = "AI service is currently unavailable. Please try again later."
+            code = status.HTTP_503_SERVICE_UNAVAILABLE
+
+        raise HTTPException(
+            status_code=code,
+            detail=detail,
+        ) from exc
+
+
+    duration_ms = round((time.time() - start_time) * 1000, 2)
+
+    # HIPAA Audit Event
+    AuditService().emit_audit_event(
+        db=db,
+        action="AI_AGENT_QUERY",
+        resource_type="ClinicalAgent",
+        resource_id=req.agent_type or "clinical_coordinator",
+        user_id=current_user.id,
+        user_role=current_user.role.value,
+        outcome="SUCCESS",
+        metadata={
+            "query_id": query_id,
+            "patient_id": req.patient_id,
+            "agent_type": req.agent_type,
+            "execution_time_ms": duration_ms,
+        },
+    )
+
+    citations = []
+    if hasattr(resp, "citations") and resp.citations:
+        for c in resp.citations:
+            citations.append({
+                "source": getattr(c, "title", "Clinical Knowledge Base"),
+                "chunk_id": getattr(c, "chunk_id", "DOC-REF"),
+            })
+
+    return AgentQueryResponse(
+        query_id=query_id,
+        prompt=req.prompt,
+        answer=answer,
+        agent_type=req.agent_type or "clinical_coordinator",
+        status="completed",
+        execution_time_ms=duration_ms,
+        timestamp=datetime.utcnow().isoformat(),
+        model_used=model_name,
+        citations=citations,
+    )
+

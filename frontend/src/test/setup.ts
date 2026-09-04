@@ -1,4 +1,10 @@
 import '@testing-library/jest-dom';
+import { afterEach } from 'vitest';
+import { cleanup } from '@testing-library/react';
+
+afterEach(() => {
+  cleanup();
+});
 
 // Polyfill window.matchMedia
 Object.defineProperty(window, 'matchMedia', {

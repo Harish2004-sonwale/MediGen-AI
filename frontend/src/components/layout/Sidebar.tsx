@@ -144,12 +144,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <path d="M12 5v14" />
             <path d="M5 12h14" />
           </svg>
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
-            <span style={{ fontSize: '1.05rem', fontWeight: 800, color: '#ffffff', letterSpacing: '-0.02em', lineHeight: 1.1 }}>
+          <div style={{ display: 'flex', alignItems: 'center' }}>
+            <span style={{ fontSize: '1.1rem', fontWeight: 800, color: '#ffffff', letterSpacing: '-0.02em', lineHeight: 1.1 }}>
               MediGen <span style={{ color: 'var(--brand-primary)' }}>AI</span>
-            </span>
-            <span style={{ fontSize: '0.625rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              Hospital System
             </span>
           </div>
         </a>

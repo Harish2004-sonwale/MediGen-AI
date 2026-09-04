@@ -35,6 +35,15 @@ export const ClinicalAgentsWorkspace: React.FC = () => {
   const [fhirModalTitle, setFhirModalTitle] = useState<string>('');
   const [notification, setNotification] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
 
+  // Live Agent Inquiry Pipeline (Google Gemini)
+  const [prompt, setPrompt] = useState<string>('');
+  const [agentType, setAgentType] = useState<AgentType>('clinical_context');
+
+  const [queryLoading, setQueryLoading] = useState<boolean>(false);
+  const [queryError, setQueryError] = useState<string | null>(null);
+  const [agentResponse, setAgentResponse] = useState<any | null>(null);
+
+
   const selectedPatient = useMemo(
     () => patients.find((p) => p.patient_id === selectedPatientId || String(p.id) === selectedPatientId),
     [patients, selectedPatientId]
@@ -64,8 +73,9 @@ export const ClinicalAgentsWorkspace: React.FC = () => {
         agentsApi.listDefinitions(),
       ]);
       const patientItems: Patient[] = Array.isArray(ptsRes) ? ptsRes : (ptsRes as any).items || [];
-      setPatients(patientItems);
-      setDefinitions(defsRes.items || []);
+      const defItems: ClinicalAgentDefinition[] = Array.isArray(defsRes) ? defsRes : (defsRes as any).items || [];
+      setDefinitions(defItems);
+
       if (patientItems.length > 0) {
         setSelectedPatientId(patientItems[0].patient_id);
       }
@@ -189,6 +199,39 @@ export const ClinicalAgentsWorkspace: React.FC = () => {
       showNotification('error', `Failed to export FHIR Provenance: ${err.message || err}`);
     }
   };
+
+  const handleSendAgentQuery = async (e: React.FormEvent) => {
+
+    e.preventDefault();
+    if (!prompt.trim()) return;
+    setQueryLoading(true);
+    setQueryError(null);
+    setAgentResponse(null);
+    try {
+      const res = await agentsApi.queryAgent({
+        prompt,
+        agent_type: agentType,
+        patient_id: selectedPatientId || undefined,
+      });
+      setAgentResponse(res);
+      showNotification('success', `Clinical response synthesized via ${(res as any).model_name || res.model_used || 'AI Provider'}.`);
+
+    } catch (err: any) {
+      const msg = err.message || '';
+      if (err.status === 501 || msg.includes('501') || msg.toLowerCase().includes('not configured')) {
+        setQueryError('AI service is not configured for this environment.');
+      } else if (err.status === 401 || msg.includes('401') || msg.toLowerCase().includes('auth') || msg.toLowerCase().includes('credential')) {
+        setQueryError('AI service authentication failed. Please verify provider credentials.');
+      } else if (err.status === 429 || msg.includes('429') || msg.toLowerCase().includes('rate limit') || msg.toLowerCase().includes('quota')) {
+        setQueryError('AI provider rate limit or quota exceeded. Please try again shortly.');
+      } else {
+        setQueryError(msg || 'An unexpected error occurred while communicating with the AI service.');
+      }
+    } finally {
+      setQueryLoading(false);
+    }
+  };
+
 
   const filteredRecommendations = useMemo(() => {
     if (!synthesis?.recommendations) return [];
@@ -389,8 +432,149 @@ export const ClinicalAgentsWorkspace: React.FC = () => {
         )}
       </div>
 
+      {/* Live Clinical Agent Inquiry & Reasoning Pipeline (Google Gemini) */}
+      <div className="bg-slate-900/90 border border-indigo-800/40 rounded-2xl p-6 shadow-xl space-y-4">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 border-b border-slate-800 pb-3">
+          <div className="flex items-center gap-2.5">
+            <span className="text-xl">⚡</span>
+            <div>
+              <h3 className="text-base font-bold text-white">Live Clinical Agent Inquiry & Reasoning Pipeline</h3>
+              <p className="text-xs text-indigo-200/70">
+                Direct Gemini API reasoning with patient context grounding, differential diagnosis, and medication safety checks.
+              </p>
+            </div>
+          </div>
+          <span className="text-xs px-2.5 py-1 rounded-full bg-indigo-500/10 text-indigo-300 border border-indigo-500/30">
+            FHIR & HIPAA Audit Compliant
+          </span>
+        </div>
+
+        <form onSubmit={handleSendAgentQuery} className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
+                Target Specialist Agent
+              </label>
+              <select
+                value={agentType}
+                onChange={(e) => setAgentType(e.target.value as AgentType)}
+                className="w-full bg-slate-950 border border-slate-700 text-white text-sm rounded-xl px-3 py-2.5 focus:ring-2 focus:ring-indigo-500 outline-none"
+              >
+                <option value="clinical_context">Clinical Context Specialist</option>
+                <option value="risk_surveillance">Risk Surveillance & Early Sepsis Warning Specialist</option>
+                <option value="diagnostic_followup">Diagnostic Follow-up Specialist</option>
+                <option value="medication_safety">Medication Safety & PGx Specialist</option>
+                <option value="quality_gap">Quality Measures & Care Gap Specialist</option>
+                <option value="rpm_telehealth">Remote Patient Monitoring Specialist</option>
+                <option value="transition_discharge">Transitional Care Specialist</option>
+                <option value="trial_genomics">Precision Clinical Trials Specialist</option>
+                <option value="care_coordination">Care Coordination Specialist</option>
+              </select>
+
+
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
+                Clinical Context
+              </label>
+              <div className="bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-slate-300 flex items-center justify-between">
+                <span>Patient Grounding:</span>
+                <span className="font-semibold text-indigo-300">
+                  {selectedPatient ? `${selectedPatient.first_name} ${selectedPatient.last_name} (${selectedPatient.patient_id})` : 'All / Population Level'}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
+              Clinical Inquiry or Directive
+            </label>
+            <textarea
+              rows={3}
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              placeholder="e.g., Evaluate glycemic control and cardiovascular risks for this patient, checking for contraindications and HEDIS care gaps."
+              className="w-full bg-slate-950 border border-slate-700 text-white text-sm rounded-xl p-3.5 focus:ring-2 focus:ring-indigo-500 outline-none resize-y"
+              required
+            />
+          </div>
+
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <div className="text-xs text-slate-500">
+              Model: <code className="text-indigo-400 font-mono">gemini-3.5-flash-lite</code> (Grounded Clinical Protocol)
+            </div>
+            <button
+              type="submit"
+              disabled={queryLoading || !prompt.trim()}
+              className="px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-semibold text-sm rounded-xl shadow-lg shadow-indigo-900/30 transition-all disabled:opacity-50 flex items-center gap-2 cursor-pointer"
+            >
+              {queryLoading ? (
+                <>
+                  <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                  Synthesizing with Gemini...
+                </>
+              ) : (
+                <>🚀 Run Agent Query</>
+              )}
+            </button>
+          </div>
+        </form>
+
+        {queryError && (
+          <div className="p-4 bg-rose-950/80 border border-rose-800 text-rose-200 rounded-xl text-xs space-y-1">
+            <div className="font-semibold flex items-center gap-1.5">
+              <span>⚠️</span>
+              <span>AI Provider Error</span>
+            </div>
+            <p>{queryError}</p>
+          </div>
+        )}
+
+        {agentResponse && (
+          <div className="p-5 bg-slate-950 border border-indigo-500/40 rounded-xl space-y-3 animate-fadeIn">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3 flex-wrap gap-2">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-bold text-emerald-400">✓ Grounded Response</span>
+                <span className="text-xs px-2 py-0.5 rounded bg-indigo-950 border border-indigo-800 text-indigo-300 font-mono">
+                  {agentResponse.model_name || 'gemini-3.5-flash-lite'}
+                </span>
+                {agentResponse.latency_ms && (
+                  <span className="text-xs px-2 py-0.5 rounded bg-slate-900 text-slate-400 font-mono">
+                    {agentResponse.latency_ms.toFixed(0)} ms
+                  </span>
+                )}
+              </div>
+              <span className="text-xs text-slate-500 font-mono">ID: {agentResponse.query_id}</span>
+            </div>
+
+            <div className="text-xs text-slate-200 leading-relaxed whitespace-pre-wrap font-sans bg-slate-900/50 p-4 rounded-xl border border-slate-800/80">
+              {agentResponse.response_text}
+            </div>
+
+            {agentResponse.grounded_chunks && agentResponse.grounded_chunks.length > 0 && (
+              <div className="pt-2">
+                <h5 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">
+                  Clinical Evidence Citations ({agentResponse.grounded_chunks.length})
+                </h5>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {agentResponse.grounded_chunks.map((chunk: any, i: number) => (
+                    <div key={i} className="p-2.5 bg-slate-900/60 rounded-lg border border-slate-800 text-[11px]">
+                      <div className="font-semibold text-slate-300">{chunk.source || `Evidence Citation #${i + 1}`}</div>
+                      <div className="text-slate-400 mt-1 line-clamp-2">{chunk.content}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
       {/* Main Grid: Specialized Agents & Prioritized Action Queue */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
         {/* Left Column: Registered Specialized Clinical AI Agents (4 cols) */}
         <div className="lg:col-span-4 space-y-4">
           <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-sm">

@@ -91,7 +91,8 @@ export const MFAManagementModal: React.FC<MFAManagementModalProps> = ({ isOpen =
   };
 
   const downloadBackupCodes = (codes: string[]) => {
-    const text = `MediGen-AI Emergency Backup Recovery Codes\nGenerated: ${new Date().toISOString()}\n\n` +
+    const text =
+      `MediGen-AI Emergency Backup Recovery Codes\nGenerated: ${new Date().toISOString()}\n\n` +
       codes.map((c, i) => `${i + 1}. ${c}`).join('\n') +
       '\n\nKeep these single-use codes in a secure offline location.';
     const blob = new Blob([text], { type: 'text/plain' });
@@ -106,166 +107,321 @@ export const MFAManagementModal: React.FC<MFAManagementModalProps> = ({ isOpen =
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
-      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 max-w-xl w-full p-6 relative">
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 99999,
+        background: 'rgba(5, 10, 20, 0.85)',
+        backdropFilter: 'blur(8px)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '20px',
+      }}
+      data-testid="mfa-modal-overlay"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div
+        className="glass-panel"
+        style={{
+          width: '100%',
+          maxWidth: '540px',
+          padding: '28px',
+          background: '#0d1527',
+          borderRadius: '16px',
+          boxShadow: '0 20px 50px rgba(0, 0, 0, 0.7)',
+          border: '1px solid rgba(255, 255, 255, 0.12)',
+          position: 'relative',
+          maxHeight: '90vh',
+          overflowY: 'auto',
+        }}
+      >
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-lg font-bold"
+          style={{
+            position: 'absolute',
+            top: '20px',
+            right: '20px',
+            background: 'none',
+            border: 'none',
+            color: 'var(--text-muted)',
+            fontSize: '1.2rem',
+            cursor: 'pointer',
+            padding: '4px',
+            lineHeight: 1,
+          }}
+          aria-label="Close"
         >
           ✕
         </button>
 
-        <div className="flex items-center gap-3 mb-6">
-          <div className="p-3 bg-teal-50 dark:bg-teal-900/30 rounded-xl text-teal-600 dark:text-teal-400 font-bold text-xl">
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '20px' }}>
+          <div
+            style={{
+              width: '44px',
+              height: '44px',
+              borderRadius: '12px',
+              background: 'rgba(2, 132, 199, 0.15)',
+              border: '1px solid rgba(2, 132, 199, 0.3)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '1.4rem',
+            }}
+          >
             🛡️
           </div>
           <div>
-            <h2 className="text-xl font-bold text-slate-900 dark:text-white">Multi-Factor Authentication (MFA / TOTP)</h2>
-            <p className="text-sm text-slate-500 dark:text-slate-400">RFC 6238 compliant authenticator security with offline backup recovery</p>
+            <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#ffffff', margin: 0 }}>
+              Multi-Factor Authentication (MFA / 2FA)
+
+            </h2>
+            <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: '4px 0 0' }}>
+              RFC 6238 compliant authenticator security with offline backup recovery
+            </p>
           </div>
         </div>
 
         {error && (
-          <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-xl text-sm text-red-600 dark:text-red-400 flex items-center gap-2">
+          <div
+            style={{
+              padding: '10px 14px',
+              background: 'rgba(239, 68, 68, 0.15)',
+              border: '1px solid #ef4444',
+              borderRadius: '8px',
+              color: '#fca5a5',
+              fontSize: '0.8125rem',
+              marginBottom: '16px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+            }}
+          >
             <span>⚠️</span>
             <span>{error}</span>
           </div>
         )}
 
         {successMsg && (
-          <div className="mb-4 p-3 bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-800 rounded-xl text-sm text-emerald-600 dark:text-emerald-400 flex items-center gap-2">
+          <div
+            style={{
+              padding: '10px 14px',
+              background: 'rgba(16, 185, 129, 0.15)',
+              border: '1px solid #10b981',
+              borderRadius: '8px',
+              color: '#6ee7b7',
+              fontSize: '0.8125rem',
+              marginBottom: '16px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+            }}
+          >
             <span>✅</span>
             <span>{successMsg}</span>
           </div>
         )}
 
-        {/* Current MFA Status */}
+        {/* Status Display */}
         {status && !setupData && (
-          <div className="space-y-6">
-            <div className="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-200 dark:border-slate-700 flex items-center justify-between">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+            <div
+              style={{
+                padding: '16px',
+                background: 'rgba(255, 255, 255, 0.03)',
+                border: '1px solid var(--border-color)',
+                borderRadius: '10px',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+              }}
+            >
               <div>
-                <span className="text-xs uppercase tracking-wider font-semibold text-slate-400">Status</span>
-                <div className="flex items-center gap-2 mt-1">
-                  <span className={`inline-block w-2.5 h-2.5 rounded-full ${status.is_enabled ? 'bg-emerald-500' : 'bg-amber-500'}`} />
-                  <span className="font-medium text-slate-900 dark:text-white">
-                    {status.is_enabled ? 'Active & Enforced' : 'Not Configured'}
-                  </span>
+                <span style={{ fontSize: '0.7rem', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 600 }}>
+                  Status
+                </span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
+                  <span
+                    style={{
+                      width: '10px',
+                      height: '10px',
+                      borderRadius: '50%',
+                      background: status.is_enabled ? '#10b981' : '#f59e0b',
+                      display: 'inline-block',
+                    }}
+                  />
+                  <strong style={{ fontSize: '0.95rem', color: status.is_enabled ? '#34d399' : '#fbbf24' }}>
+                    {status.is_enabled ? 'Enabled' : 'Not configured'}
+                  </strong>
                 </div>
               </div>
+
               {status.is_enabled && (
-                <div className="text-right">
-                  <span className="text-xs uppercase tracking-wider font-semibold text-slate-400">Backup Codes</span>
-                  <div className="font-semibold text-slate-900 dark:text-white mt-1">
-                    {status.backup_codes_remaining} remaining
+                <div style={{ textAlign: 'right' }}>
+                  <span style={{ fontSize: '0.7rem', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 600 }}>
+                    Authenticator
+                  </span>
+                  <div style={{ fontSize: '0.85rem', color: '#38bdf8', fontWeight: 600, marginTop: '4px' }}>
+                    Configured ({status.backup_codes_remaining} backup codes)
                   </div>
                 </div>
               )}
             </div>
 
             {!status.is_enabled ? (
-              <div className="text-center py-4">
-                <p className="text-sm text-slate-600 dark:text-slate-300 mb-4">
-                  Add an extra layer of security to your clinical account using Google Authenticator, Authy, or 1Password.
+              <div style={{ textAlign: 'center', padding: '12px 0' }}>
+                <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '18px', lineHeight: 1.5 }}>
+                  Add an extra layer of security to your clinical account using an authenticator app (Google Authenticator, Authy, Microsoft Authenticator, or 1Password).
                 </p>
                 <button
                   onClick={handleStartSetup}
                   disabled={loading}
-                  className="px-6 py-2.5 bg-teal-600 hover:bg-teal-700 text-white font-medium rounded-xl shadow-sm transition inline-flex items-center gap-2"
+                  className="btn btn-primary"
+                  style={{ width: '100%', padding: '12px', fontSize: '0.9rem', fontWeight: 600 }}
+                  data-testid="btn-start-mfa-setup"
                 >
-                  <span>🔑</span>
-                  {loading ? 'Initializing...' : 'Set Up Two-Factor Authentication'}
+                  🔑 {loading ? 'Initializing...' : 'Set Up Two-Factor Authentication'}
                 </button>
               </div>
             ) : (
-              <form onSubmit={handleDisableMFA} className="p-4 border border-red-100 dark:border-red-900/40 bg-red-50/50 dark:bg-red-900/10 rounded-xl space-y-3">
-                <h4 className="text-sm font-semibold text-red-900 dark:text-red-300">Disable Two-Factor Authentication</h4>
-                <p className="text-xs text-red-700 dark:text-red-400">
-                  Enter your current 6-digit authenticator code or emergency backup recovery code to disable MFA.
+              <div style={{ padding: '16px', background: 'rgba(239, 68, 68, 0.06)', border: '1px solid rgba(239, 68, 68, 0.25)', borderRadius: '10px' }}>
+                <h4 style={{ fontSize: '0.9rem', fontWeight: 600, color: '#f87171', margin: '0 0 6px' }}>
+                  Disable Two-Factor Authentication
+                </h4>
+                <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '12px' }}>
+                  Enter your current 6-digit authenticator code or emergency backup recovery code to deactivate MFA.
                 </p>
-                <div className="flex gap-2">
+                <form onSubmit={handleDisableMFA} style={{ display: 'flex', gap: '8px' }}>
                   <input
                     type="text"
-                    placeholder="6-digit code or backup code"
+                    placeholder="6-digit TOTP or backup code"
                     value={disableCode}
                     onChange={(e) => setDisableCode(e.target.value)}
-                    className="flex-1 px-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 text-slate-900 dark:text-white"
+                    className="form-input"
+                    style={{ flex: 1, fontSize: '0.85rem' }}
                   />
                   <button
                     type="submit"
                     disabled={loading || !disableCode.trim()}
-                    className="px-4 py-2 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white text-sm font-medium rounded-lg transition"
+                    className="btn btn-danger"
+                    style={{ fontSize: '0.85rem', padding: '8px 16px' }}
                   >
-                    Disable
+                    Disable MFA
                   </button>
-                </div>
-              </form>
+                </form>
+              </div>
             )}
           </div>
         )}
 
-        {/* Setup Wizard */}
+        {/* Setup Flow */}
         {setupData && (
-          <div className="space-y-6">
-            <div className="space-y-2">
-              <h3 className="text-base font-semibold text-slate-900 dark:text-white">1. Authenticator Secret Key</h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                Enter the following base32 secret manually in your authenticator application:
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+            <div style={{ padding: '14px', background: 'rgba(2, 132, 199, 0.08)', border: '1px solid rgba(2, 132, 199, 0.25)', borderRadius: '10px' }}>
+              <h3 style={{ fontSize: '0.9rem', fontWeight: 600, color: '#38bdf8', marginBottom: '8px' }}>
+                1. Add Account to Authenticator App
+              </h3>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '10px' }}>
+                Scan or enter this manual secret key in your authenticator app:
               </p>
-              <div className="flex items-center justify-between p-3 bg-slate-100 dark:bg-slate-900 rounded-lg font-mono text-sm tracking-wider text-slate-800 dark:text-slate-200">
-                <span>{setupData.secret}</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <code
+                  style={{
+                    flex: 1,
+                    padding: '8px 12px',
+                    background: '#090d16',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: '6px',
+                    color: '#34d399',
+                    fontFamily: 'monospace',
+                    fontSize: '0.85rem',
+                    letterSpacing: '0.05em',
+                  }}
+                >
+                  {setupData.secret}
+                </code>
                 <button
                   type="button"
                   onClick={() => copyToClipboard(setupData.secret)}
-                  className="p-1 text-slate-500 hover:text-teal-600 dark:hover:text-teal-400 text-xs font-semibold"
-                  title="Copy secret"
+                  className="btn btn-secondary btn-sm"
+                  style={{ fontSize: '0.75rem', padding: '8px 12px' }}
                 >
-                  📋 Copy
+                  {copiedSecret ? 'Copied! ✓' : 'Copy'}
                 </button>
-              </div>
-              {copiedSecret && <span className="text-xs text-emerald-500">Secret copied to clipboard!</span>}
-            </div>
-
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <h3 className="text-base font-semibold text-slate-900 dark:text-white">2. Emergency Backup Recovery Codes</h3>
-                <button
-                  type="button"
-                  onClick={() => downloadBackupCodes(setupData.backup_codes)}
-                  className="text-xs text-teal-600 dark:text-teal-400 hover:underline flex items-center gap-1"
-                >
-                  📥 Download All
-                </button>
-              </div>
-              <div className="grid grid-cols-2 gap-2 p-3 bg-slate-50 dark:bg-slate-900/60 rounded-lg border border-slate-200 dark:border-slate-700 font-mono text-xs text-slate-700 dark:text-slate-300">
-                {setupData.backup_codes.map((code, idx) => (
-                  <div key={idx} className="flex justify-between py-0.5 px-2 bg-white dark:bg-slate-800 rounded">
-                    <span className="text-slate-400">#{idx + 1}</span>
-                    <span className="font-bold">{code}</span>
-                  </div>
-                ))}
               </div>
             </div>
 
-            <form onSubmit={handleEnableMFA} className="space-y-3 pt-2">
-              <h3 className="text-base font-semibold text-slate-900 dark:text-white">3. Confirm 6-Digit Code</h3>
-              <div className="flex gap-2">
+            {setupData.backup_codes && setupData.backup_codes.length > 0 && (
+              <div style={{ padding: '14px', background: 'rgba(245, 158, 11, 0.08)', border: '1px solid rgba(245, 158, 11, 0.25)', borderRadius: '10px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <h3 style={{ fontSize: '0.9rem', fontWeight: 600, color: '#fbbf24', margin: 0 }}>
+                    2. Emergency Backup Recovery Codes
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={() => downloadBackupCodes(setupData.backup_codes)}
+                    className="btn btn-secondary btn-sm"
+                    style={{ fontSize: '0.7rem', padding: '4px 8px' }}
+                  >
+                    💾 Download
+                  </button>
+                </div>
+                <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '8px' }}>
+                  Save these single-use codes offline in case you lose access to your authenticator device:
+                </p>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px', background: '#090d16', padding: '8px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
+                  {setupData.backup_codes.map((code, idx) => (
+                    <code key={idx} style={{ fontSize: '0.75rem', color: '#f8fafc', fontFamily: 'monospace' }}>
+                      {idx + 1}. {code}
+                    </code>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Verification Form */}
+            <form onSubmit={handleEnableMFA} style={{ padding: '14px', background: 'rgba(255, 255, 255, 0.03)', border: '1px solid var(--border-color)', borderRadius: '10px' }}>
+              <h3 style={{ fontSize: '0.9rem', fontWeight: 600, color: '#ffffff', marginBottom: '8px' }}>
+                3. Verify Authenticator Code
+              </h3>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '12px' }}>
+                Enter the 6-digit code currently generated by your authenticator app to confirm setup:
+              </p>
+              <div style={{ display: 'flex', gap: '8px' }}>
                 <input
                   type="text"
                   maxLength={6}
-                  placeholder="000000"
+                  placeholder="e.g. 123456"
                   value={verifyCode}
                   onChange={(e) => setVerifyCode(e.target.value.replace(/\D/g, ''))}
-                  className="flex-1 px-4 py-2.5 text-center font-mono text-lg tracking-widest bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 text-slate-900 dark:text-white"
+                  className="form-input"
+                  style={{ flex: 1, fontSize: '1rem', letterSpacing: '0.2em', textAlign: 'center', fontWeight: 700 }}
+                  required
                 />
                 <button
                   type="submit"
-                  disabled={loading || verifyCode.length !== 6}
-                  className="px-6 py-2.5 bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white font-medium rounded-xl transition"
+                  disabled={loading || verifyCode.trim().length !== 6}
+                  className="btn btn-primary"
+                  style={{ padding: '8px 20px', fontWeight: 600 }}
                 >
-                  Verify & Activate
+                  {loading ? 'Activating...' : 'Activate MFA'}
                 </button>
               </div>
             </form>
+
+            <div style={{ textAlign: 'right' }}>
+              <button
+                type="button"
+                onClick={() => setSetupData(null)}
+                className="btn btn-secondary btn-sm"
+              >
+                Cancel Setup
+              </button>
+            </div>
           </div>
         )}
       </div>

@@ -1,12 +1,20 @@
+import secrets
 from typing import Union
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import select, or_
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_active_user, require_role
+from app.core.security import get_password_hash
 from app.database import get_db
+from app.models.appointment import Appointment
+from app.models.doctor import Doctor
+from app.models.encounter import Encounter
 from app.models.user import User
 from app.schemas.doctor import (
     ConsultationMode,
+    DoctorAdminCreate,
+    DoctorAdminProvisionResponse,
     DoctorAdminUpdate,
     DoctorAvailabilityStatus,
     DoctorCreate,
@@ -19,11 +27,14 @@ from app.schemas.doctor import (
     DoctorVerifyRequest,
 )
 from app.schemas.user import UserRole
+from app.services.audit_service import AuditService
 from app.services.doctor_service import (
     activate_doctor,
     create_doctor,
     deactivate_doctor,
+    generate_unique_doctor_id,
     get_doctor_by_doctor_id,
+    get_doctor_by_registration_number,
     get_doctor_by_user_id,
     list_doctors,
     reject_doctor,
@@ -32,6 +43,113 @@ from app.services.doctor_service import (
 )
 
 router = APIRouter(tags=["Doctor Management"])
+
+
+@router.post(
+    "/doctors/admin-provision",
+    response_model=DoctorAdminProvisionResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Admin provision a new doctor and create associated user credentials",
+)
+def admin_provision_doctor(
+    doctor_in: DoctorAdminCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(UserRole.ADMIN)),
+) -> DoctorAdminProvisionResponse:
+    """Admin-only: atomically provision a doctor staff profile and user login."""
+    email_clean = doctor_in.email.strip().lower()
+
+    # 1. Check existing user account
+    user = db.query(User).filter(User.email == email_clean).first()
+    temp_pwd: str | None = None
+
+    if user:
+        if user.role != UserRole.DOCTOR:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"An account with email '{email_clean}' already exists with role '{user.role.value}'.",
+            )
+        existing_doc = get_doctor_by_user_id(db, user_id=user.id)
+        if existing_doc:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"A doctor profile already exists for {email_clean} ({existing_doc.doctor_id}).",
+            )
+        user.is_active = True
+        user.name = doctor_in.full_name.strip()
+    else:
+        # Create user account securely with temporary password
+        if doctor_in.temporary_password and len(doctor_in.temporary_password.strip()) >= 8:
+            temp_pwd = doctor_in.temporary_password.strip()
+        else:
+            temp_pwd = f"DocPass@{secrets.token_hex(4).upper()}!"
+
+        user = User(
+            email=email_clean,
+            name=doctor_in.full_name.strip(),
+            password_hash=get_password_hash(temp_pwd),
+            role=UserRole.DOCTOR,
+            is_active=True,
+        )
+        db.add(user)
+        db.flush()
+
+    # 2. Check registration number uniqueness
+    existing_reg = get_doctor_by_registration_number(db, doctor_in.medical_registration_number)
+    if existing_reg:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Medical license/registration number '{doctor_in.medical_registration_number}' is already registered.",
+        )
+
+    # 3. Create Doctor Profile
+    doctor_id = generate_unique_doctor_id(db)
+    db_doctor = Doctor(
+        doctor_id=doctor_id,
+        user_id=user.id,
+        full_name=doctor_in.full_name.strip(),
+        professional_title=doctor_in.professional_title.strip() if doctor_in.professional_title else "Dr.",
+        department=doctor_in.department.strip() if doctor_in.department else "General Medicine",
+        specialization=doctor_in.specialization.strip(),
+        qualifications=doctor_in.qualifications.strip() if doctor_in.qualifications else None,
+        medical_degree=doctor_in.medical_degree.strip() if doctor_in.medical_degree else None,
+        medical_registration_number=doctor_in.medical_registration_number.strip(),
+        years_of_experience=doctor_in.years_of_experience,
+        email=email_clean,
+        phone=doctor_in.phone.strip() if doctor_in.phone else None,
+        clinic_hospital_name=doctor_in.clinic_hospital_name.strip() if doctor_in.clinic_hospital_name else None,
+        consultation_location=doctor_in.consultation_location.strip() if doctor_in.consultation_location else None,
+        consultation_mode=doctor_in.consultation_mode,
+        professional_bio=doctor_in.professional_bio.strip() if doctor_in.professional_bio else None,
+        verification_status=DoctorVerificationStatus.VERIFIED,
+        availability_status=DoctorAvailabilityStatus.AVAILABLE,
+    )
+    db.add(db_doctor)
+    db.commit()
+    db.refresh(db_doctor)
+
+    # 4. Audit Log
+    AuditService().emit_audit_event(
+        db=db,
+        action="CREATE_DOCTOR",
+        resource_type="Doctor",
+        resource_id=db_doctor.doctor_id,
+        user_id=current_user.id,
+        user_role=current_user.role.value,
+        outcome="SUCCESS",
+        metadata={
+            "created_doctor_id": db_doctor.doctor_id,
+            "email": email_clean,
+            "department": db_doctor.department,
+            "specialization": db_doctor.specialization,
+        },
+    )
+
+    return DoctorAdminProvisionResponse(
+        doctor=DoctorDetailResponse.model_validate(db_doctor),
+        temporary_password=temp_pwd,
+        message="Doctor account created successfully.",
+    )
 
 
 @router.post(
@@ -64,6 +182,7 @@ def register_doctor_profile(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(exc),
         ) from exc
+
 
 
 @router.get(
@@ -251,21 +370,84 @@ def update_doctor_profile(
     "/doctors/{doctor_id}",
     response_model=DoctorDetailResponse,
     status_code=status.HTTP_200_OK,
-    summary="Deactivate a doctor profile",
+    summary="Deactivate or safely remove a doctor profile",
 )
-def deactivate_doctor_profile(
+def deactivate_or_delete_doctor_profile(
     doctor_id: str,
+    permanent: bool = Query(False, description="Permanent deletion only permitted if no clinical history exists"),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role(UserRole.ADMIN)),
 ) -> DoctorDetailResponse:
-    """Soft deactivate a doctor profile (Admin only)."""
+    """Admin-only: Soft-deactivate a doctor profile or permanently delete if zero clinical history."""
     doctor = get_doctor_by_doctor_id(db, doctor_id=doctor_id)
     if not doctor:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Doctor with identifier '{doctor_id}' was not found.",
         )
+
+    if permanent:
+        # Check if doctor has clinical appointments or encounters
+        has_appointments = (
+            db.query(Appointment)
+            .filter(or_(Appointment.doctor_id == doctor.doctor_id, Appointment.doctor_id == str(doctor.id)))
+            .count()
+            > 0
+        )
+        has_encounters = (
+            db.query(Encounter)
+            .filter(or_(Encounter.doctor_id == doctor.doctor_id, Encounter.doctor_id == str(doctor.id)))
+            .count()
+            > 0
+        )
+
+        if has_appointments or has_encounters:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Doctor has existing clinical records (appointments/encounters) and cannot be permanently deleted. Deactivation has been applied instead.",
+            )
+
+        user_id = doctor.user_id
+        res_dto = DoctorDetailResponse.model_validate(doctor)
+        db.delete(doctor)
+        db.commit()
+
+        if user_id:
+            user = db.query(User).filter(User.id == user_id).first()
+            if user:
+                user.is_active = False
+                db.commit()
+
+        AuditService().emit_audit_event(
+            db=db,
+            action="DELETE_DOCTOR",
+            resource_type="Doctor",
+            resource_id=doctor_id,
+            user_id=current_user.id,
+            user_role=current_user.role.value,
+            outcome="SUCCESS",
+            metadata={"deleted_doctor_id": doctor_id, "permanent": True},
+        )
+        return res_dto
+
+    # Default: Soft deactivation
     deactivated = deactivate_doctor(db, doctor=doctor)
+    if doctor.user_id:
+        user = db.query(User).filter(User.id == doctor.user_id).first()
+        if user:
+            user.is_active = False
+            db.commit()
+
+    AuditService().emit_audit_event(
+        db=db,
+        action="DEACTIVATE_DOCTOR",
+        resource_type="Doctor",
+        resource_id=doctor_id,
+        user_id=current_user.id,
+        user_role=current_user.role.value,
+        outcome="SUCCESS",
+        metadata={"deactivated_doctor_id": doctor_id},
+    )
     return DoctorDetailResponse.model_validate(deactivated)
 
 
@@ -289,6 +471,22 @@ def verify_doctor_profile(
             detail=f"Doctor with identifier '{doctor_id}' was not found.",
         )
     verified = verify_doctor(db, doctor=doctor, note=verify_in.note)
+    if doctor.user_id:
+        user = db.query(User).filter(User.id == doctor.user_id).first()
+        if user:
+            user.is_active = True
+            db.commit()
+
+    AuditService().emit_audit_event(
+        db=db,
+        action="VERIFY_DOCTOR",
+        resource_type="Doctor",
+        resource_id=doctor_id,
+        user_id=current_user.id,
+        user_role=current_user.role.value,
+        outcome="SUCCESS",
+        metadata={"verified_doctor_id": doctor_id},
+    )
     return DoctorDetailResponse.model_validate(verified)
 
 
@@ -312,6 +510,22 @@ def reject_doctor_profile(
             detail=f"Doctor with identifier '{doctor_id}' was not found.",
         )
     rejected = reject_doctor(db, doctor=doctor, reason=reject_in.rejection_reason)
+    if doctor.user_id:
+        user = db.query(User).filter(User.id == doctor.user_id).first()
+        if user:
+            user.is_active = False
+            db.commit()
+
+    AuditService().emit_audit_event(
+        db=db,
+        action="REJECT_DOCTOR",
+        resource_type="Doctor",
+        resource_id=doctor_id,
+        user_id=current_user.id,
+        user_role=current_user.role.value,
+        outcome="SUCCESS",
+        metadata={"rejected_doctor_id": doctor_id, "reason": reject_in.rejection_reason},
+    )
     return DoctorDetailResponse.model_validate(rejected)
 
 
@@ -339,6 +553,22 @@ def activate_doctor_availability(
             detail="You do not have permission to modify this doctor's availability.",
         )
     activated = activate_doctor(db, doctor=doctor)
+    if doctor.user_id:
+        user = db.query(User).filter(User.id == doctor.user_id).first()
+        if user:
+            user.is_active = True
+            db.commit()
+
+    AuditService().emit_audit_event(
+        db=db,
+        action="ACTIVATE_DOCTOR",
+        resource_type="Doctor",
+        resource_id=doctor_id,
+        user_id=current_user.id,
+        user_role=current_user.role.value,
+        outcome="SUCCESS",
+        metadata={"activated_doctor_id": doctor_id},
+    )
     return DoctorDetailResponse.model_validate(activated)
 
 
@@ -366,4 +596,21 @@ def set_doctor_unavailable(
             detail="You do not have permission to modify this doctor's availability.",
         )
     deactivated = deactivate_doctor(db, doctor=doctor)
+    if current_user.role == UserRole.ADMIN and doctor.user_id:
+        user = db.query(User).filter(User.id == doctor.user_id).first()
+        if user:
+            user.is_active = False
+            db.commit()
+
+    AuditService().emit_audit_event(
+        db=db,
+        action="DEACTIVATE_DOCTOR",
+        resource_type="Doctor",
+        resource_id=doctor_id,
+        user_id=current_user.id,
+        user_role=current_user.role.value,
+        outcome="SUCCESS",
+        metadata={"deactivated_doctor_id": doctor_id},
+    )
     return DoctorDetailResponse.model_validate(deactivated)
+

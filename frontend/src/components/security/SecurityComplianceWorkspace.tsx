@@ -95,11 +95,12 @@ export const SecurityComplianceWorkspace: React.FC<SecurityComplianceWorkspacePr
         page,
         page_size: 20,
       });
-      setAuditEvents(res.events);
-      setAuditTotal(res.total_count);
-      setAuditPage(res.page);
+      setAuditEvents(Array.isArray(res?.events) ? res.events : (Array.isArray(res) ? res : []));
+      setAuditTotal(res?.total_count ?? (Array.isArray(res) ? res.length : 0));
+      setAuditPage(res?.page ?? page);
     } catch (err: any) {
       console.error('Failed to load audit events:', err);
+      setAuditEvents([]);
     } finally {
       setLoading(false);
     }
@@ -111,9 +112,10 @@ export const SecurityComplianceWorkspace: React.FC<SecurityComplianceWorkspacePr
     try {
       setLoading(true);
       const res = await securityApi.getPatientConsents(selectedPatient.patient_id);
-      setPatientConsents(res);
+      setPatientConsents(Array.isArray(res) ? res : ((res as any)?.items || []));
     } catch (err: any) {
       console.error('Failed to load patient consents:', err);
+      setPatientConsents([]);
     } finally {
       setLoading(false);
     }
@@ -124,9 +126,10 @@ export const SecurityComplianceWorkspace: React.FC<SecurityComplianceWorkspacePr
     try {
       setLoading(true);
       const res = await securityApi.listIncidents();
-      setIncidents(res);
+      setIncidents(Array.isArray(res) ? res : ((res as any)?.items || []));
     } catch (err: any) {
       console.error('Failed to load incidents:', err);
+      setIncidents([]);
     } finally {
       setLoading(false);
     }
@@ -140,10 +143,12 @@ export const SecurityComplianceWorkspace: React.FC<SecurityComplianceWorkspacePr
         securityApi.getRetentionPolicies(),
         securityApi.listLegalHolds(),
       ]);
-      setRetentionPolicies(policies);
-      setLegalHolds(holds);
+      setRetentionPolicies(Array.isArray(policies) ? policies : ((policies as any)?.items || []));
+      setLegalHolds(Array.isArray(holds) ? holds : ((holds as any)?.items || []));
     } catch (err: any) {
       console.error('Failed to load governance data:', err);
+      setRetentionPolicies([]);
+      setLegalHolds([]);
     } finally {
       setLoading(false);
     }
